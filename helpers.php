@@ -896,7 +896,23 @@ function groupDealsByMonth($deals, $year)
 {
     $monthMap = array();
     foreach ($deals as $d) {
-        $dt = new \DateTime($d['CLOSEDATE']);
+        $dateStr = $d['CLOSEDATE'] ?? '';
+
+        if (empty($dateStr)) {
+            continue;
+        }
+
+        // Try standard format first
+        try {
+            $dt = new \DateTime($dateStr);
+        } catch (\Exception $e) {
+            // Fallback for format like: 14/02/2026 01:30:00 am
+            $dt = \DateTime::createFromFormat('d/m/Y h:i:s a', strtolower($dateStr));
+            if (!$dt) {
+                continue; // skip invalid date
+            }
+        }
+
         if ((int)$dt->format('Y') !== (int)$year) {
             continue;
         }
@@ -1017,7 +1033,23 @@ function buildSalesByDealType($deals, $year)
     }
 
     foreach ($deals as $d) {
-        $dt = new \DateTime($d['CLOSEDATE']);
+        $dateStr = $d['CLOSEDATE'] ?? '';
+
+        if (empty($dateStr)) {
+            continue;
+        }
+
+        // Try standard format first
+        try {
+            $dt = new \DateTime($dateStr);
+        } catch (\Exception $e) {
+            // Fallback for format like: 14/02/2026 01:30:00 am
+            $dt = \DateTime::createFromFormat('d/m/Y h:i:s a', strtolower($dateStr));
+            if (!$dt) {
+                continue; // skip invalid date
+            }
+        }
+
         if ((int)$dt->format('Y') !== (int)$year) {
             continue;
         }
