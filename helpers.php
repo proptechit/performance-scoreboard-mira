@@ -89,19 +89,31 @@ function buildDateRange($year, $quarter, $month)
         'Q4' => array(10, 12),
     );
 
+    $today = date('Y-m-d');
+    $currentYear = (int)date('Y');
+
     if ($year === 'All' || !is_numeric($year)) {
-        return array('from' => '2020-01-01', 'to' => date('Y-12-31'));
+        return array('from' => '2020-01-01', 'to' => $today);
     }
 
     $y = (int)$year;
+    $capToToday = function ($from, $to) use ($y, $today, $currentYear) {
+        if ($y !== $currentYear) {
+            return array('from' => $from, 'to' => $to);
+        }
+        if ($to > $today) {
+            $to = $today;
+        }
+        return array('from' => $from, 'to' => $to);
+    };
 
     // Specific month
     if ($month !== 'All' && isset($monthNames[$month])) {
         $m      = $monthNames[$month];
         $lastDay = date('t', mktime(0, 0, 0, $m, 1, $y));
-        return array(
-            'from' => sprintf('%04d-%02d-01', $y, $m),
-            'to'   => sprintf('%04d-%02d-%02d', $y, $m, $lastDay),
+        return $capToToday(
+            sprintf('%04d-%02d-01', $y, $m),
+            sprintf('%04d-%02d-%02d', $y, $m, $lastDay)
         );
     }
 
@@ -109,16 +121,16 @@ function buildDateRange($year, $quarter, $month)
     if ($quarter !== 'All' && isset($quarterMap[$quarter])) {
         $qm = $quarterMap[$quarter];
         $lastDay = date('t', mktime(0, 0, 0, $qm[1], 1, $y));
-        return array(
-            'from' => sprintf('%04d-%02d-01', $y, $qm[0]),
-            'to'   => sprintf('%04d-%02d-%02d', $y, $qm[1], $lastDay),
+        return $capToToday(
+            sprintf('%04d-%02d-01', $y, $qm[0]),
+            sprintf('%04d-%02d-%02d', $y, $qm[1], $lastDay)
         );
     }
 
     // Full year
-    return array(
-        'from' => $y . '-01-01',
-        'to'   => $y . '-12-31',
+    return $capToToday(
+        $y . '-01-01',
+        $y . '-12-31'
     );
 }
 
