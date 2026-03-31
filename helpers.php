@@ -805,11 +805,23 @@ function daysSinceLastDeal($agentIds)
     ");
 
     if (empty($row['last_date'])) {
-        return 999;  // Never closed a deal
+        return 999;
     }
 
-    $lastDate = new \DateTime($row['last_date']);
-    $now      = new \DateTime();
+    $dateStr = $row['last_date'];
+
+    // ✅ Robust parsing
+    try {
+        $lastDate = new \DateTime($dateStr);
+    } catch (\Exception $e) {
+        $lastDate = \DateTime::createFromFormat('d/m/Y h:i:s a', strtolower($dateStr));
+        if (!$lastDate) {
+            return 999;
+        }
+    }
+
+    $now = new \DateTime();
+
     return (int)$lastDate->diff($now)->days;
 }
 
