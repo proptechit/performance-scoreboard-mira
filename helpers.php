@@ -457,7 +457,6 @@ function fetchWonDeals($agentIds, $dateRange, $dealType = 'All')
 
         WHERE d.CATEGORY_ID = {$catId}
           AND d.STAGE_ID    = '{$stageWon}'
-          AND d.DELETED     = 'N'
           AND DATE(d.CLOSEDATE) >= '{$from}'
           AND DATE(d.CLOSEDATE) <= '{$to}'
           {$agentFilter}
@@ -480,7 +479,6 @@ function fetchCommittedDeals($agentIds, $dateRange, $dealType = 'All')
 
     $fAmount = FIELD_DEAL_AMOUNT;
     $fComm   = FIELD_COMMISSION;
-    $fType   = FIELD_PROPERTY_TYPE;
 
     $agentFilter = '';
     if (!empty($agentIds)) {
@@ -505,7 +503,6 @@ function fetchCommittedDeals($agentIds, $dateRange, $dealType = 'All')
         WHERE d.CATEGORY_ID = {$catId}
           AND d.STAGE_ID   != '{$stageWon}'
           AND d.STAGE_ID   != '{$stageLose}'
-          AND d.DELETED     = 'N'
           AND DATE(d.DATE_CREATE) >= '{$from}'
           AND DATE(d.DATE_CREATE) <= '{$to}'
           {$agentFilter}
