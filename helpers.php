@@ -469,6 +469,35 @@ function fullName($row)
     return trim($row['NAME'] . ' ' . $row['LAST_NAME']);
 }
 
+function parseReportDate($dateStr)
+{
+    if (empty($dateStr)) {
+        return null;
+    }
+
+    try {
+        return new \DateTime($dateStr);
+    } catch (\Exception $e) {
+        $fallback = \DateTime::createFromFormat('d/m/Y h:i:s a', strtolower($dateStr));
+        return $fallback ?: null;
+    }
+}
+
+function filterDealsByReportDateRange($deals, $dateRange, $primaryField = 'DATE_CREATE')
+{
+    $from = new \DateTime($dateRange['from']);
+    $to   = new \DateTime($dateRange['to'] . ' 23:59:59');
+
+    return array_values(array_filter($deals, function ($deal) use ($primaryField, $from, $to) {
+        $dateStr = $deal[$primaryField] ?? ($deal['CLOSEDATE'] ?? '');
+        $dt = parseReportDate($dateStr);
+        if (!$dt) {
+            return false;
+        }
+        return $dt >= $from && $dt <= $to;
+    }));
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // 4. DEAL QUERIES  (Transactions pipeline = PIPELINE_TRANSACTION = 3)
 // ═══════════════════════════════════════════════════════════════════════════
@@ -553,7 +582,7 @@ function fetchAllDeals($agentIds, $dateRange, $dealType = 'All')
 
     $typeFilter = buildPropertyTypeFilter($dealType, 'uts');
 
-    return dbQuery("
+    $rows = dbQuery("
         SELECT
             d.ID,
             d.ASSIGNED_BY_ID,
@@ -579,6 +608,8 @@ function fetchAllDeals($agentIds, $dateRange, $dealType = 'All')
 
         ORDER BY d.DATE_CREATE ASC
     ");
+
+    return filterDealsByReportDateRange($rows, $dateRange, 'DATE_CREATE');
 }
 
 /**
