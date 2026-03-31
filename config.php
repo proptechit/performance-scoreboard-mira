@@ -280,4 +280,4 @@ $GLOBALS['CFG_FILTER_META'] = array(
 // ═══════════════════════════════════════════════════════════════════════════
 // 14. BITRIX ROOT PATH  (for bootstrapping)
 // ═══════════════════════════════════════════════════════════════════════════
-define('BX_ROOT', realpath($_SERVER['DOCUMENT_ROOT']));
+// define('BX_ROOT', realpath($_SERVER['DOCUMENT_ROOT']));
