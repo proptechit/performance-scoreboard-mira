@@ -278,4 +278,4 @@ $GLOBALS['CFG_FILTER_META'] = array(
 // ═══════════════════════════════════════════════════════════════════════════
 // 14. BITRIX ROOT PATH  (for bootstrapping)
 // ═══════════════════════════════════════════════════════════════════════════
-define('BX_ROOT', '/home/bitrix/www');  // Adjust if your Bitrix root differs
+define('BX_ROOT', $_SERVER['DOCUMENT_ROOT']);  // Adjust if your Bitrix root differs
