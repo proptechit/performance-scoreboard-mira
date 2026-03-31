@@ -69,7 +69,7 @@ $GLOBALS['CFG_LEAD_ACTIVE_STAGES_SECONDARY'] = array(
 // 3. CUSTOM FIELD NAMES  (b_crm_deal table columns)
 // ═══════════════════════════════════════════════════════════════════════════
 define('FIELD_DEAL_AMOUNT',       'OPPORTUNITY');              // Sale price (AED)
-define('FIELD_COMMISSION',        'UF_CRM_1762418785');        // Gross commission
+define('FIELD_COMMISSION',        'UF_CRM_1770280159');        // Gross commission
 define('FIELD_DEVELOPER',         'UF_CRM_1773307643');        // Developer (enum)
 define('FIELD_PROPERTY_TYPE',     'UF_CRM_1766811061237');     // Offplan/Secondary/Rental (enum)
 define('FIELD_MANAGER_ID',        'UF_CRM_1766937679');        // Manager's Bitrix user ID
