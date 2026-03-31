@@ -26,12 +26,12 @@
             <span class="brand-title">Performance Scorecard</span>
         </div>
 
-        <div class="header-right">
+        <!-- <div class="header-right">
             <div class="role-badge">
                 <div class="role-avatar" id="roleAvatar">C</div>
                 <span class="role-badge-text" id="roleLabel">CEO</span>
             </div>
-        </div>
+        </div> -->
     </header>
 
     <!-- ── FILTER BAR ──────────────────────────────────────────────────────────── -->
