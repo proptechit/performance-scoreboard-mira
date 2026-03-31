@@ -637,7 +637,6 @@ function countActiveListings($agentIds)
             SUM(CASE WHEN l.{$typeField} != {$saleValue} OR l.{$typeField} IS NULL THEN 1 ELSE 0 END) AS rent_count
         FROM {$table} l
         WHERE l.STAGE_ID = '{$stage}'
-          AND l.DELETED  = 'N'
           {$agentFilter}
     ");
 
@@ -657,13 +656,12 @@ function countTotalListings($agentIds)
 
     $agentFilter = '';
     if (!empty($agentIds)) {
-        $agentFilter = 'AND l.ASSIGNED_BY_ID IN ' . inClauseInt($agentIds);
+        $agentFilter = 'WHERE l.ASSIGNED_BY_ID IN ' . inClauseInt($agentIds);
     }
 
     $row = dbQueryOne("
         SELECT COUNT(*) AS cnt
         FROM {$table} l
-        WHERE l.DELETED = 'N'
           {$agentFilter}
     ");
     return (int)($row['cnt'] ?? 0);
