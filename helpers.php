@@ -22,7 +22,11 @@
  */
 function bx_boot()
 {
-    $prolog = BX_ROOT . '/bitrix/modules/main/include/prolog_before.php';
+    if (empty($_SERVER["DOCUMENT_ROOT"])) {
+        $_SERVER["DOCUMENT_ROOT"] = realpath(__DIR__ . '/../../');
+    }
+
+    $prolog = $_SERVER["DOCUMENT_ROOT"] . '/bitrix/modules/main/include/prolog_before.php';
     if (!file_exists($prolog)) {
         http_response_code(500);
         echo json_encode(array('error' => 'Bitrix root not found. Check BX_ROOT in config.php'));
@@ -34,6 +38,8 @@ function bx_boot()
     define('NO_AGENT_CHECK', true);
     define('BX_BUFFER_USED', true);
     define('BX_WITH_ON_AFTER_EPILOG', false);
+
+    echo $_SERVER["DOCUMENT_ROOT"];
 
     require_once($prolog);
 
