@@ -242,7 +242,7 @@ if ($role === 'agent') {
     // Per-agent rows — slice from already-fetched deals (no extra deal queries)
     $dealsByAgent = array();
     foreach ($wonDeals as $d) {
-        $rid = (int)$d['RESPONSIBLE_ID'];
+        $rid = (int)$d['ASSIGNED_BY_ID'];
         if (!isset($dealsByAgent[$rid])) {
             $dealsByAgent[$rid] = array();
         }
@@ -331,7 +331,7 @@ if ($role === 'agent') {
     // Pre-group deals by agent (single pass — avoids N queries)
     $dealsByAgent = array();
     foreach ($wonDeals as $d) {
-        $rid = (int)$d['RESPONSIBLE_ID'];
+        $rid = (int)$d['ASSIGNED_BY_ID'];
         if (!isset($dealsByAgent[$rid])) {
             $dealsByAgent[$rid] = array();
         }

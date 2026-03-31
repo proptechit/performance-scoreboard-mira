@@ -410,7 +410,7 @@ function fullName($row)
  * Applies optional deal_type (property type) filter.
  *
  * Returns raw DB rows. Each row has:
- *   ID, RESPONSIBLE_ID, CLOSEDATE, OPPORTUNITY (sale amount), commission field,
+ *   ID, ASSIGNED_BY_ID, CLOSEDATE, OPPORTUNITY (sale amount), commission field,
  *   developer field, property type field, manager ID field.
  *
  * @param  array  $agentIds    Bitrix user IDs to filter by (empty = all agents)
@@ -434,7 +434,7 @@ function fetchWonDeals($agentIds, $dateRange, $dealType = 'All')
     // Agent filter
     $agentFilter = '';
     if (!empty($agentIds)) {
-        $agentFilter = 'AND d.RESPONSIBLE_ID IN ' . inClauseInt($agentIds);
+        $agentFilter = 'AND d.ASSIGNED_BY_ID IN ' . inClauseInt($agentIds);
     }
 
     // Deal type / property type filter
@@ -443,7 +443,7 @@ function fetchWonDeals($agentIds, $dateRange, $dealType = 'All')
     return dbQuery("
         SELECT
             d.ID,
-            d.RESPONSIBLE_ID,
+            d.ASSIGNED_BY_ID,
             d.CLOSEDATE,
             d.{$fAmount}       AS sale_amount,
             d.{$fComm}         AS commission,
@@ -479,14 +479,14 @@ function fetchCommittedDeals($agentIds, $dateRange, $dealType = 'All')
 
     $agentFilter = '';
     if (!empty($agentIds)) {
-        $agentFilter = 'AND d.RESPONSIBLE_ID IN ' . inClauseInt($agentIds);
+        $agentFilter = 'AND d.ASSIGNED_BY_ID IN ' . inClauseInt($agentIds);
     }
     $typeFilter = buildPropertyTypeFilter($dealType, 'd');
 
     return dbQuery("
         SELECT
             d.ID,
-            d.RESPONSIBLE_ID,
+            d.ASSIGNED_BY_ID,
             d.DATE_CREATE,
             d.{$fAmount} AS sale_amount,
             d.{$fComm}   AS commission
@@ -546,7 +546,7 @@ function countActiveLeads($agentIds, $dateRange)
 
     $agentFilter = '';
     if (!empty($agentIds)) {
-        $agentFilter = 'AND d.RESPONSIBLE_ID IN ' . inClauseInt($agentIds);
+        $agentFilter = 'AND d.ASSIGNED_BY_ID IN ' . inClauseInt($agentIds);
     }
 
     // Exclude terminal stages across both pipelines
@@ -579,7 +579,7 @@ function countReshuffledLeads($agentIds, $dateRange)
 
     $agentFilter = '';
     if (!empty($agentIds)) {
-        $agentFilter = 'AND d.RESPONSIBLE_ID IN ' . inClauseInt($agentIds);
+        $agentFilter = 'AND d.ASSIGNED_BY_ID IN ' . inClauseInt($agentIds);
     }
 
     $excludeStages = array('C1:WON', 'C1:LOSE', 'C2:WON', 'C2:LOSE');
@@ -741,7 +741,7 @@ function daysSinceLastDeal($agentIds)
 
     $agentFilter = '';
     if (!empty($agentIds)) {
-        $agentFilter = 'AND d.RESPONSIBLE_ID IN ' . inClauseInt($agentIds);
+        $agentFilter = 'AND d.ASSIGNED_BY_ID IN ' . inClauseInt($agentIds);
     }
 
     $row = dbQueryOne("
@@ -779,7 +779,7 @@ function avgGapBetweenDeals($agentId, $dateRange)
         WHERE d.CATEGORY_ID   = {$catId}
           AND d.STAGE_ID      = '{$stageWon}'
           AND d.DELETED       = 'N'
-          AND d.RESPONSIBLE_ID = {$uid}
+          AND d.ASSIGNED_BY_ID = {$uid}
           AND DATE(d.CLOSEDATE) >= '{$from}'
           AND DATE(d.CLOSEDATE) <= '{$to}'
         ORDER BY d.CLOSEDATE ASC
@@ -817,12 +817,12 @@ function countNoDealIn60Days($agentIds)
 
     // Agents who DO have a recent deal
     $rows = dbQuery("
-        SELECT DISTINCT RESPONSIBLE_ID
+        SELECT DISTINCT ASSIGNED_BY_ID
         FROM b_crm_deal
         WHERE CATEGORY_ID    = {$catId}
           AND STAGE_ID       = '{$stageWon}'
           AND DELETED        = 'N'
-          AND RESPONSIBLE_ID IN {$inAgents}
+          AND ASSIGNED_BY_ID IN {$inAgents}
           AND DATE(CLOSEDATE) >= '{$cutoff}'
     ");
 
