@@ -29,11 +29,11 @@ function bx_boot()
         exit;
     }
 
-    define('NO_KEEP_STATISTIC', true);
-    define('NO_AGENT_STATISTIC', true);
-    define('NO_AGENT_CHECK', true);
-    define('BX_BUFFER_USED', true);
-    define('BX_WITH_ON_AFTER_EPILOG', false);
+    // define('NO_KEEP_STATISTIC', true);
+    // define('NO_AGENT_STATISTIC', true);
+    // define('NO_AGENT_CHECK', true);
+    // define('BX_BUFFER_USED', true);
+    // define('BX_WITH_ON_AFTER_EPILOG', false);
 
     require_once($prolog);
 
