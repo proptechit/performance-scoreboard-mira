@@ -1,409 +1,441 @@
 <?php
-header('Content-Type: application/json');
+
+/**
+ * data.php
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Performance Scorecard – Data Endpoint
+ * Mira International
+ *
+ * Responsibilities:
+ *   1. Boot Bitrix
+ *   2. Parse & validate GET params
+ *   3. Check cache (return immediately if hit)
+ *   4. Delegate ALL data fetching to helpers.php
+ *   5. Assemble the JSON response
+ *   6. Write to cache, then output JSON
+ *
+ * This file contains NO SQL, NO field names, NO IDs.
+ * All of those live in config.php and helpers.php.
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+
+// ── Output headers ──────────────────────────────────────────────────────────
+header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
 
-// ─── ROLE & FILTER PARAMS ─────────────────────────────────────────────────
-$role       = isset($_GET['role'])       ? $_GET['role']       : 'ceo';
-$agent_id   = isset($_GET['agent_id'])   ? (int)$_GET['agent_id']   : 1;
-$manager_id = isset($_GET['manager_id']) ? (int)$_GET['manager_id'] : 10;
-$year       = isset($_GET['year'])       ? $_GET['year']       : 'All';
-$quarter    = isset($_GET['quarter'])    ? $_GET['quarter']    : 'All';
-$month      = isset($_GET['month'])      ? $_GET['month']      : 'All';
-$deal_type  = isset($_GET['deal_type'])  ? $_GET['deal_type']  : 'All';
-$year1      = isset($_GET['year1'])      ? (int)$_GET['year1'] : 2024;
-$year2      = isset($_GET['year2'])      ? (int)$_GET['year2'] : 2025;
+// ── Load dependencies ───────────────────────────────────────────────────────
+require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/cache.php';
+require_once __DIR__ . '/helpers.php';
 
-// ─── FILTER META ──────────────────────────────────────────────────────────
-$filters = array(
-    "years"      => array(2023, 2024, 2025, 2026),
-    "quarters"   => array("Q1", "Q2", "Q3", "Q4"),
-    "months"     => array("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"),
-    "deal_types" => array("All", "Offplan", "Secondary", "Rental"),
-);
+// ── Boot Bitrix ──────────────────────────────────────────────────────────────
+bx_boot();
 
-// ─── AGENT ROSTER ─────────────────────────────────────────────────────────
-$agents = array(
-    1  => array("id" => 1,  "name" => "Ali Arikat",      "manager_id" => 10, "designation" => "Private Office Advisor", "joined" => "2018-11-25", "employee_no" => "40653"),
-    2  => array("id" => 2,  "name" => "Sara Mitchell",   "manager_id" => 10, "designation" => "Sales Associate",        "joined" => "2020-03-12", "employee_no" => "40701"),
-    3  => array("id" => 3,  "name" => "Rami Hassan",     "manager_id" => 10, "designation" => "Senior Consultant",      "joined" => "2019-07-01", "employee_no" => "40680"),
-    4  => array("id" => 4,  "name" => "Nadia Al-Farsi",  "manager_id" => 11, "designation" => "Sales Associate",        "joined" => "2021-01-15", "employee_no" => "40720"),
-    5  => array("id" => 5,  "name" => "James Thornton",  "manager_id" => 11, "designation" => "Senior Consultant",      "joined" => "2017-09-20", "employee_no" => "40610"),
-    6  => array("id" => 6,  "name" => "Priya Sharma",    "manager_id" => 11, "designation" => "Sales Associate",        "joined" => "2022-06-01", "employee_no" => "40745"),
-    7  => array("id" => 7,  "name" => "Omar Khalil",     "manager_id" => 12, "designation" => "Senior Consultant",      "joined" => "2019-02-14", "employee_no" => "40665"),
-    8  => array("id" => 8,  "name" => "Elena Petrova",   "manager_id" => 12, "designation" => "Private Office Advisor", "joined" => "2018-04-03", "employee_no" => "40641"),
-    9  => array("id" => 9,  "name" => "David Lee",       "manager_id" => 12, "designation" => "Sales Associate",        "joined" => "2023-01-10", "employee_no" => "40780"),
-    10 => array("id" => 10, "name" => "Aldo de Jager",   "manager_id" => 20, "designation" => "Team Leader",            "joined" => "2016-05-11", "employee_no" => "40590"),
-    11 => array("id" => 11, "name" => "Mohamed El Sayed", "manager_id" => 20, "designation" => "Team Leader",            "joined" => "2015-08-22", "employee_no" => "40570"),
-    12 => array("id" => 12, "name" => "Sarah Williams",  "manager_id" => 20, "designation" => "Team Leader",            "joined" => "2017-11-30", "employee_no" => "40605"),
-    20 => array("id" => 20, "name" => "CEO User",        "manager_id" => 0,  "designation" => "General Manager",        "joined" => "2012-01-01", "employee_no" => "40001"),
-);
+// ═══════════════════════════════════════════════════════════════════════════
+// 1. PARSE & VALIDATE PARAMS
+// ═══════════════════════════════════════════════════════════════════════════
 
-// ─── TEAM ROSTER ─────────────────────────────────────────────────────────
-$teams = array(
-    1  => array("id" => 1,  "name" => "Sales Team 1",   "manager_id" => 2),
-    2  => array("id" => 2,  "name" => "Sales Team 2",   "manager_id" => 3),
-    3  => array("id" => 3,  "name" => "Sales Team 3",   "manager_id" => 5),
-    4  => array("id" => 4,  "name" => "Sales Team 4",   "manager_id" => 6),
-    5  => array("id" => 5,  "name" => "Sales Team 5",   "manager_id" => 7),
-    6  => array("id" => 6,  "name" => "Private Office", "manager_id" => 11),
-);
+$rawRole      = isset($_GET['role'])       ? trim($_GET['role'])       : 'ceo';
+$rawUserId    = isset($_GET['user_id'])    ? (int)$_GET['user_id']     : 0;
+$rawAgentId   = isset($_GET['agent_id'])   ? (int)$_GET['agent_id']    : 0;
+$rawManagerId = isset($_GET['manager_id']) ? (int)$_GET['manager_id']  : 0;
+$rawYear      = isset($_GET['year'])       ? trim($_GET['year'])        : 'All';
+$rawQuarter   = isset($_GET['quarter'])    ? trim($_GET['quarter'])     : 'All';
+$rawMonth     = isset($_GET['month'])      ? trim($_GET['month'])       : 'All';
+$rawDealType  = isset($_GET['deal_type'])  ? trim($_GET['deal_type'])   : 'All';
+$rawYear1     = isset($_GET['year1'])      ? (int)$_GET['year1']        : 2024;
+$rawYear2     = isset($_GET['year2'])      ? (int)$_GET['year2']        : 2025;
 
-// ─── MONTH DATA GENERATOR ────────────────────────────────────────────────
-function buildMonthData($base_sales, $base_commission, $base_deals, $seed)
-{
-    $months = array("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec");
-    $result = array();
-    mt_srand($seed);
-    for ($i = 0; $i < count($months); $i++) {
-        $m      = $months[$i];
-        $factor = 0.7 + mt_rand(0, 60) / 100;
-        $sales  = round($base_sales * $factor / 1000) * 1000;
-        $comm   = round($base_commission * $factor / 1000) * 1000;
-        $deals  = max(1, (int)round($base_deals * $factor));
-        $result[] = array("month" => $m, "month_num" => $i + 1, "sales" => $sales, "commission" => $comm, "deals" => $deals);
-    }
-    return $result;
+// Validate role (whitelist)
+$allowedRoles = array('ceo', 'manager', 'agent');
+$role = in_array($rawRole, $allowedRoles, true) ? $rawRole : 'ceo';
+
+// Validate year
+$validYears = $GLOBALS['CFG_FILTER_META']['years'];
+$year       = ($rawYear === 'All' || in_array((int)$rawYear, $validYears, true)) ? $rawYear : 'All';
+
+// Validate quarter
+$validQtrs = $GLOBALS['CFG_FILTER_META']['quarters'];
+$quarter   = ($rawQuarter === 'All' || in_array($rawQuarter, $validQtrs, true)) ? $rawQuarter : 'All';
+
+// Validate month
+$validMonths = $GLOBALS['CFG_FILTER_META']['months'];
+$month       = ($rawMonth === 'All' || in_array($rawMonth, $validMonths, true)) ? $rawMonth : 'All';
+
+// Validate deal type
+$validTypes = $GLOBALS['CFG_FILTER_META']['deal_types'];
+$dealType   = in_array($rawDealType, $validTypes, true) ? $rawDealType : 'All';
+
+// Year comparison params
+$year1 = in_array($rawYear1, $validYears, true) ? $rawYear1 : 2024;
+$year2 = in_array($rawYear2, $validYears, true) ? $rawYear2 : 2025;
+
+// If user_id passed, auto-determine role from config mapping
+if ($rawUserId > 0 && $rawRole === 'ceo') {
+    $role = getUserRole($rawUserId);
 }
 
-// ─── YEARLY SUMMARY DATA ──────────────────────────────────────────────────
-$yearly_data = array(
-    2023 => array("sales" => 620000000,  "commission" => 19000000, "deals" => 290, "agents" => 95,  "avg_deal" => 2137931),
-    2024 => array("sales" => 976453993,  "commission" => 28459408, "deals" => 511, "agents" => 103, "avg_deal" => 1911847),
-    2025 => array("sales" => 819125547,  "commission" => 26778707, "deals" => 364, "agents" => 103, "avg_deal" => 2250345),
-    2026 => array("sales" => 310000000,  "commission" => 9800000,  "deals" => 120, "agents" => 103, "avg_deal" => 2583333),
-);
+// Resolve which user IDs we're operating on
+$agentId   = $rawAgentId   > 0 ? $rawAgentId   : $rawUserId;
+$managerId = $rawManagerId > 0 ? $rawManagerId : $rawUserId;
 
-// ─── DEAL TYPE DISTRIBUTION BY YEAR ──────────────────────────────────────
-$deal_dist = array(
-    2023 => array(
-        array("name" => "Offplan",     "value" => 38.2, "amount" => 236840000, "commission" => 7258200,  "deals" => 110),
-        array("name" => "Secondary",   "value" => 34.5, "amount" => 213900000, "commission" => 6550000,  "deals" => 100),
-        array("name" => "Rental",           "value" => 5.2,  "amount" => 32240000,  "commission" => 991800,   "deals" => 16),
-    ),
-    2024 => array(
-        array("name" => "Offplan",     "value" => 34.1, "amount" => 332868429, "commission" => 10247862, "deals" => 214),
-        array("name" => "Secondary",   "value" => 41.59, "amount" => 406155505, "commission" => 12485119, "deals" => 634),
-        array("name" => "Rental",           "value" => 4.34, "amount" => 42530844,  "commission" => 1307875,  "deals" => 267),
-    ),
-    2025 => array(
-        array("name" => "Offplan",     "value" => 40.63, "amount" => 332850072, "commission" => 10226552, "deals" => 161),
-        array("name" => "Secondary",   "value" => 37.57, "amount" => 307757311, "commission" => 9454400,  "deals" => 214),
-        array("name" => "Rental",           "value" => 3.68, "amount" => 30133000,  "commission" => 926236,   "deals" => 79),
-    ),
-    2026 => array(
-        array("name" => "Offplan",     "value" => 42.0, "amount" => 130200000, "commission" => 4000000,  "deals" => 50),
-        array("name" => "Secondary",   "value" => 35.5, "amount" => 110050000, "commission" => 3380000,  "deals" => 43),
-        array("name" => "Rental",           "value" => 4.0,  "amount" => 12400000,  "commission" => 660000,   "deals" => 5),
-    ),
-);
+// ═══════════════════════════════════════════════════════════════════════════
+// 2. BUILD DATE RANGE
+// ═══════════════════════════════════════════════════════════════════════════
 
-// ─── TOP DEVELOPERS ───────────────────────────────────────────────────────
-$top_developers = array(
-    array("name" => "Emaar Properties PJSC", "amount" => 332850072, "commission" => 10226552, "deals" => 161),
-    array("name" => "Meraas",                "amount" => 95430000,  "commission" => 2931900,  "deals" => 48),
-    array("name" => "Meydan",                "amount" => 52760000,  "commission" => 1620600,  "deals" => 34),
-    array("name" => "Dubai General",         "amount" => 38940000,  "commission" => 1196100,  "deals" => 26),
-    array("name" => "DAMAC Properties",      "amount" => 29870000,  "commission" => 917150,   "deals" => 18),
-    array("name" => "Sobha Realty",          "amount" => 21340000,  "commission" => 655500,   "deals" => 12),
-    array("name" => "Wasl",                  "amount" => 15600000,  "commission" => 479100,   "deals" => 9),
-);
+$dateRange = buildDateRange($year, $quarter, $month);
 
-// ─── TOP TYPES ───────────────────────────────────────────────────────
-$top_property_types = array(
-    array("name" => "Offplan",   "amount" => 332850072, "commission" => 10226552, "deals" => 161),
-    array("name" => "Secondary", "amount" => 95430000,  "commission" => 2931900,  "deals" => 48),
-    array("name" => "Rental",    "amount" => 52760000,  "commission" => 1620600,  "deals" => 34),
-);
+// Effective year for monthly charts
+$chartYear = ($year !== 'All' && is_numeric($year)) ? (int)$year : (int)date('Y');
 
-// ─── AGENT PERFORMANCE ────────────────────────────────────────────────────
-$agent_performance = array(
-    array("id" => 1,  "name" => "Ali Arikat",     "leads" => 12, "reshuffled_leads" => 6, "listings" => 34, "deals" => 20, "sales" => 78026353,  "commission" => 2488233, "top_deal" => 13500000, "avg_gap" => 14, "last_deal_days" => 18, "attendance" => 43, "designation" => "Private Office Advisor"),
-    array("id" => 2,  "name" => "Sara Mitchell",  "leads" => 12, "reshuffled_leads" => 6, "listings" => 34, "deals" => 18, "sales" => 62140000,  "commission" => 1980000, "top_deal" => 9800000,  "avg_gap" => 17, "last_deal_days" => 5, "attendance" => 41,  "designation" => "Sales Associate"),
-    array("id" => 3,  "name" => "Rami Hassan",    "leads" => 12, "reshuffled_leads" => 6, "listings" => 34, "deals" => 24, "sales" => 91230000,  "commission" => 2970000, "top_deal" => 15200000, "avg_gap" => 12, "last_deal_days" => 3, "attendance" => 43,  "designation" => "Senior Consultant"),
-    array("id" => 4,  "name" => "Nadia Al-Farsi", "leads" => 12, "reshuffled_leads" => 6, "listings" => 34, "deals" => 15, "sales" => 48600000,  "commission" => 1550000, "top_deal" => 7300000,  "avg_gap" => 20, "last_deal_days" => 22, "attendance" => 23, "designation" => "Sales Associate"),
-    array("id" => 5,  "name" => "James Thornton", "leads" => 12, "reshuffled_leads" => 6, "listings" => 34, "deals" => 31, "sales" => 112500000, "commission" => 3580000, "top_deal" => 18900000, "avg_gap" => 9,  "last_deal_days" => 1, "attendance" => 43,  "designation" => "Senior Consultant"),
-    array("id" => 6,  "name" => "Priya Sharma",   "leads" => 12, "reshuffled_leads" => 6, "listings" => 34, "deals" => 11, "sales" => 35200000,  "commission" => 1100000, "top_deal" => 5800000,  "avg_gap" => 25, "last_deal_days" => 41, "attendance" => 43, "designation" => "Sales Associate"),
-    array("id" => 7,  "name" => "Omar Khalil",    "leads" => 12, "reshuffled_leads" => 6, "listings" => 34, "deals" => 27, "sales" => 98700000,  "commission" => 3150000, "top_deal" => 16400000, "avg_gap" => 11, "last_deal_days" => 7, "attendance" => 15,  "designation" => "Senior Consultant"),
-    array("id" => 8,  "name" => "Elena Petrova",  "leads" => 12, "reshuffled_leads" => 6, "listings" => 34, "deals" => 22, "sales" => 84300000,  "commission" => 2690000, "top_deal" => 14100000, "avg_gap" => 13, "last_deal_days" => 12, "attendance" => 32, "designation" => "Private Office Advisor"),
-    array("id" => 9,  "name" => "David Lee",      "leads" => 12, "reshuffled_leads" => 6, "listings" => 34, "deals" => 8,  "sales" => 24800000,  "commission" => 790000,  "top_deal" => 4200000,  "avg_gap" => 32, "last_deal_days" => 65, "attendance" => 52, "designation" => "Sales Associate"),
-);
+// ═══════════════════════════════════════════════════════════════════════════
+// 3. CACHE LOOKUP
+// ═══════════════════════════════════════════════════════════════════════════
 
-// ─── TEAM PERFORMANCE ────────────────────────────────────────────────────
-$team_performance = array(
-    array("id" => 1,  "name" => "Sales Team 1",     "deals" => 20, "leads" => 120, "listings" => 84, "sales" => 78026353,  "commission" => 2488233, "top_deal" => 13500000, "avg_gap" => 14, "last_deal_days" => 18,),
-    array("id" => 2,  "name" => "Sales Team 2",     "deals" => 18, "leads" => 52, "listings" => 75, "sales" => 62140000,  "commission" => 1980000, "top_deal" => 9800000,  "avg_gap" => 17, "last_deal_days" => 5,),
-    array("id" => 3,  "name" => "Sales Team 3",     "deals" => 24, "leads" => 32, "listings" => 14, "sales" => 91230000,  "commission" => 2970000, "top_deal" => 15200000, "avg_gap" => 12, "last_deal_days" => 3,),
-    array("id" => 4,  "name" => "Sales Team 4",     "deals" => 15, "leads" => 12, "listings" => 45, "sales" => 48600000,  "commission" => 1550000, "top_deal" => 7300000,  "avg_gap" => 20, "last_deal_days" => 22,),
-    array("id" => 5,  "name" => "Sales Team 5",     "deals" => 31, "leads" => 46, "listings" => 24, "sales" => 112500000, "commission" => 3580000, "top_deal" => 18900000, "avg_gap" => 9,  "last_deal_days" => 1,),
-    array("id" => 6,  "name" => "Private Office",   "deals" => 11, "leads" => 15, "listings" => 74, "sales" => 35200000,  "commission" => 1100000, "top_deal" => 5800000,  "avg_gap" => 25, "last_deal_days" => 41,),
-);
+$cache    = new ScoreboardCache();
+$cacheKey = $cache->buildKey($role, array(
+    'agent_id'   => $agentId,
+    'manager_id' => $managerId,
+    'year'       => $year,
+    'quarter'    => $quarter,
+    'month'      => $month,
+    'deal_type'  => $dealType,
+    'year1'      => $year1,
+    'year2'      => $year2,
+));
 
-// ─── TARGET VS ACTUAL ─────────────────────────────────────────────────────
-$target_vs_actual = array(
-    array("month" => "Jan", "target" => 90000000, "actual" => 120102386),
-    array("month" => "Feb", "target" => 90000000, "actual" => 83176675),
-    array("month" => "Mar", "target" => 90000000, "actual" => 156524289),
-    array("month" => "Apr", "target" => 90000000, "actual" => 175948504),
-    array("month" => "May", "target" => 90000000, "actual" => 240702139),
-    array("month" => "Jun", "target" => 90000000, "actual" => 186979482),
-    array("month" => "Jul", "target" => 90000000, "actual" => 55822208),
-    array("month" => "Aug", "target" => 90000000, "actual" => 130000000),
-    array("month" => "Sep", "target" => 90000000, "actual" => 97000000),
-    array("month" => "Oct", "target" => 90000000, "actual" => 145898049),
-    array("month" => "Nov", "target" => 90000000, "actual" => 179912776),
-    array("month" => "Dec", "target" => 90000000, "actual" => 82412200),
-);
+$cached = $cache->get($cacheKey);
+if ($cached !== null) {
+    echo json_encode($cached);
+    exit;
+}
 
-// ─── SALES BY DEAL TYPE ───────────────────────────────────────────────────
-$sales_by_deal_type = array(
-    "Offplan" => array(
-        array("month" => "Jan", "sales" => 43875432, "commission" => 1549532, "deals" => 14),
-        array("month" => "Feb", "sales" => 30104328, "commission" => 1204173, "deals" => 6),
-        array("month" => "Mar", "sales" => 194261432, "commission" => 7039472, "deals" => 14),
-        array("month" => "Apr", "sales" => 37543328, "commission" => 1378475, "deals" => 6),
-        array("month" => "May", "sales" => 27065552, "commission" => 942774, "deals" => 4),
-    ),
-    "Secondary" => array(
-        array("month" => "Jan", "sales" => 76285000, "commission" => 2086902, "deals" => 20),
-        array("month" => "Feb", "sales" => 51475000, "commission" => 978590, "deals" => 18),
-        array("month" => "Mar", "sales" => 44057311, "commission" => 1024811, "deals" => 17),
-        array("month" => "Apr", "sales" => 1433000,  "commission" => 155000, "deals" => 15),
-        array("month" => "May", "sales" => 43000000, "commission" => 1150000, "deals" => 22),
-    ),
-    "Rental" => array(
-        array("month" => "Jan", "sales" => 8328000,  "commission" => 527207, "deals" => 18),
-        array("month" => "Feb", "sales" => 9560000,  "commission" => 620000, "deals" => 22),
-        array("month" => "Mar", "sales" => 7320000,  "commission" => 475000, "deals" => 17),
-        array("month" => "Apr", "sales" => 5100000,  "commission" => 330000, "deals" => 12),
-        array("month" => "May", "sales" => 6800000,  "commission" => 445000, "deals" => 16),
-    ),
-);
+// ═══════════════════════════════════════════════════════════════════════════
+// 4. BUILD RESPONSE
+// ═══════════════════════════════════════════════════════════════════════════
 
-// ─── YEAR COMPARISON DATA ─────────────────────────────────────────────────
-$year_bases = array(
-    2023 => array("sales" => 52000000, "commission" => 1600000, "deals" => 24),
-    2024 => array("sales" => 81000000, "commission" => 2370000, "deals" => 42),
-    2025 => array("sales" => 68000000, "commission" => 2230000, "deals" => 30),
-    2026 => array("sales" => 77000000, "commission" => 2450000, "deals" => 40),
-);
-
-$y1_base = isset($year_bases[$year1]) ? $year_bases[$year1] : $year_bases[2025];
-$y2_base = isset($year_bases[$year2]) ? $year_bases[$year2] : $year_bases[2026];
-
-$year1_monthly = buildMonthData($y1_base['sales'], $y1_base['commission'], $y1_base['deals'], $year1);
-$year2_monthly = buildMonthData($y2_base['sales'], $y2_base['commission'], $y2_base['deals'], $year2 + 100);
-
-$y1_summary = isset($yearly_data[$year1]) ? $yearly_data[$year1] : $yearly_data[2025];
-$y2_summary = isset($yearly_data[$year2]) ? $yearly_data[$year2] : $yearly_data[2026];
-
-// ─── SELECT YEAR DATA ─────────────────────────────────────────────────────
-$sel_year  = is_numeric($year) ? (int)$year : 2025;
-$curr_dist = isset($deal_dist[$sel_year]) ? $deal_dist[$sel_year] : $deal_dist[2025];
-$curr_year = isset($yearly_data[$sel_year]) ? $yearly_data[$sel_year] : $yearly_data[2025];
-
-// ─── BUILD RESPONSE ───────────────────────────────────────────────────────
 $response = array(
-    "role"    => $role,
-    "filters" => $filters,
+    'role'    => $role,
+    'filters' => $GLOBALS['CFG_FILTER_META'],
 );
 
-// ══════════════════════════════════════════════════════════════════════════
+// ───────────────────────────────────────────────────────────────────────────
 // AGENT VIEW
-// ══════════════════════════════════════════════════════════════════════════
+// ───────────────────────────────────────────────────────────────────────────
 if ($role === 'agent') {
-    $agent        = isset($agents[$agent_id]) ? $agents[$agent_id] : $agents[1];
-    $manager_name = isset($agents[$agent['manager_id']]) ? $agents[$agent['manager_id']]['name'] : 'N/A';
+
+    $userRow = getUserProfile($agentId);
+    if (empty($userRow)) {
+        echo json_encode(array('error' => 'Agent not found', 'agent_id' => $agentId));
+        exit;
+    }
+
+    $managerName  = getManagerForAgent($agentId);
+    $workPosition = $userRow['WORK_POSITION'] ?? '';
+
+    // Core deal data
+    $wonDeals     = fetchWonDeals(array($agentId), $dateRange, $dealType);
+    $agg          = aggregateDeals($wonDeals);
+    $monthlyDeals = groupDealsByMonth($wonDeals, $chartYear);
+    $commSplit    = buildCommissionSplit($wonDeals, array($agentId), $dateRange, $dealType);
+    $monthlyTarget = getAgentTarget($agentId, $workPosition);
+
+    // Supplementary metrics
+    $avgGap       = avgGapBetweenDeals($agentId, $dateRange);
+    $lastDealDays = daysSinceLastDeal(array($agentId));
+    $listingCount = countTotalListings(array($agentId));
+    $attendance   = countAttendanceDays($agentId, $dateRange);
+    $leadCount    = countActiveLeads(array($agentId), $dateRange);
+    $reshuffled   = countReshuffledLeads(array($agentId), $dateRange);
+
+    // Chart data
+    $dealDist         = buildDealDistribution($wonDeals);
+    $topDevelopers    = buildTopDevelopers($wonDeals, 7);
+    $topPropertyTypes = buildTopPropertyTypes($wonDeals);
+    $targetVsActual   = buildTargetVsActual($monthlyDeals, $monthlyTarget);
+    $avgTicketSize    = buildAvgTicketSize($monthlyDeals);
+
+    $commissionTrend = array();
+    foreach ($monthlyDeals as $m) {
+        $commissionTrend[] = array('month' => $m['month'], 'value' => $m['commission']);
+    }
 
     $response['view']  = 'agent';
     $response['agent'] = array(
-        "profile" => array(
-            "name"        => $agent['name'],
-            "employee_no" => $agent['employee_no'],
-            "designation" => $agent['designation'],
-            "joined"      => $agent['joined'],
-            "manager"     => $manager_name,
-            "current"     => true,
+        'profile' => array(
+            'name'        => fullName($userRow),
+            'employee_no' => '',
+            'designation' => $workPosition,
+            'joined'      => !empty($userRow['DATE_REGISTER']) ? date('Y-m-d', strtotime($userRow['DATE_REGISTER'])) : '',
+            'manager'     => $managerName,
+            'current'     => true,
         ),
-        "summary" => array(
-            "commissions"            => 2488233,
-            "sales_volume"           => 78026353,
-            "deal_count"             => 20,
-            "avg_revenue"            => 124412,
-            "avg_selling_price"      => 3901318,
-            "avg_gap_days"           => 14,
-            "top_deal"               => 13500000,
-            "top_commission"         => 270000,
-            "days_since_last"        => 18,
-            "committed_commission"   => 180000,
-            "operational_commission" => 2308233,
+        'summary' => array(
+            'commissions'            => $commSplit['operational_commission'],
+            'sales_volume'           => $agg['sales_volume'],
+            'deal_count'             => $agg['deal_count'],
+            'lead_count'             => $leadCount,
+            'reshuffled_leads'       => $reshuffled,
+            'listings'               => $listingCount,
+            'attendance'             => $attendance,
+            'avg_revenue'            => $agg['avg_sales_per_deal'],
+            'avg_selling_price'      => $agg['avg_sales_per_deal'],
+            'avg_gap_days'           => $avgGap,
+            'top_deal'               => $agg['top_deal'],
+            'top_commission'         => $agg['top_commission'],
+            'days_since_last'        => $lastDealDays,
+            'committed_commission'   => $commSplit['committed_commission'],
+            'operational_commission' => $commSplit['operational_commission'],
         ),
-        "target_vs_actual" => array(
-            array("month" => "Jan", "target" => 7000000, "actual" => 6200000),
-            array("month" => "Feb", "target" => 7000000, "actual" => 8100000),
-            array("month" => "Mar", "target" => 7000000, "actual" => 14300000),
-            array("month" => "Apr", "target" => 7000000, "actual" => 5200000),
-            array("month" => "May", "target" => 7000000, "actual" => 9800000),
-            array("month" => "Jun", "target" => 7000000, "actual" => 7400000),
-            array("month" => "Jul", "target" => 7000000, "actual" => 4100000),
-        ),
-        "deal_distribution" => $curr_dist,
-        "top_developers" => array(
-            array("name" => "Emaar Properties PJSC", "amount" => 45764178, "commission" => 1454567, "deals" => 11),
-            array("name" => "Null",                 "amount" => 24592276, "commission" => 739543, "deals" => 4),
-            array("name" => "Meydan",               "amount" => 3665011, "commission" => 183251, "deals" => 2),
-            array("name" => "Dubai General",        "amount" => 3574888, "commission" => 89372,  "deals" => 1),
-            array("name" => "Wasl",                 "amount" => 430000,  "commission" => 21500,  "deals" => 2),
-        ),
-        "top_property_types" => array(
-            array("name" => "Offplan", "amount" => 45764178, "commission" => 1454567, "deals" => 11),
-            array("name" => "Secondary",                 "amount" => 24592276, "commission" => 739543, "deals" => 4),
-            array("name" => "Rental",               "amount" => 3665011, "commission" => 183251, "deals" => 2),
-        ),
-        "avg_ticket_size" => array(
-            array("month" => "Jan", "value" => 1200000),
-            array("month" => "Feb", "value" => 1800000),
-            array("month" => "Mar", "value" => 3200000),
-            array("month" => "Apr", "value" => 900000),
-            array("month" => "May", "value" => 2100000),
-            array("month" => "Jun", "value" => 1600000),
-            array("month" => "Jul", "value" => 700000),
-        ),
-        "commission_trend" => array(
-            array("month" => "Jan", "value" => 320000),
-            array("month" => "Feb", "value" => 480000),
-            array("month" => "Mar", "value" => 920000),
-            array("month" => "Apr", "value" => 210000),
-            array("month" => "May", "value" => 558000),
-        ),
+        'target_vs_actual'   => $targetVsActual,
+        'deal_distribution'  => $dealDist,
+        'top_developers'     => $topDevelopers,
+        'top_property_types' => $topPropertyTypes,
+        'avg_ticket_size'    => $avgTicketSize,
+        'commission_trend'   => $commissionTrend,
     );
 
-    // ══════════════════════════════════════════════════════════════════════════
+    // ───────────────────────────────────────────────────────────────────────────
     // MANAGER VIEW
-    // ══════════════════════════════════════════════════════════════════════════
+    // ───────────────────────────────────────────────────────────────────────────
 } elseif ($role === 'manager') {
-    $manager = isset($agents[$manager_id]) ? $agents[$manager_id] : $agents[10];
 
-    $my_agents = array();
-    foreach ($agent_performance as $ap) {
-        if (isset($agents[$ap['id']]) && $agents[$ap['id']]['manager_id'] == $manager_id) {
-            $my_agents[] = $ap;
+    $managerRow = getUserProfile($managerId);
+    if (empty($managerRow)) {
+        echo json_encode(array('error' => 'Manager not found', 'manager_id' => $managerId));
+        exit;
+    }
+
+    // All agents in this manager's department(s)
+    $agentIds  = getAgentIdsByManager($managerId);
+    $agentRows = array();
+    foreach ($agentIds as $aid) {
+        $row = getUserProfile($aid);
+        if (!empty($row)) {
+            $agentRows[$aid] = $row;
         }
     }
 
-    $total_leads      = 0;
-    $total_deals      = 0;
-    $total_listings   = 0;
-    $total_sales      = 0;
-    $total_commission = 0;
-    $max_top_deal     = 0;
-    foreach ($my_agents as $a) {
-        $total_leads      += $a['leads'];
-        $total_deals      += $a['deals'];
-        $total_listings   += $a['listings'];
-        $total_sales      += $a['sales'];
-        $total_commission += $a['commission'];
-        if ($a['top_deal'] > $max_top_deal) {
-            $max_top_deal = $a['top_deal'];
-        }
+    // Team won deals
+    $wonDeals     = fetchWonDeals($agentIds, $dateRange, $dealType);
+    $agg          = aggregateDeals($wonDeals);
+    $monthlyDeals = groupDealsByMonth($wonDeals, $chartYear);
+    $commSplit    = buildCommissionSplit($wonDeals, $agentIds, $dateRange, $dealType);
+    $deptId       = getUserDeptId($managerId);
+    $monthlyTarget = getTeamTarget($deptId);
+
+    // Team-wide supplementary
+    $leadCount    = countActiveLeads($agentIds, $dateRange);
+    $reshuffled   = countReshuffledLeads($agentIds, $dateRange);
+    $listingCount = countTotalListings($agentIds);
+    $noDeal60     = countNoDealIn60Days($agentIds);
+
+    // Charts
+    $dealDist       = buildDealDistribution($wonDeals);
+    $targetVsActual = buildTargetVsActual($monthlyDeals, $monthlyTarget);
+
+    $commissionTrend = array();
+    foreach ($monthlyDeals as $m) {
+        $commissionTrend[] = array('month' => $m['month'], 'value' => $m['commission']);
     }
-    $committed   = (int)round($total_commission * 0.929);
-    $operational = $total_commission - $committed;
+
+    // Per-agent rows — slice from already-fetched deals (no extra deal queries)
+    $dealsByAgent = array();
+    foreach ($wonDeals as $d) {
+        $rid = (int)$d['RESPONSIBLE_ID'];
+        if (!isset($dealsByAgent[$rid])) {
+            $dealsByAgent[$rid] = array();
+        }
+        $dealsByAgent[$rid][] = $d;
+    }
+
+    $allAgentRows = array();
+    foreach ($agentIds as $aid) {
+        if (!isset($agentRows[$aid])) {
+            continue;
+        }
+        $agentDeals     = isset($dealsByAgent[$aid]) ? $dealsByAgent[$aid] : array();
+        $allAgentRows[] = buildAgentPerformanceRow($agentRows[$aid], $agentDeals, $dateRange);
+    }
 
     $response['view']    = 'manager';
     $response['manager'] = array(
-        "profile" => array(
-            "name"        => $manager['name'],
-            "employee_no" => $manager['employee_no'],
-            "designation" => $manager['designation'],
-            "joined"      => $manager['joined'],
+        'profile' => array(
+            'name'        => fullName($managerRow),
+            'employee_no' => '',
+            'designation' => $managerRow['WORK_POSITION'] ?? 'Team Leader',
+            'joined'      => !empty($managerRow['DATE_REGISTER']) ? date('Y-m-d', strtotime($managerRow['DATE_REGISTER'])) : '',
         ),
-        "summary" => array(
-            "active_agents"          => count($my_agents),
-            "no_deal_60_days"        => 2,
-            "deal_count"             => $total_deals,
-            "lead_count"             => $total_leads,
-            "listings_count"         => $total_listings,
-            "sales_volume"           => $total_sales,
-            "avg_sales_per_deal"     => $total_deals > 0 ? (int)round($total_sales / $total_deals) : 0,
-            "avg_sales_per_month"    => (int)round($total_sales / 12),
-            "top_deal"               => $max_top_deal,
-            "commissions"            => $total_commission,
-            "committed_commission"   => $committed,
-            "operational_commission" => $operational,
-            "avg_revenue_per_deal"   => 74000,
-            "avg_revenue_per_month"  => 900000,
-            "top_commission"         => 920000,
+        'summary' => array(
+            'active_agents'          => count($agentIds),
+            'no_deal_60_days'        => $noDeal60,
+            'deal_count'             => $agg['deal_count'],
+            'lead_count'             => $leadCount,
+            'listings_count'         => $listingCount,
+            'sales_volume'           => $agg['sales_volume'],
+            'avg_sales_per_deal'     => $agg['avg_sales_per_deal'],
+            'avg_sales_per_month'    => (int)round($agg['sales_volume'] / 12),
+            'top_deal'               => $agg['top_deal'],
+            'commissions'            => $commSplit['operational_commission'],
+            'committed_commission'   => $commSplit['committed_commission'],
+            'operational_commission' => $commSplit['operational_commission'],
+            'avg_revenue_per_deal'   => $agg['avg_sales_per_deal'],
+            'avg_revenue_per_month'  => (int)round($commSplit['operational_commission'] / 12),
+            'top_commission'         => $agg['top_commission'],
         ),
-        "commission_trend" => array(
-            array("month" => "Jan", "value" => 1800000),
-            array("month" => "Feb", "value" => 2100000),
-            array("month" => "Mar", "value" => 4200000),
-            array("month" => "Apr", "value" => 1400000),
-            array("month" => "May", "value" => 1900000),
-        ),
-        "target_vs_actual" => array(
-            array("month" => "Jan", "target" => 25000000, "actual" => 28000000),
-            array("month" => "Feb", "target" => 25000000, "actual" => 21000000),
-            array("month" => "Mar", "target" => 25000000, "actual" => 52000000),
-            array("month" => "Apr", "target" => 25000000, "actual" => 18000000),
-            array("month" => "May", "target" => 25000000, "actual" => 31000000),
-        ),
-        "deal_distribution" => $curr_dist,
+        'commission_trend'  => $commissionTrend,
+        'target_vs_actual'  => $targetVsActual,
+        'deal_distribution' => $dealDist,
     );
-    $response['all_agents'] = array_values($my_agents);
+    $response['all_agents'] = $allAgentRows;
 
-    // ══════════════════════════════════════════════════════════════════════════
+    // ───────────────────────────────────────────────────────────────────────────
     // CEO VIEW
-    // ══════════════════════════════════════════════════════════════════════════
+    // ───────────────────────────────────────────────────────────────────────────
 } else {
-    $comm_committed   = (int)round($curr_year['commission'] * 0.929);
-    $comm_operational = $curr_year['commission'] - $comm_committed;
 
+    // All sales teams and agents
+    $salesTeams  = getSalesTeams();
+    $allDeptIds  = array_map(function ($t) {
+        return (int)$t['ID'];
+    }, $salesTeams);
+    $allAgents   = empty($allDeptIds) ? array() : getAgentsByDept($allDeptIds);
+    $allAgentIds = array_map(function ($a) {
+        return (int)$a['ID'];
+    }, $allAgents);
+
+    // Company-wide won deals (no agent filter = all)
+    $wonDeals     = fetchWonDeals(array(), $dateRange, $dealType);
+    $agg          = aggregateDeals($wonDeals);
+    $monthlyDeals = groupDealsByMonth($wonDeals, $chartYear);
+    $commSplit    = buildCommissionSplit($wonDeals, array(), $dateRange, $dealType);
+    $monthlyTarget = getCompanyTarget();
+
+    // Company-wide supplementary
+    $listings = countActiveListings(array());
+    $noDeal60 = countNoDealIn60Days($allAgentIds);
+
+    // Charts
+    $dealDist         = buildDealDistribution($wonDeals);
+    $topDevelopers    = buildTopDevelopers($wonDeals, 10);
+    $topPropertyTypes = buildTopPropertyTypes($wonDeals);
+    $targetVsActual   = buildTargetVsActual($monthlyDeals, $monthlyTarget);
+    $salesByDealType  = buildSalesByDealType($wonDeals, $chartYear);
+
+    $commissionTrend = array();
+    foreach ($monthlyDeals as $m) {
+        $commissionTrend[] = array('month' => $m['month'], 'value' => $m['commission']);
+    }
+
+    // ── AGENT PERFORMANCE TABLE ──────────────────────────────────────────
+    // Pre-group deals by agent (single pass — avoids N queries)
+    $dealsByAgent = array();
+    foreach ($wonDeals as $d) {
+        $rid = (int)$d['RESPONSIBLE_ID'];
+        if (!isset($dealsByAgent[$rid])) {
+            $dealsByAgent[$rid] = array();
+        }
+        $dealsByAgent[$rid][] = $d;
+    }
+
+    $agentPerformance = array();
+    foreach ($allAgents as $agentRow) {
+        $aid        = (int)$agentRow['ID'];
+        $agentDeals = isset($dealsByAgent[$aid]) ? $dealsByAgent[$aid] : array();
+        $agentPerformance[] = buildAgentPerformanceRow($agentRow, $agentDeals, $dateRange);
+    }
+
+    usort($agentPerformance, function ($a, $b) {
+        return $b['sales'] - $a['sales'];
+    });
+
+    // ── TEAM PERFORMANCE TABLE ───────────────────────────────────────────
+    $teamPerformance = array();
+    foreach ($salesTeams as $team) {
+        $tid        = (int)$team['ID'];
+        $teamAgents = getAgentsByDept(array($tid));
+        $teamIds    = array_map(function ($a) {
+            return (int)$a['ID'];
+        }, $teamAgents);
+
+        $teamDeals = array();
+        foreach ($teamIds as $tid2) {
+            if (isset($dealsByAgent[$tid2])) {
+                foreach ($dealsByAgent[$tid2] as $d) {
+                    $teamDeals[] = $d;
+                }
+            }
+        }
+
+        $tagg     = aggregateDeals($teamDeals);
+        $teamList = countTotalListings($teamIds);
+        $teamLeads = countActiveLeads($teamIds, $dateRange);
+        $lastDeal = daysSinceLastDeal($teamIds);
+
+        $teamPerformance[] = array(
+            'id'             => $tid,
+            'name'           => $team['NAME'],
+            'deals'          => $tagg['deal_count'],
+            'leads'          => $teamLeads,
+            'listings'       => $teamList,
+            'sales'          => $tagg['sales_volume'],
+            'commission'     => $tagg['commissions'],
+            'top_deal'       => $tagg['top_deal'],
+            'avg_gap'        => 0,
+            'last_deal_days' => $lastDeal,
+        );
+    }
+
+    // ── YEAR COMPARISON ──────────────────────────────────────────────────
+    $year1Monthly = fetchYearMonthly($year1);
+    $year2Monthly = fetchYearMonthly($year2);
+    $year1Summary = fetchYearSummary($year1);
+    $year2Summary = fetchYearSummary($year2);
+
+    // ── ASSEMBLE CEO RESPONSE ────────────────────────────────────────────
     $response['view']    = 'ceo';
     $response['summary'] = array(
-        "active_agents"              => $curr_year['agents'],
-        "no_deal_60_days"            => 38,
-        "deal_count"                 => $curr_year['deals'],
-        "sales_volume"               => $curr_year['sales'],
-        "avg_sales_per_deal"         => $curr_year['avg_deal'],
-        "avg_sales_per_month"        => (int)round($curr_year['sales'] / 12),
-        "top_deal"                   => 40370000,
-        "commissions"                => $curr_year['commission'],
-        "committed_commission"       => $comm_committed,
-        "committed_commission_pct"   => 92.9,
-        "operational_commission"     => $comm_operational,
-        "operational_commission_pct" => 7.1,
-        "avg_revenue_per_deal"       => 73568,
-        "avg_revenue_per_month"      => 5355741,
-        "active_listings_rent"       => 97,
-        "active_listings_sale"       => 102,
-        "top_commission"             => 1615000,
+        'active_agents'              => count($allAgentIds),
+        'no_deal_60_days'            => $noDeal60,
+        'deal_count'                 => $agg['deal_count'],
+        'sales_volume'               => $agg['sales_volume'],
+        'avg_sales_per_deal'         => $agg['avg_sales_per_deal'],
+        'avg_sales_per_month'        => (int)round($agg['sales_volume'] / 12),
+        'top_deal'                   => $agg['top_deal'],
+        'commissions'                => $commSplit['operational_commission'],
+        'committed_commission'       => $commSplit['committed_commission'],
+        'committed_commission_pct'   => $commSplit['committed_commission_pct'],
+        'operational_commission'     => $commSplit['operational_commission'],
+        'operational_commission_pct' => $commSplit['operational_commission_pct'],
+        'avg_revenue_per_deal'       => $agg['avg_sales_per_deal'],
+        'avg_revenue_per_month'      => (int)round($commSplit['operational_commission'] / 12),
+        'active_listings_rent'       => $listings['rent'],
+        'active_listings_sale'       => $listings['sale'],
+        'top_commission'             => $agg['top_commission'],
     );
 
-    $response['commission_trend'] = array(
-        array("month" => "Jan", "value" => 4220000),
-        array("month" => "Feb", "value" => 4340000),
-        array("month" => "Mar", "value" => 10690000),
-        array("month" => "Apr", "value" => 3650000),
-        array("month" => "May", "value" => 3880000),
-    );
-
-    $response['deal_distribution']  = $curr_dist;
-    $response['top_developers']     = $top_developers;
-    $response['top_property_types'] = $top_property_types;
-    $response['target_vs_actual']   = $target_vs_actual;
-    $response['sales_by_deal_type'] = $sales_by_deal_type;
-    $response['agent_performance']  = $agent_performance;
-    $response['team_performance']   = $team_performance;
+    $response['commission_trend']   = $commissionTrend;
+    $response['deal_distribution']  = $dealDist;
+    $response['top_developers']     = $topDevelopers;
+    $response['top_property_types'] = $topPropertyTypes;
+    $response['target_vs_actual']   = $targetVsActual;
+    $response['sales_by_deal_type'] = $salesByDealType;
+    $response['agent_performance']  = $agentPerformance;
+    $response['team_performance']   = $teamPerformance;
 
     $response['year_comparison'] = array(
-        "year1"         => $year1,
-        "year2"         => $year2,
-        "year1_monthly" => $year1_monthly,
-        "year2_monthly" => $year2_monthly,
-        "year1_summary" => $y1_summary,
-        "year2_summary" => $y2_summary,
+        'year1'         => $year1,
+        'year2'         => $year2,
+        'year1_monthly' => $year1Monthly,
+        'year2_monthly' => $year2Monthly,
+        'year1_summary' => $year1Summary,
+        'year2_summary' => $year2Summary,
     );
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// 5. CACHE & OUTPUT
+// ═══════════════════════════════════════════════════════════════════════════
+
+$cache->set($cacheKey, $response);
 echo json_encode($response);
