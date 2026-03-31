@@ -692,12 +692,12 @@ function countAttendanceDays($userId, $dateRange)
 
     // Count distinct calendar days the agent punched in
     $row = dbQueryOne("
-        SELECT COUNT(DISTINCT DATE(a.DATE_CREATE)) AS cnt
+        SELECT COUNT(DISTINCT DATE(a.CREATED_TIME)) AS cnt
         FROM {$table} a
         WHERE a.ASSIGNED_BY_ID = {$uid}
           AND a.{$typeField}   = '{$typeIn}'
-          AND DATE(a.DATE_CREATE) >= '{$from}'
-          AND DATE(a.DATE_CREATE) <= '{$to}'
+          AND DATE(a.CREATED_TIME) >= '{$from}'
+          AND DATE(a.CREATED_TIME) <= '{$to}'
     ");
     return (int)($row['cnt'] ?? 0);
 }
