@@ -557,6 +557,7 @@ function fetchAllDeals($agentIds, $dateRange, $dealType = 'All')
         SELECT
             d.ID,
             d.ASSIGNED_BY_ID,
+            d.DATE_CREATE,
             d.CLOSEDATE,
             d.{$fAmount}            AS sale_amount,
 
@@ -576,7 +577,7 @@ function fetchAllDeals($agentIds, $dateRange, $dealType = 'All')
           {$agentFilter}
           {$typeFilter}
 
-        ORDER BY d.CLOSEDATE ASC
+        ORDER BY d.DATE_CREATE ASC
     ");
 }
 
@@ -978,7 +979,7 @@ function groupDealsByMonth($deals, $year)
 {
     $monthMap = array();
     foreach ($deals as $d) {
-        $dateStr = $d['CLOSEDATE'] ?? '';
+        $dateStr = $d['DATE_CREATE'] ?? ($d['CLOSEDATE'] ?? '');
 
         if (empty($dateStr)) {
             continue;
@@ -1127,7 +1128,7 @@ function buildSalesByDealType($deals, $year)
     }
 
     foreach ($deals as $d) {
-        $dateStr = $d['CLOSEDATE'] ?? '';
+        $dateStr = $d['DATE_CREATE'] ?? ($d['CLOSEDATE'] ?? '');
 
         if (empty($dateStr)) {
             continue;
