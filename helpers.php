@@ -241,12 +241,19 @@ function getUserRole($userId)
 function getSalesTeams()
 {
     $parentId = dbInt(DEPT_SALES_ROOT);
+
     return dbQuery("
-        SELECT d.ID, d.NAME, d.UF_HEAD
-        FROM b_hr_department d
-        WHERE d.ACTIVE = 'Y'
-          AND d.PARENT = {$parentId}
-        ORDER BY d.SORT ASC, d.NAME ASC
+        SELECT 
+            s.ID,
+            s.NAME,
+            uts.UF_HEAD
+        FROM b_iblock_section s
+        LEFT JOIN b_uts_iblock_3_section uts 
+            ON uts.VALUE_ID = s.ID
+        WHERE s.IBLOCK_ID = 3
+          AND s.ACTIVE = 'Y'
+          AND s.IBLOCK_SECTION_ID = {$parentId}
+        ORDER BY s.SORT ASC, s.NAME ASC
     ");
 }
 
@@ -294,14 +301,20 @@ function getUserProfile($userId)
 function getManagerForAgent($userId)
 {
     $uid = dbInt($userId);
+
     $row = dbQueryOne("
-        SELECT u2.ID, CONCAT(u2.NAME, ' ', u2.LAST_NAME) AS FULL_NAME
+        SELECT CONCAT(m.NAME, ' ', m.LAST_NAME) AS FULL_NAME
         FROM b_user u
-        JOIN b_hr_department d ON JSON_CONTAINS(u.UF_DEPARTMENT, CAST(d.ID AS JSON))
-        JOIN b_user u2 ON u2.ID = d.UF_HEAD
+        JOIN b_iblock_section s 
+            ON JSON_CONTAINS(u.UF_DEPARTMENT, CAST(s.ID AS JSON))
+        LEFT JOIN b_uts_iblock_3_section uts 
+            ON uts.VALUE_ID = s.ID
+        JOIN b_user m 
+            ON m.ID = uts.UF_HEAD
         WHERE u.ID = {$uid}
         LIMIT 1
     ");
+
     return $row ? $row['FULL_NAME'] : '';
 }
 
@@ -340,19 +353,22 @@ function getUserDeptId($userId)
  */
 function getAgentIdsByManager($managerId)
 {
-    $mid  = dbInt($managerId);
-    // Find all departments where this user is the head
-    $depts = dbQuery("SELECT ID FROM b_hr_department WHERE UF_HEAD = {$mid} AND ACTIVE = 'Y'");
-    if (empty($depts)) {
-        return array();
-    }
-    $deptIds = array_map(function ($d) {
-        return (int)$d['ID'];
-    }, $depts);
-    $agents  = getAgentsByDept($deptIds);
-    return array_map(function ($a) {
-        return (int)$a['ID'];
-    }, $agents);
+    $mid = dbInt($managerId);
+
+    $rows = dbQuery("
+        SELECT u.ID
+        FROM b_user u
+        JOIN b_iblock_section s 
+            ON JSON_CONTAINS(u.UF_DEPARTMENT, CAST(s.ID AS JSON))
+        LEFT JOIN b_uts_iblock_3_section uts 
+            ON uts.VALUE_ID = s.ID
+        WHERE uts.UF_HEAD = {$mid}
+          AND u.ACTIVE = 'Y'
+    ");
+
+    return array_map(function ($r) {
+        return (int)$r['ID'];
+    }, $rows);
 }
 
 /**
