@@ -164,7 +164,7 @@ if ($role === 'agent') {
     $response['agent'] = array(
         'profile' => array(
             'name'        => fullName($userRow),
-            'employee_no' => '',
+            'user_id'     => $userRow['ID'],
             'designation' => $workPosition,
             'joined'      => !empty($userRow['DATE_REGISTER']) ? date('Y-m-d', strtotime($userRow['DATE_REGISTER'])) : '',
             'manager'     => $managerName,
@@ -262,7 +262,7 @@ if ($role === 'agent') {
     $response['manager'] = array(
         'profile' => array(
             'name'        => fullName($managerRow),
-            'employee_no' => '',
+            'user_id'     => $managerRow['ID'],
             'designation' => $managerRow['WORK_POSITION'] ?? 'Team Leader',
             'joined'      => !empty($managerRow['DATE_REGISTER']) ? date('Y-m-d', strtotime($managerRow['DATE_REGISTER'])) : '',
         ),

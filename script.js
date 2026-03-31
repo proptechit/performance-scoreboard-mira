@@ -982,7 +982,7 @@ function renderManager(data) {
       <div class="profile-info">
         <div class="profile-name">${p.name}</div>
         <div class="profile-meta">
-          <span class="profile-meta-item">Employee No: <strong>${p.employee_no}</strong></span>
+          <span class="profile-meta-item">ID: <strong>${p.user_id}</strong></span>
           <span class="profile-meta-item">Joined: <strong>${p.joined}</strong></span>
         </div>
       </div>
@@ -1238,7 +1238,7 @@ function renderAgent(data) {
         <div class="profile-name">${p.name}</div>
         <div class="profile-meta">
           <span class="profile-meta-item">Manager: <strong>${p.manager}</strong></span>
-          <span class="profile-meta-item">Emp No: <strong>${p.employee_no}</strong></span>
+          <span class="profile-meta-item">ID: <strong>${p.user_id}</strong></span>
           <span class="profile-meta-item">Joined: <strong>${p.joined}</strong></span>
           <span class="profile-meta-item">Days Since Last Deal: <strong style="color:${s.days_since_last > 30 ? "var(--red)" : "var(--green)"};">${s.days_since_last}</strong></span>
         </div>
