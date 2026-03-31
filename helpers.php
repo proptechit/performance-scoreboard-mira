@@ -431,26 +431,30 @@ function fetchWonDeals($agentIds, $dateRange, $dealType = 'All')
     $fType    = FIELD_PROPERTY_TYPE;
     $fMgr     = FIELD_MANAGER_ID;
 
-    // Agent filter
     $agentFilter = '';
     if (!empty($agentIds)) {
         $agentFilter = 'AND d.ASSIGNED_BY_ID IN ' . inClauseInt($agentIds);
     }
 
-    // Deal type / property type filter
-    $typeFilter = buildPropertyTypeFilter($dealType, 'd');
+    $typeFilter = buildPropertyTypeFilter($dealType, 'uts');
 
     return dbQuery("
         SELECT
             d.ID,
             d.ASSIGNED_BY_ID,
             d.CLOSEDATE,
-            d.{$fAmount}       AS sale_amount,
-            d.{$fComm}         AS commission,
-            d.{$fDev}          AS developer_id,
-            d.{$fType}         AS property_type_id,
-            d.{$fMgr}          AS manager_id
+            d.{$fAmount}            AS sale_amount,
+
+            uts.{$fComm}            AS commission,
+            uts.{$fDev}             AS developer_id,
+            uts.{$fType}            AS property_type_id,
+            uts.{$fMgr}             AS manager_id
+
         FROM b_crm_deal d
+
+        LEFT JOIN b_uts_crm_deal uts 
+            ON uts.VALUE_ID = d.ID
+
         WHERE d.CATEGORY_ID = {$catId}
           AND d.STAGE_ID    = '{$stageWon}'
           AND d.DELETED     = 'N'
@@ -458,6 +462,7 @@ function fetchWonDeals($agentIds, $dateRange, $dealType = 'All')
           AND DATE(d.CLOSEDATE) <= '{$to}'
           {$agentFilter}
           {$typeFilter}
+
         ORDER BY d.CLOSEDATE ASC
     ");
 }
@@ -481,16 +486,22 @@ function fetchCommittedDeals($agentIds, $dateRange, $dealType = 'All')
     if (!empty($agentIds)) {
         $agentFilter = 'AND d.ASSIGNED_BY_ID IN ' . inClauseInt($agentIds);
     }
-    $typeFilter = buildPropertyTypeFilter($dealType, 'd');
+
+    $typeFilter = buildPropertyTypeFilter($dealType, 'uts');
 
     return dbQuery("
         SELECT
             d.ID,
             d.ASSIGNED_BY_ID,
             d.DATE_CREATE,
-            d.{$fAmount} AS sale_amount,
-            d.{$fComm}   AS commission
+            d.{$fAmount}        AS sale_amount,
+            uts.{$fComm}        AS commission
+
         FROM b_crm_deal d
+
+        LEFT JOIN b_uts_crm_deal uts 
+            ON uts.VALUE_ID = d.ID
+
         WHERE d.CATEGORY_ID = {$catId}
           AND d.STAGE_ID   != '{$stageWon}'
           AND d.STAGE_ID   != '{$stageLose}'
@@ -499,6 +510,7 @@ function fetchCommittedDeals($agentIds, $dateRange, $dealType = 'All')
           AND DATE(d.DATE_CREATE) <= '{$to}'
           {$agentFilter}
           {$typeFilter}
+
         ORDER BY d.DATE_CREATE ASC
     ");
 }
