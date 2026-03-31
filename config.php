@@ -218,6 +218,13 @@ $GLOBALS['CFG_MANAGER_USER_IDS'] = array(
     123,  // Aldo De Jager (Private Office)
 );
 
+$GLOBALS['CFG_ALLOWED_AGENT_POSITIONS'] = array(
+    'PC',
+    'SPC',
+    'PRIME',
+    'POA',
+);
+
 // ═══════════════════════════════════════════════════════════════════════════
 // 10. MONTHLY TARGETS  (AED)
 //     Structure:
@@ -230,20 +237,27 @@ $GLOBALS['CFG_MANAGER_USER_IDS'] = array(
 // ═══════════════════════════════════════════════════════════════════════════
 $GLOBALS['CFG_MONTHLY_TARGETS'] = array(
 
-    'company' => 90000000,   // AED 90M company-wide monthly target
+    'company' => array(
+        'Jan' => 4724901,
+        'Feb' => 5915231,
+        'Mar' => 6000000,
+        'Apr' => 6500000,
+        'May' => 7000000,
+        'Jun' => 7500000,
+        'Jul' => 7750000,
+        'Aug' => 8000000,
+        'Sep' => 9000000,
+        'Oct' => 9500000,
+        'Nov' => 10000000,
+        'Dec' => 10500000,
+    ),
 
     'teams' => array(
-        // dept_id => AED monthly target for the team
-        // TODO: Fill in your sub-department IDs and their targets
-        // e.g. 10 => 15000000,
-        //      11 => 20000000,
+        // dept_id => array('Jan' => ..., 'Feb' => ..., ...)
     ),
 
     'agents' => array(
-        // bitrix_user_id => AED monthly target for the agent
-        // TODO: Fill in agent-level targets
-        // e.g. 45 => 7000000,
-        //      67 => 8000000,
+        // bitrix_user_id => AED flat monthly target
     ),
 
 );

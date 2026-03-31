@@ -132,6 +132,10 @@ if ($role === 'agent') {
 
     $managerName  = getManagerForAgent($agentId);
     $workPosition = $userRow['WORK_POSITION'] ?? '';
+    if (!isAllowedAgentPosition($workPosition)) {
+        echo json_encode(array('error' => 'Agent is not eligible for this report', 'agent_id' => $agentId));
+        exit;
+    }
 
     // Core deal data
     $allDeals     = fetchAllDeals(array($agentId), $dateRange, $dealType);
@@ -217,17 +221,23 @@ if ($role === 'agent') {
     }
 
     // Team won deals
-    $allDeals     = fetchAllDeals($agentIds, $dateRange, $dealType);
+    $allDeals     = empty($agentIds) ? array() : fetchAllDeals($agentIds, $dateRange, $dealType);
     $agg          = aggregateDeals($allDeals);
     $monthlyDeals = groupDealsByMonth($allDeals, $chartYear);
-    $commSplit    = buildCommissionSplit($allDeals, $agentIds, $dateRange, $dealType);
+    $commSplit    = empty($agentIds) ? array(
+        'total' => 0,
+        'committed_commission' => 0,
+        'committed_commission_pct' => 0,
+        'operational_commission' => 0,
+        'operational_commission_pct' => 0,
+    ) : buildCommissionSplit($allDeals, $agentIds, $dateRange, $dealType);
     $deptId       = getUserDeptId($managerId);
     $monthlyTarget = getTeamTarget($deptId);
 
     // Team-wide supplementary
-    $leadCount    = countActiveLeads($agentIds, $dateRange);
-    $reshuffled   = countReshuffledLeads($agentIds, $dateRange);
-    $listingCount = countTotalListings($agentIds);
+    $leadCount    = empty($agentIds) ? 0 : countActiveLeads($agentIds, $dateRange);
+    $reshuffled   = empty($agentIds) ? 0 : countReshuffledLeads($agentIds, $dateRange);
+    $listingCount = empty($agentIds) ? 0 : countTotalListings($agentIds);
     $noDeal60     = countNoDealIn60Days($agentIds);
 
     // Charts
@@ -305,14 +315,20 @@ if ($role === 'agent') {
     }, $allAgents);
 
     // Company-wide won deals (no agent filter = all)
-    $allDeals     = fetchAllDeals(array(), $dateRange, $dealType);
+    $allDeals     = empty($allAgentIds) ? array() : fetchAllDeals($allAgentIds, $dateRange, $dealType);
     $agg          = aggregateDeals($allDeals);
     $monthlyDeals = groupDealsByMonth($allDeals, $chartYear);
-    $commSplit    = buildCommissionSplit($allDeals, array(), $dateRange, $dealType);
+    $commSplit    = empty($allAgentIds) ? array(
+        'total' => 0,
+        'committed_commission' => 0,
+        'committed_commission_pct' => 0,
+        'operational_commission' => 0,
+        'operational_commission_pct' => 0,
+    ) : buildCommissionSplit($allDeals, $allAgentIds, $dateRange, $dealType);
     $monthlyTarget = getCompanyTarget();
 
     // Company-wide supplementary
-    $listings = countActiveListings(array());
+    $listings = empty($allAgentIds) ? array('sale' => 0, 'rent' => 0) : countActiveListings($allAgentIds);
     $noDeal60 = countNoDealIn60Days($allAgentIds);
 
     // Charts
@@ -357,6 +373,9 @@ if ($role === 'agent') {
         $teamIds    = array_map(function ($a) {
             return (int)$a['ID'];
         }, $teamAgents);
+        if (empty($teamIds)) {
+            continue;
+        }
 
         $teamDeals = array();
         foreach ($teamIds as $tid2) {
@@ -368,9 +387,9 @@ if ($role === 'agent') {
         }
 
         $tagg     = aggregateDeals($teamDeals);
-        $teamList = countTotalListings($teamIds);
+        $teamList  = countTotalListings($teamIds);
         $teamLeads = countActiveLeads($teamIds, $dateRange);
-        $lastDeal = daysSinceLastDeal($teamIds);
+        $lastDeal  = daysSinceLastDeal($teamIds);
 
         $teamPerformance[] = array(
             'id'             => $tid,
@@ -387,10 +406,22 @@ if ($role === 'agent') {
     }
 
     // ── YEAR COMPARISON ──────────────────────────────────────────────────
-    $year1Monthly = fetchYearMonthly($year1);
-    $year2Monthly = fetchYearMonthly($year2);
-    $year1Summary = fetchYearSummary($year1);
-    $year2Summary = fetchYearSummary($year2);
+    $year1Monthly = empty($allAgentIds) ? groupDealsByMonth(array(), $year1) : fetchYearMonthly($year1, $allAgentIds);
+    $year2Monthly = empty($allAgentIds) ? groupDealsByMonth(array(), $year2) : fetchYearMonthly($year2, $allAgentIds);
+    $year1Summary = empty($allAgentIds) ? array(
+        'sales' => 0,
+        'commission' => 0,
+        'deals' => 0,
+        'agents' => 0,
+        'avg_deal' => 0,
+    ) : fetchYearSummary($year1, $allAgentIds);
+    $year2Summary = empty($allAgentIds) ? array(
+        'sales' => 0,
+        'commission' => 0,
+        'deals' => 0,
+        'agents' => 0,
+        'avg_deal' => 0,
+    ) : fetchYearSummary($year2, $allAgentIds);
 
     // ── ASSEMBLE CEO RESPONSE ────────────────────────────────────────────
     $response['view']    = 'ceo';

@@ -234,6 +234,28 @@ function getUserRole($userId)
     return 'agent';
 }
 
+function normalizeWorkPosition($workPosition)
+{
+    return strtoupper(trim((string)$workPosition));
+}
+
+function isAllowedAgentPosition($workPosition)
+{
+    return in_array(
+        normalizeWorkPosition($workPosition),
+        $GLOBALS['CFG_ALLOWED_AGENT_POSITIONS'],
+        true
+    );
+}
+
+function getNonAgentUserIds()
+{
+    return array_values(array_unique(array_merge(
+        $GLOBALS['CFG_CEO_USER_IDS'],
+        $GLOBALS['CFG_MANAGER_USER_IDS']
+    )));
+}
+
 /**
  * Fetch all sub-departments under DEPT_SALES_ROOT.
  * Returns array of ['ID', 'NAME', 'UF_HEAD'] rows.
@@ -272,6 +294,12 @@ function getAgentsByDept($deptIds)
 
     $in = inClauseInt($deptIds);
 
+    $allowedPositions = inClauseStr($GLOBALS['CFG_ALLOWED_AGENT_POSITIONS']);
+    $nonAgentIds = getNonAgentUserIds();
+    $excludeNonAgents = !empty($nonAgentIds)
+        ? 'AND u.ID NOT IN ' . inClauseInt($nonAgentIds)
+        : '';
+
     return dbQuery("
         SELECT DISTINCT
             u.ID,
@@ -288,6 +316,8 @@ function getAgentsByDept($deptIds)
 
         WHERE u.ACTIVE = 'Y'
           AND ud.VALUE_INT IN {$in}
+          AND UPPER(TRIM(u.WORK_POSITION)) IN {$allowedPositions}
+          {$excludeNonAgents}
 
         ORDER BY u.LAST_NAME ASC, u.NAME ASC
     ");
@@ -369,6 +399,11 @@ function getUserDeptId($userId)
 function getAgentIdsByManager($managerId)
 {
     $mid = dbInt($managerId);
+    $allowedPositions = inClauseStr($GLOBALS['CFG_ALLOWED_AGENT_POSITIONS']);
+    $nonAgentIds = getNonAgentUserIds();
+    $excludeNonAgents = !empty($nonAgentIds)
+        ? 'AND u.ID NOT IN ' . inClauseInt($nonAgentIds)
+        : '';
 
     $rows = dbQuery("
         SELECT DISTINCT u.ID
@@ -386,6 +421,8 @@ function getAgentIdsByManager($managerId)
 
         WHERE uts.UF_HEAD = {$mid}
           AND u.ACTIVE = 'Y'
+          AND UPPER(TRIM(u.WORK_POSITION)) IN {$allowedPositions}
+          {$excludeNonAgents}
     ");
 
     return array_map(function ($r) {
@@ -963,11 +1000,15 @@ function groupDealsByMonth($deals, $year)
  */
 function buildTargetVsActual($monthlyDeals, $monthlyTarget)
 {
+    $targetMap = is_array($monthlyTarget) ? $monthlyTarget : array();
     $result = array();
     foreach ($monthlyDeals as $m) {
+        $target = is_array($monthlyTarget)
+            ? (int)($targetMap[$m['month']] ?? 0)
+            : (int)$monthlyTarget;
         $result[] = array(
             'month'  => $m['month'],
-            'target' => (int)$monthlyTarget,
+            'target' => $target,
             'actual' => (int)$m['sales'],
         );
     }
@@ -1199,10 +1240,11 @@ function getAgentTarget($userId, $workPosition)
     if (isset($targets['agents'][$uid])) {
         return (int)$targets['agents'][$uid];
     }
-    if (isset($GLOBALS['CFG_POSITION_TARGET'][$workPosition])) {
-        return (int)$GLOBALS['CFG_POSITION_TARGET'][$workPosition];
+    $position = normalizeWorkPosition($workPosition);
+    if (isset($GLOBALS['CFG_POSITION_TARGET'][$position])) {
+        return (int)$GLOBALS['CFG_POSITION_TARGET'][$position];
     }
-    return (int)$targets['company'];
+    return 0;
 }
 
 /**
@@ -1213,9 +1255,9 @@ function getTeamTarget($deptId)
 {
     $targets = $GLOBALS['CFG_MONTHLY_TARGETS'];
     if (isset($targets['teams'][(int)$deptId])) {
-        return (int)$targets['teams'][(int)$deptId];
+        return $targets['teams'][(int)$deptId];
     }
-    return (int)$targets['company'];
+    return $targets['company'];
 }
 
 /**
@@ -1223,7 +1265,7 @@ function getTeamTarget($deptId)
  */
 function getCompanyTarget()
 {
-    return (int)$GLOBALS['CFG_MONTHLY_TARGETS']['company'];
+    return $GLOBALS['CFG_MONTHLY_TARGETS']['company'];
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1258,6 +1300,11 @@ function fetchYearSummary($year, $agentIds = array())
 function countAllActiveAgents()
 {
     $parentId = dbInt(DEPT_SALES_ROOT);
+    $allowedPositions = inClauseStr($GLOBALS['CFG_ALLOWED_AGENT_POSITIONS']);
+    $nonAgentIds = getNonAgentUserIds();
+    $excludeNonAgents = !empty($nonAgentIds)
+        ? 'AND u.ID NOT IN ' . inClauseInt($nonAgentIds)
+        : '';
 
     $row = dbQueryOne("
         SELECT COUNT(DISTINCT u.ID) AS cnt
@@ -1273,6 +1320,8 @@ function countAllActiveAgents()
         WHERE u.ACTIVE = 'Y'
           AND s.IBLOCK_ID = 3
           AND s.IBLOCK_SECTION_ID = {$parentId}
+          AND UPPER(TRIM(u.WORK_POSITION)) IN {$allowedPositions}
+          {$excludeNonAgents}
     ");
 
     return (int)($row['cnt'] ?? 0);
