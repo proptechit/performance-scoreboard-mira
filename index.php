@@ -27,13 +27,6 @@
         </div>
 
         <div class="header-right">
-            <!-- Demo role switcher -->
-            <div class="role-switcher">
-                <button class="role-btn" onclick="switchRole('agent')">Agent</button>
-                <button class="role-btn" onclick="switchRole('manager')">Manager</button>
-                <button class="role-btn active" onclick="switchRole('ceo')">CEO</button>
-            </div>
-
             <div class="role-badge">
                 <div class="role-avatar" id="roleAvatar">C</div>
                 <span class="role-badge-text" id="roleLabel">CEO</span>

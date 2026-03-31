@@ -1,5 +1,4 @@
 // ── STATE ──────────────────────────────────────────────────────────────────
-let currentRole = "ceo";
 let currentData = null;
 let compareMetric = "sales";
 let charts = {};
@@ -62,33 +61,6 @@ Chart.defaults.plugins.tooltip.cornerRadius = 8;
 Chart.defaults.plugins.tooltip.displayColors = true;
 Chart.defaults.plugins.tooltip.boxPadding = 4;
 
-// ── ROLE SWITCH ────────────────────────────────────────────────────────────
-function switchRole(role) {
-  currentRole = role;
-  document.querySelectorAll(".role-btn").forEach((b) => {
-    b.classList.toggle("active", b.textContent.toLowerCase() === role);
-  });
-  const labels = {
-    ceo: "CEO",
-    manager: "Team Manager",
-    agent: "Sales Agent",
-  };
-  const avatarLetters = {
-    ceo: "C",
-    manager: "M",
-    agent: "A",
-  };
-  document.getElementById("roleLabel").textContent = labels[role];
-  document.getElementById("roleAvatar").textContent = avatarLetters[role];
-
-  // Show/hide agent filter
-  document
-    .getElementById("agentFilterGroup")
-    .classList.toggle("hidden", role !== "manager");
-
-  loadDashboard();
-}
-
 // ── FILTER CONTROL ─────────────────────────────────────────────────────────
 function fillSelect(id, arr, allLabel) {
   const el = document.getElementById(id);
@@ -114,7 +86,6 @@ function applyFilters() {
 
 function getFilterParams() {
   return {
-    role: currentRole,
     year: document.getElementById("f_year")?.value || "All",
     quarter: document.getElementById("f_quarter")?.value || "All",
     month: document.getElementById("f_month")?.value || "All",

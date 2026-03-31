@@ -31,14 +31,19 @@ require_once __DIR__ . '/helpers.php';
 // ── Boot Bitrix ──────────────────────────────────────────────────────────────
 bx_boot();
 
+global $USER;
+
+if (!$USER || !$USER->IsAuthorized()) {
+    echo json_encode(['error' => 'Unauthorized']);
+    exit;
+}
+
+$currentUserId = (int)$USER->GetID();
+
 // ═══════════════════════════════════════════════════════════════════════════
 // 1. PARSE & VALIDATE PARAMS
 // ═══════════════════════════════════════════════════════════════════════════
 
-$rawRole      = isset($_GET['role'])       ? trim($_GET['role'])       : 'ceo';
-$rawUserId    = isset($_GET['user_id'])    ? (int)$_GET['user_id']     : 0;
-$rawAgentId   = isset($_GET['agent_id'])   ? (int)$_GET['agent_id']    : 0;
-$rawManagerId = isset($_GET['manager_id']) ? (int)$_GET['manager_id']  : 0;
 $rawYear      = isset($_GET['year'])       ? trim($_GET['year'])        : 'All';
 $rawQuarter   = isset($_GET['quarter'])    ? trim($_GET['quarter'])     : 'All';
 $rawMonth     = isset($_GET['month'])      ? trim($_GET['month'])       : 'All';
@@ -48,7 +53,7 @@ $rawYear2     = isset($_GET['year2'])      ? (int)$_GET['year2']        : 2025;
 
 // Validate role (whitelist)
 $allowedRoles = array('ceo', 'manager', 'agent');
-$role = in_array($rawRole, $allowedRoles, true) ? $rawRole : 'ceo';
+$role = getUserRole($currentUserId);
 
 // Validate year
 $validYears = $GLOBALS['CFG_FILTER_META']['years'];
@@ -70,14 +75,9 @@ $dealType   = in_array($rawDealType, $validTypes, true) ? $rawDealType : 'All';
 $year1 = in_array($rawYear1, $validYears, true) ? $rawYear1 : 2024;
 $year2 = in_array($rawYear2, $validYears, true) ? $rawYear2 : 2025;
 
-// If user_id passed, auto-determine role from config mapping
-if ($rawUserId > 0 && $rawRole === 'ceo') {
-    $role = getUserRole($rawUserId);
-}
-
-// Resolve which user IDs we're operating on
-$agentId   = $rawAgentId   > 0 ? $rawAgentId   : $rawUserId;
-$managerId = $rawManagerId > 0 ? $rawManagerId : $rawUserId;
+// Assign IDs based on role
+$agentId   = $currentUserId;
+$managerId = $currentUserId;
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 2. BUILD DATE RANGE
@@ -93,7 +93,7 @@ $chartYear = ($year !== 'All' && is_numeric($year)) ? (int)$year : (int)date('Y'
 // ═══════════════════════════════════════════════════════════════════════════
 
 $cache    = new ScoreboardCache();
-$cacheKey = $cache->buildKey($role, array(
+$cacheKey = $cache->buildKey($role . '_' . $currentUserId, array(
     'agent_id'   => $agentId,
     'manager_id' => $managerId,
     'year'       => $year,
