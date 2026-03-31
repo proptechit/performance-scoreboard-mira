@@ -213,6 +213,31 @@ function getDaysBadgeMeta(days) {
   return { daysClass, daysLabel };
 }
 
+function isZeroValueOther(item, amountKeys = []) {
+  if (!item || item.name !== "Other") return false;
+  return amountKeys.every((key) => Number(item[key] || 0) === 0);
+}
+
+function filterZeroValueOthers(items, amountKeys = []) {
+  if (!Array.isArray(items)) return [];
+  return items.filter((item) => !isZeroValueOther(item, amountKeys));
+}
+
+function filterZeroValueOtherDealTypes(salesData) {
+  if (!salesData) return salesData;
+
+  return Object.fromEntries(
+    Object.entries(salesData).filter(([type, monthArr]) => {
+      if (type !== "Other") return true;
+      return !monthArr.every(
+        (month) =>
+          Number(month?.sales || 0) === 0 &&
+          Number(month?.commission || 0) === 0,
+      );
+    }),
+  );
+}
+
 // ── CHART HELPERS ──────────────────────────────────────────────────────────
 function destroyChart(id) {
   if (charts[id]) {
@@ -545,7 +570,12 @@ function renderCommissionTrend(trend) {
 function renderDealDonut(dist, canvasId, legendId, centerId, totalSales) {
   destroyChart(canvasId);
   const ctx = document.getElementById(canvasId);
-  if (!ctx || !dist) return;
+  const filteredDist = filterZeroValueOthers(dist, [
+    "value",
+    "amount",
+    "commission",
+  ]);
+  if (!ctx || !filteredDist?.length) return;
 
   if (centerId) {
     const el = document.getElementById(centerId);
@@ -555,11 +585,11 @@ function renderDealDonut(dist, canvasId, legendId, centerId, totalSales) {
   charts[canvasId] = new Chart(ctx, {
     type: "doughnut",
     data: {
-      labels: dist.map((d) => d.name),
+      labels: filteredDist.map((d) => d.name),
       datasets: [
         {
-          data: dist.map((d) => d.value),
-          backgroundColor: DEAL_COLORS,
+          data: filteredDist.map((d) => d.value),
+          backgroundColor: filteredDist.map((_, i) => DEAL_COLORS[i % DEAL_COLORS.length]),
           borderWidth: 0,
           hoverOffset: 6,
         },
@@ -581,12 +611,12 @@ function renderDealDonut(dist, canvasId, legendId, centerId, totalSales) {
 
   const legendEl = document.getElementById(legendId);
   if (legendEl) {
-    legendEl.innerHTML = dist
+    legendEl.innerHTML = filteredDist
       .map(
         (d, i) => `
       <div class="legend-item">
         <div class="legend-dot-label">
-          <div class="legend-dot" style="background:${DEAL_COLORS[i]}"></div>
+          <div class="legend-dot" style="background:${DEAL_COLORS[i % DEAL_COLORS.length]}"></div>
           <span class="legend-name">${d.name}</span>
         </div>
         <span class="legend-pct">${d.value.toFixed(1)}%</span>
@@ -694,7 +724,8 @@ function renderTargetActual(data) {
 function renderDeveloperTable(devs) {
   const tbody = document.getElementById("developerTableBody");
   if (!tbody || !devs) return;
-  const sortedDevs = sortCollection(devs, "developerTable", {
+  const visibleDevs = filterZeroValueOthers(devs, ["amount", "commission"]);
+  const sortedDevs = sortCollection(visibleDevs, "developerTable", {
     name: { type: "string", get: (d) => d.name },
     amount: { type: "number", get: (d) => d.amount },
     commission: { type: "number", get: (d) => d.commission },
@@ -721,7 +752,8 @@ function renderPropertyTable(types) {
   const tbody = document.getElementById("developerTableBody");
   if (!tbody || !types) return;
 
-  const sortedTypes = sortCollection(types, "developerTable", {
+  const visibleTypes = filterZeroValueOthers(types, ["amount", "commission"]);
+  const sortedTypes = sortCollection(visibleTypes, "developerTable", {
     name: { type: "string", get: (t) => t.name },
     amount: { type: "number", get: (t) => t.amount },
     commission: { type: "number", get: (t) => t.commission },
@@ -747,6 +779,7 @@ function renderPropertyTable(types) {
 function renderSalesByDealTypeTable(salesData) {
   const tbody = document.getElementById("salesByDealTypeBody");
   if (!tbody || !salesData) return;
+  const filteredSalesData = filterZeroValueOtherDealTypes(salesData);
 
   let rows = "";
   let grandTotals = {
@@ -760,7 +793,7 @@ function renderSalesByDealTypeTable(salesData) {
     deals: 0,
   };
 
-  const groups = Object.entries(salesData).map(([type, monthArr]) => {
+  const groups = Object.entries(filteredSalesData).map(([type, monthArr]) => {
     const monthMap = {};
     monthArr.forEach((m) => (monthMap[m.month] = m));
 
@@ -991,7 +1024,8 @@ function renderAgentDeveloperTable(devs) {
   const tbody = document.getElementById("agentDevTableBody");
   if (!tbody || !devs) return;
 
-  const sortedDevs = sortCollection(devs, "agentDeveloperTable", {
+  const visibleDevs = filterZeroValueOthers(devs, ["amount", "commission"]);
+  const sortedDevs = sortCollection(visibleDevs, "agentDeveloperTable", {
     name: { type: "string", get: (d) => d.name },
     amount: { type: "number", get: (d) => d.amount },
     commission: { type: "number", get: (d) => d.commission },
