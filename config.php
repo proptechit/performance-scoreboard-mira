@@ -17,7 +17,7 @@ $_SERVER["DOCUMENT_ROOT"] = realpath(__DIR__ . '/../../');
 // ═══════════════════════════════════════════════════════════════════════════
 define('PIPELINE_OFFPLAN',     1);   // Leads – Offplan pipeline
 define('PIPELINE_SECONDARY',   2);   // Leads – Secondary pipeline
-define('PIPELINE_TRANSACTION', 3);   // Deals (Transactions) pipeline
+define('PIPELINE_TRANSACTION', 3);   // Transactions (Transactions) pipeline
 
 // Convenience arrays
 define('PIPELINES_LEADS', serialize(array(PIPELINE_OFFPLAN, PIPELINE_SECONDARY)));

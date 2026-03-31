@@ -196,7 +196,7 @@
                                     <th data-table-id="developerTable" data-sort-key="name" data-sort-type="string">Developer</th>
                                     <th data-table-id="developerTable" data-sort-key="amount" data-sort-type="number">Amount (AED)</th>
                                     <th data-table-id="developerTable" data-sort-key="commission" data-sort-type="number">Commission</th>
-                                    <th data-table-id="developerTable" data-sort-key="deals" data-sort-type="number">Deals</th>
+                                    <th data-table-id="developerTable" data-sort-key="deals" data-sort-type="number">Transactions</th>
                                 </tr>
                             </thead>
                             <tbody id="developerTableBody"></tbody>
@@ -256,12 +256,12 @@
                         <thead>
                             <tr>
                                 <th data-table-id="agentTable" data-sort-key="name" data-sort-type="string">Agent</th>
-                                <th data-table-id="agentTable" data-sort-key="deals" data-sort-type="number">Deals</th>
+                                <th data-table-id="agentTable" data-sort-key="deals" data-sort-type="number">Transactions</th>
                                 <th data-table-id="agentTable" data-sort-key="sales" data-sort-type="number">Sales Volume (AED)</th>
                                 <th data-table-id="agentTable" data-sort-key="commission" data-sort-type="number">Commission</th>
-                                <th data-table-id="agentTable" data-sort-key="top_deal" data-sort-type="number">Top Deal</th>
+                                <th data-table-id="agentTable" data-sort-key="top_deal" data-sort-type="number">Top Transaction</th>
                                 <th data-table-id="agentTable" data-sort-key="avg_gap" data-sort-type="number">Avg Gap</th>
-                                <th data-table-id="agentTable" data-sort-key="last_deal_days" data-sort-type="number">Last Deal</th>
+                                <th data-table-id="agentTable" data-sort-key="last_deal_days" data-sort-type="number">Last Transaction</th>
                             </tr>
                         </thead>
                         <tbody id="agentTableBody"></tbody>
@@ -287,14 +287,14 @@
                         <thead>
                             <tr>
                                 <th data-table-id="teamTable" data-sort-key="name" data-sort-type="string">Team</th>
-                                <th data-table-id="teamTable" data-sort-key="deals" data-sort-type="number">Deals</th>
+                                <th data-table-id="teamTable" data-sort-key="deals" data-sort-type="number">Transactions</th>
                                 <th data-table-id="teamTable" data-sort-key="leads" data-sort-type="number">Leads</th>
                                 <th data-table-id="teamTable" data-sort-key="listings" data-sort-type="number">Listings</th>
                                 <th data-table-id="teamTable" data-sort-key="sales" data-sort-type="number">Sales Volume (AED)</th>
                                 <th data-table-id="teamTable" data-sort-key="commission" data-sort-type="number">Commission</th>
-                                <th data-table-id="teamTable" data-sort-key="top_deal" data-sort-type="number">Top Deal</th>
+                                <th data-table-id="teamTable" data-sort-key="top_deal" data-sort-type="number">Top Transaction</th>
                                 <th data-table-id="teamTable" data-sort-key="avg_gap" data-sort-type="number">Avg Gap</th>
-                                <th data-table-id="teamTable" data-sort-key="last_deal_days" data-sort-type="number">Last Deal</th>
+                                <th data-table-id="teamTable" data-sort-key="last_deal_days" data-sort-type="number">Last Transaction</th>
                             </tr>
                         </thead>
                         <tbody id="teamTableBody"></tbody>
@@ -323,7 +323,7 @@
                 <div class="compare-tabs" id="compareMetricTabs">
                     <button class="compare-tab active" data-metric="sales" onclick="switchCompareMetric(this,'sales')">Sales Volume</button>
                     <button class="compare-tab" data-metric="commission" onclick="switchCompareMetric(this,'commission')">Commissions</button>
-                    <button class="compare-tab" data-metric="deals" onclick="switchCompareMetric(this,'deals')">Deal Count</button>
+                    <button class="compare-tab" data-metric="deals" onclick="switchCompareMetric(this,'deals')">Transaction Count</button>
                 </div>
 
                 <div class="chart-container" style="height:260px;">
@@ -374,12 +374,12 @@
                                 <th data-table-id="managerAgentTable" data-sort-key="name" data-sort-type="string">Agent</th>
                                 <th data-table-id="managerAgentTable" data-sort-key="leads" data-sort-type="number">Leads</th>
                                 <th data-table-id="managerAgentTable" data-sort-key="reshuffled_leads" data-sort-type="number">Reshuffled Leads</th>
-                                <th data-table-id="managerAgentTable" data-sort-key="deals" data-sort-type="number">Deals</th>
+                                <th data-table-id="managerAgentTable" data-sort-key="deals" data-sort-type="number">Transactions</th>
                                 <th data-table-id="managerAgentTable" data-sort-key="listings" data-sort-type="number">Listings</th>
                                 <th data-table-id="managerAgentTable" data-sort-key="sales" data-sort-type="number">Sales Volume</th>
                                 <th data-table-id="managerAgentTable" data-sort-key="commission" data-sort-type="number">Commission</th>
-                                <th data-table-id="managerAgentTable" data-sort-key="top_deal" data-sort-type="number">Top Deal</th>
-                                <th data-table-id="managerAgentTable" data-sort-key="last_deal_days" data-sort-type="number">Last Deal</th>
+                                <th data-table-id="managerAgentTable" data-sort-key="top_deal" data-sort-type="number">Top Transaction</th>
+                                <th data-table-id="managerAgentTable" data-sort-key="last_deal_days" data-sort-type="number">Last Transaction</th>
                                 <th data-table-id="managerAgentTable" data-sort-key="attendance" data-sort-type="number">Attendence</th>
                             </tr>
                         </thead>
@@ -466,7 +466,7 @@
                                 <th data-table-id="agentDeveloperTable" data-sort-key="name" data-sort-type="string">Developer</th>
                                 <th data-table-id="agentDeveloperTable" data-sort-key="amount" data-sort-type="number">Amount (AED)</th>
                                 <th data-table-id="agentDeveloperTable" data-sort-key="commission" data-sort-type="number">Commission</th>
-                                <th data-table-id="agentDeveloperTable" data-sort-key="deals" data-sort-type="number">Deals</th>
+                                <th data-table-id="agentDeveloperTable" data-sort-key="deals" data-sort-type="number">Transactions</th>
                             </tr>
                         </thead>
                         <tbody id="agentDevTableBody"></tbody>

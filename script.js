@@ -357,7 +357,7 @@ function renderCEO(data) {
       badge: null,
     },
     {
-      label: "No Deal (60 Days)",
+      label: "No. of Transaction (Last 60 Days)",
       value: fmtNum(s.no_deal_60_days),
       sub: "Need follow-up",
       icon: "⚠️",
@@ -368,7 +368,7 @@ function renderCEO(data) {
       highlight: true,
     },
     {
-      label: "Deal Count",
+      label: "Transaction Count",
       value: fmtNum(s.deal_count),
       sub: "Total transactions",
       icon: "📋",
@@ -382,7 +382,7 @@ function renderCEO(data) {
       badge: null,
     },
     {
-      label: "Avg Sales / Deal",
+      label: "Avg Sales / Transaction",
       value: "AED " + fmtCurrency(s.avg_sales_per_deal, true),
       sub: "Per transaction",
       icon: "📊",
@@ -396,7 +396,7 @@ function renderCEO(data) {
       badge: null,
     },
     {
-      label: "Top Deal",
+      label: "Top Transaction",
       value: "AED " + fmtCurrency(s.top_deal, true),
       sub: "Highest single sale",
       icon: "🏆",
@@ -413,7 +413,7 @@ function renderCEO(data) {
       badge: null,
     },
     {
-      label: "Avg Revenue / Deal",
+      label: "Avg Revenue / Transaction",
       value: "AED " + fmtCurrency(s.avg_revenue_per_deal, true),
       sub: "Net per deal",
       icon: "📈",
@@ -589,7 +589,9 @@ function renderDealDonut(dist, canvasId, legendId, centerId, totalSales) {
       datasets: [
         {
           data: filteredDist.map((d) => d.value),
-          backgroundColor: filteredDist.map((_, i) => DEAL_COLORS[i % DEAL_COLORS.length]),
+          backgroundColor: filteredDist.map(
+            (_, i) => DEAL_COLORS[i % DEAL_COLORS.length],
+          ),
           borderWidth: 0,
           hoverOffset: 6,
         },
@@ -851,7 +853,7 @@ function renderSalesByDealTypeTable(salesData) {
       rows += `<tr class="deal-type-header"><td colspan="14" style="padding:8px 12px;font-size:12px;font-weight:700;color:rgba(255,255,255,0.9);">${type}</td></tr>`;
       rows += `<tr class="deal-type-sub"><td>↳ Sales</td>${salesCells.map((c) => `<td>${c}</td>`).join("")}<td>${fmtCurrency(totals.sales, true)}</td></tr>`;
       rows += `<tr class="deal-type-sub"><td>↳ Commission</td>${commCells.map((c) => `<td>${c}</td>`).join("")}<td>${fmtCurrency(totals.commission, true)}</td></tr>`;
-      rows += `<tr class="deal-type-sub"><td>↳ Deal Count</td>${dealCells.map((c) => `<td>${c}</td>`).join("")}<td>${totals.deals}</td></tr>`;
+      rows += `<tr class="deal-type-sub"><td>↳ Transaction Count</td>${dealCells.map((c) => `<td>${c}</td>`).join("")}<td>${totals.deals}</td></tr>`;
     },
   );
 
@@ -868,7 +870,7 @@ function renderSalesByDealTypeTable(salesData) {
       <td style="color:var(--gold-light);font-weight:700;padding:8px 12px;text-align:right;">${fmtCurrency(grandTotal.commission, true)}</td>
     </tr>
     <tr style="background:var(--navy-mid);">
-      <td style="font-weight:700;color:rgba(255,255,255,0.7);padding:8px 12px;">Grand Total – Deals</td>
+      <td style="font-weight:700;color:rgba(255,255,255,0.7);padding:8px 12px;">Grand Total – Transactions</td>
       ${grandTotals.deals.map((v) => `<td style="color:rgba(255,255,255,0.5);padding:8px 12px;text-align:right;">${v || "–"}</td>`).join("")}
       <td style="color:var(--gold-light);font-weight:700;padding:8px 12px;text-align:right;">${grandTotal.deals}</td>
     </tr>
@@ -1143,7 +1145,7 @@ function renderYearComparison(yc, skipPills) {
           <span class="year-pill-label">${yc.year1}</span>
           <div class="year-pill-stats">
             <span class="year-pill-stat">Sales: <strong>AED ${fmtCurrency(s1.sales, true)}</strong></span>
-            <span class="year-pill-stat">Deals: <strong>${fmtNum(s1.deals)}</strong></span>
+            <span class="year-pill-stat">Transactions: <strong>${fmtNum(s1.deals)}</strong></span>
             <span class="year-pill-stat">Commission: <strong>AED ${fmtCurrency(s1.commission, true)}</strong></span>
           </div>
         </div>
@@ -1151,7 +1153,7 @@ function renderYearComparison(yc, skipPills) {
           <span class="year-pill-label">${yc.year2}</span>
           <div class="year-pill-stats">
             <span class="year-pill-stat">Sales: <strong>AED ${fmtCurrency(s2.sales, true)}</strong></span>
-            <span class="year-pill-stat">Deals: <strong>${fmtNum(s2.deals)}</strong></span>
+            <span class="year-pill-stat">Transactions: <strong>${fmtNum(s2.deals)}</strong></span>
             <span class="year-pill-stat">Commission: <strong>AED ${fmtCurrency(s2.commission, true)}</strong></span>
           </div>
         </div>
@@ -1172,7 +1174,7 @@ function renderYearComparison(yc, skipPills) {
     },
     deals: {
       key: "deals",
-      label: "Deal Count",
+      label: "Transaction Count",
       fmt: (v) => v,
     },
   };
@@ -1284,7 +1286,7 @@ function renderManager(data) {
       icon: "👥",
     },
     {
-      label: "No Deal 60 Days",
+      label: "No. of Transaction (Last 60 Days)",
       value: fmtNum(s.no_deal_60_days),
       icon: "⚠️",
       highlight: true,
@@ -1295,7 +1297,7 @@ function renderManager(data) {
       icon: "📋",
     },
     {
-      label: "Deal Count",
+      label: "Transaction Count",
       value: fmtNum(s.deal_count),
       icon: "📊",
     },
@@ -1310,12 +1312,12 @@ function renderManager(data) {
       icon: "💰",
     },
     {
-      label: "Avg / Deal",
+      label: "Avg / Transaction",
       value: "AED " + fmtCurrency(s.avg_sales_per_deal, true),
       icon: "📊",
     },
     {
-      label: "Top Deal",
+      label: "Top Transaction",
       value: "AED " + fmtCurrency(s.top_deal, true),
       icon: "🏆",
     },
@@ -1500,7 +1502,7 @@ function renderAgent(data) {
           <span class="profile-meta-item">Manager: <strong>${p.manager}</strong></span>
           <span class="profile-meta-item">ID: <strong>${p.user_id}</strong></span>
           <span class="profile-meta-item">Joined: <strong>${p.joined}</strong></span>
-          <span class="profile-meta-item">Days Since Last Deal: <strong style="color:${s.days_since_last > 30 ? "var(--red)" : "var(--green)"};">${s.days_since_last}</strong></span>
+          <span class="profile-meta-item">Days Since Last Closed Transaction: <strong style="color:${s.days_since_last > 30 ? "var(--red)" : "var(--green)"};">${s.days_since_last}</strong></span>
         </div>
       </div>
       <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;">
@@ -1525,15 +1527,15 @@ function renderAgent(data) {
       icon: "💰",
     },
     {
-      label: "Deal Count",
+      label: "Transaction Count",
       value: fmtNum(s.deal_count),
-      sub: "Total closed deals",
+      sub: "Total closed transactions",
       icon: "📋",
     },
     {
-      label: "Avg Revenue / Deal",
+      label: "Avg Revenue / Transaction",
       value: "AED " + fmtCurrency(s.avg_revenue, true),
-      sub: "Net per deal",
+      sub: "Net per transaction",
       icon: "📈",
     },
     {
@@ -1549,7 +1551,7 @@ function renderAgent(data) {
       icon: "⏱️",
     },
     {
-      label: "Top Deal",
+      label: "Top Transaction",
       value: "AED " + fmtCurrency(s.top_deal, true),
       sub: fmtCurrency(s.top_deal),
       icon: "🏆",
@@ -1561,7 +1563,7 @@ function renderAgent(data) {
       icon: "⭐",
     },
     {
-      label: "Days Since Last Deal",
+      label: "Days Since Last Transaction Closed",
       value: s.days_since_last + " days",
       sub: s.days_since_last > 30 ? "⚠ Follow up" : "✓ Active",
       icon: "🗓️",
