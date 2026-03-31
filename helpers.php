@@ -571,6 +571,8 @@ function fetchAllDeals($agentIds, $dateRange, $dealType = 'All')
             ON uts.VALUE_ID = d.ID
 
         WHERE d.CATEGORY_ID = {$catId}
+          AND DATE(d.DATE_CREATE) >= '{$from}'
+          AND DATE(d.DATE_CREATE) <= '{$to}'
           {$agentFilter}
           {$typeFilter}
 
