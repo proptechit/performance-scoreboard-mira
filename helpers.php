@@ -279,6 +279,25 @@ function getSalesTeams()
     ");
 }
 
+function getSalesTeamById($deptId)
+{
+    $deptId = dbInt($deptId);
+
+    return dbQueryOne("
+        SELECT 
+            s.ID,
+            s.NAME,
+            uts.UF_HEAD
+        FROM b_iblock_section s
+        LEFT JOIN b_uts_iblock_3_section uts 
+            ON uts.VALUE_ID = s.ID
+        WHERE s.IBLOCK_ID = 3
+          AND s.ACTIVE = 'Y'
+          AND s.ID = {$deptId}
+        LIMIT 1
+    ");
+}
+
 /**
  * Fetch all active agents in a given department (and its sub-departments).
  * Returns array of user rows: ID, NAME, LAST_NAME, WORK_POSITION, UF_DEPARTMENT.

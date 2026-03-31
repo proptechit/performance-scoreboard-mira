@@ -971,7 +971,7 @@ function renderTeamTable(teams) {
     .map((a) => {
       const { daysClass, daysLabel } = getDaysBadgeMeta(a.last_deal_days);
       return `
-    <tr onclick="drillToManager(${a.manager_id})">
+    <tr onclick="drillToTeam(${a.id})">
       <td>
         <div class="agent-name-cell">
           <div class="agent-mini-avatar">${initials(a.name)}</div>
@@ -1090,14 +1090,15 @@ function drillToAgent(agentId) {
       setActiveView("agent");
       renderAgent(data);
       updateRoleBadge(data.agent?.profile?.name || "Agent", "A");
-    });
+    })
+    .catch(() => alert("Unable to open the selected agent report."));
 }
 
-function drillToManager(managerId) {
-  if (!managerId) return;
+function drillToTeam(deptId) {
+  if (!deptId) return;
   const params = getFilterParams();
   params.role = "manager";
-  params.manager_id = managerId;
+  params.dept_id = deptId;
   fetchDrilldownView(params)
     .then((data) => {
       if (data.error) {
@@ -1108,7 +1109,8 @@ function drillToManager(managerId) {
       setActiveView("manager");
       renderManager(data);
       updateRoleBadge(data.manager?.profile?.name || "Manager", "M");
-    });
+    })
+    .catch(() => alert("Unable to open the selected team report."));
 }
 
 // Year Comparison

@@ -51,6 +51,7 @@ $rawDealType  = isset($_GET['deal_type'])  ? trim($_GET['deal_type'])   : 'All';
 $rawRole      = isset($_GET['role'])       ? trim($_GET['role'])        : '';
 $rawAgentId   = isset($_GET['agent_id'])   ? (int)$_GET['agent_id']     : $currentUserId;
 $rawManagerId = isset($_GET['manager_id']) ? (int)$_GET['manager_id']   : $currentUserId;
+$rawDeptId    = isset($_GET['dept_id'])    ? (int)$_GET['dept_id']      : 0;
 $rawYear1     = isset($_GET['year1'])      ? (int)$_GET['year1']        : 2024;
 $rawYear2     = isset($_GET['year2'])      ? (int)$_GET['year2']        : 2025;
 
@@ -89,8 +90,9 @@ $year2 = in_array($rawYear2, $validYears, true) ? $rawYear2 : 2025;
 // Assign IDs based on role
 $agentId   = ($role === 'agent' && $rawAgentId > 0) ? $rawAgentId : $currentUserId;
 $managerId = ($role === 'manager' && $rawManagerId > 0) ? $rawManagerId : $currentUserId;
+$deptId    = ($role === 'manager' && $currentUserRole === 'ceo' && $rawDeptId > 0) ? $rawDeptId : 0;
 
-if ($role === 'manager' && getUserRole($managerId) !== 'manager') {
+if ($role === 'manager' && $deptId <= 0 && getUserRole($managerId) !== 'manager') {
     echo json_encode(array('error' => 'Invalid manager selection', 'manager_id' => $managerId));
     exit;
 }
@@ -122,6 +124,7 @@ $cache    = new ScoreboardCache();
 $cacheKey = $cache->buildKey($role . '_' . $currentUserId, array(
     'agent_id'   => $agentId,
     'manager_id' => $managerId,
+    'dept_id'    => $deptId,
     'year'       => $year,
     'quarter'    => $quarter,
     'month'      => $month,
@@ -229,20 +232,39 @@ if ($role === 'agent') {
     // MANAGER VIEW
     // ───────────────────────────────────────────────────────────────────────────
 } elseif ($role === 'manager') {
+    $teamRow = array();
+    if ($deptId > 0) {
+        $teamRow = getSalesTeamById($deptId);
+        if (empty($teamRow)) {
+            echo json_encode(array('error' => 'Team not found', 'dept_id' => $deptId));
+            exit;
+        }
+        $managerId = (int)($teamRow['UF_HEAD'] ?? 0);
+    }
 
-    $managerRow = getUserProfile($managerId);
-    if (empty($managerRow)) {
+    $managerRow = $managerId > 0 ? getUserProfile($managerId) : array();
+    if ($deptId <= 0 && empty($managerRow)) {
         echo json_encode(array('error' => 'Manager not found', 'manager_id' => $managerId));
         exit;
     }
 
     // All agents in this manager's department(s)
-    $agentIds  = getAgentIdsByManager($managerId);
     $agentRows = array();
-    foreach ($agentIds as $aid) {
-        $row = getUserProfile($aid);
-        if (!empty($row)) {
-            $agentRows[$aid] = $row;
+    if ($deptId > 0) {
+        $deptAgents = getAgentsByDept(array($deptId));
+        $agentIds = array_map(function ($row) {
+            return (int)$row['ID'];
+        }, $deptAgents);
+        foreach ($deptAgents as $row) {
+            $agentRows[(int)$row['ID']] = $row;
+        }
+    } else {
+        $agentIds = getAgentIdsByManager($managerId);
+        foreach ($agentIds as $aid) {
+            $row = getUserProfile($aid);
+            if (!empty($row)) {
+                $agentRows[$aid] = $row;
+            }
         }
     }
 
@@ -257,8 +279,8 @@ if ($role === 'agent') {
         'operational_commission' => 0,
         'operational_commission_pct' => 0,
     ) : buildCommissionSplit($allDeals, $agentIds, $dateRange, $dealType);
-    $deptId       = getUserDeptId($managerId);
-    $monthlyTarget = getTeamTarget($deptId);
+    $targetDeptId  = $deptId > 0 ? $deptId : getUserDeptId($managerId);
+    $monthlyTarget = getTeamTarget($targetDeptId);
 
     // Team-wide supplementary
     $leadCount    = empty($agentIds) ? 0 : countActiveLeads($agentIds, $dateRange);
@@ -297,10 +319,11 @@ if ($role === 'agent') {
     $response['view']    = 'manager';
     $response['manager'] = array(
         'profile' => array(
-            'name'        => fullName($managerRow),
-            'user_id'     => $managerRow['ID'],
-            'designation' => $managerRow['WORK_POSITION'] ?? 'Team Leader',
+            'name'        => !empty($managerRow) ? fullName($managerRow) : ($teamRow['NAME'] ?? 'Team'),
+            'user_id'     => $managerRow['ID'] ?? 0,
+            'designation' => $managerRow['WORK_POSITION'] ?? 'Team Manager',
             'joined'      => !empty($managerRow['DATE_REGISTER']) ? date('Y-m-d', strtotime($managerRow['DATE_REGISTER'])) : '',
+            'team_name'   => $teamRow['NAME'] ?? '',
         ),
         'summary' => array(
             'active_agents'          => count($agentIds),
