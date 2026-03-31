@@ -22,9 +22,6 @@
  */
 function bx_boot()
 {
-    var_dump(BX_ROOT);
-    exit;
-    
     $prolog = BX_ROOT . '/bitrix/modules/main/include/prolog_before.php';
     if (!file_exists($prolog)) {
         http_response_code(500);
