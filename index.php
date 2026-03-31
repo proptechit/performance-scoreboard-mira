@@ -248,7 +248,7 @@
                     <div style="display:flex;gap:8px;align-items:center;">
                         <span id="agentCountBadge" style="font-size:11px;color:var(--grey-400);font-weight:500;"></span>
                         <span style="width:8px;height:8px;border-radius:50%;background:var(--red);display:inline-block;"></span>
-                        <span style="font-size:11px;color:var(--grey-400);">No deal 60+ days</span>
+                        <!-- <span style="font-size:11px;color:var(--grey-400);">No deal 60+ days</span> -->
                     </div>
                 </div>
                 <div class="agent-table-wrapper">
@@ -279,7 +279,7 @@
                     <div style="display:flex;gap:8px;align-items:center;">
                         <span id="teamCountBadge" style="font-size:11px;color:var(--grey-400);font-weight:500;"></span>
                         <span style="width:8px;height:8px;border-radius:50%;background:var(--red);display:inline-block;"></span>
-                        <span style="font-size:11px;color:var(--grey-400);">No deal 60+ days</span>
+                        <!-- <span style="font-size:11px;color:var(--grey-400);">No deal 60+ days</span> -->
                     </div>
                 </div>
                 <div class="agent-table-wrapper">
