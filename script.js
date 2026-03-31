@@ -694,7 +694,14 @@ function renderTargetActual(data) {
 function renderDeveloperTable(devs) {
   const tbody = document.getElementById("developerTableBody");
   if (!tbody || !devs) return;
-  tbody.innerHTML = devs
+  const sortedDevs = sortCollection(devs, "developerTable", {
+    name: { type: "string", get: (d) => d.name },
+    amount: { type: "number", get: (d) => d.amount },
+    commission: { type: "number", get: (d) => d.commission },
+    deals: { type: "number", get: (d) => d.deals },
+  });
+
+  tbody.innerHTML = sortedDevs
     .map(
       (d, i) => `
     <tr>
@@ -714,7 +721,14 @@ function renderPropertyTable(types) {
   const tbody = document.getElementById("developerTableBody");
   if (!tbody || !types) return;
 
-  tbody.innerHTML = types
+  const sortedTypes = sortCollection(types, "developerTable", {
+    name: { type: "string", get: (t) => t.name },
+    amount: { type: "number", get: (t) => t.amount },
+    commission: { type: "number", get: (t) => t.commission },
+    deals: { type: "number", get: (t) => t.deals },
+  });
+
+  tbody.innerHTML = sortedTypes
     .map(
       (t, i) => `
     <tr>
@@ -733,20 +747,6 @@ function renderPropertyTable(types) {
 function renderSalesByDealTypeTable(salesData) {
   const tbody = document.getElementById("salesByDealTypeBody");
   if (!tbody || !salesData) return;
-  const months = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
-  ];
 
   let rows = "";
   let grandTotals = {
@@ -760,49 +760,67 @@ function renderSalesByDealTypeTable(salesData) {
     deals: 0,
   };
 
-  Object.entries(salesData).forEach(([type, monthArr]) => {
+  const groups = Object.entries(salesData).map(([type, monthArr]) => {
     const monthMap = {};
     monthArr.forEach((m) => (monthMap[m.month] = m));
 
-    let rowSales = 0,
-      rowComm = 0,
-      rowDeals = 0;
-    const salesCells = months.map((m, i) => {
-      const d = monthMap[m];
-      if (d) {
-        rowSales += d.sales;
-        grandTotals.sales[i] += d.sales;
-        grandTotal.sales += d.sales;
-        return fmtCurrency(d.sales, true);
-      }
-      return "–";
-    });
-    const commCells = months.map((m, i) => {
-      const d = monthMap[m];
-      if (d) {
-        rowComm += d.commission;
-        grandTotals.commission[i] += d.commission;
-        grandTotal.commission += d.commission;
-        return fmtCurrency(d.commission, true);
-      }
-      return "–";
-    });
-    const dealCells = months.map((m, i) => {
-      const d = monthMap[m];
-      if (d) {
-        rowDeals += d.deals;
-        grandTotals.deals[i] += d.deals;
-        grandTotal.deals += d.deals;
-        return d.deals;
-      }
-      return "–";
+    const totals = {
+      sales: 0,
+      commission: 0,
+      deals: 0,
+    };
+
+    MONTHS.forEach((month, i) => {
+      const d = monthMap[month];
+      if (!d) return;
+
+      totals.sales += d.sales;
+      totals.commission += d.commission;
+      totals.deals += d.deals;
+      grandTotals.sales[i] += d.sales;
+      grandTotals.commission[i] += d.commission;
+      grandTotals.deals[i] += d.deals;
+      grandTotal.sales += d.sales;
+      grandTotal.commission += d.commission;
+      grandTotal.deals += d.deals;
     });
 
-    rows += `<tr class="deal-type-header"><td colspan="14" style="padding:8px 12px;font-size:12px;font-weight:700;color:rgba(255,255,255,0.9);">${type}</td></tr>`;
-    rows += `<tr class="deal-type-sub"><td>↳ Sales</td>${salesCells.map((c) => `<td>${c}</td>`).join("")}<td>${fmtCurrency(rowSales, true)}</td></tr>`;
-    rows += `<tr class="deal-type-sub"><td>↳ Commission</td>${commCells.map((c) => `<td>${c}</td>`).join("")}<td>${fmtCurrency(rowComm, true)}</td></tr>`;
-    rows += `<tr class="deal-type-sub"><td>↳ Deal Count</td>${dealCells.map((c) => `<td>${c}</td>`).join("")}<td>${rowDeals}</td></tr>`;
+    return { type, monthMap, totals };
   });
+
+  const salesTypeSorters = {
+    type: { type: "string", get: (group) => group.type },
+    grand_total: { type: "number", get: (group) => group.totals.sales },
+  };
+
+  MONTHS.forEach((month) => {
+    salesTypeSorters[month] = {
+      type: "number",
+      get: (group) => group.monthMap[month]?.sales || 0,
+    };
+  });
+
+  sortCollection(groups, "salesByDealTypeTable", salesTypeSorters).forEach(
+    ({ type, monthMap, totals }) => {
+      const salesCells = MONTHS.map((m) => {
+        const d = monthMap[m];
+        return d ? fmtCurrency(d.sales, true) : "–";
+      });
+      const commCells = MONTHS.map((m) => {
+        const d = monthMap[m];
+        return d ? fmtCurrency(d.commission, true) : "–";
+      });
+      const dealCells = MONTHS.map((m) => {
+        const d = monthMap[m];
+        return d ? d.deals : "–";
+      });
+
+      rows += `<tr class="deal-type-header"><td colspan="14" style="padding:8px 12px;font-size:12px;font-weight:700;color:rgba(255,255,255,0.9);">${type}</td></tr>`;
+      rows += `<tr class="deal-type-sub"><td>↳ Sales</td>${salesCells.map((c) => `<td>${c}</td>`).join("")}<td>${fmtCurrency(totals.sales, true)}</td></tr>`;
+      rows += `<tr class="deal-type-sub"><td>↳ Commission</td>${commCells.map((c) => `<td>${c}</td>`).join("")}<td>${fmtCurrency(totals.commission, true)}</td></tr>`;
+      rows += `<tr class="deal-type-sub"><td>↳ Deal Count</td>${dealCells.map((c) => `<td>${c}</td>`).join("")}<td>${totals.deals}</td></tr>`;
+    },
+  );
 
   // Grand Total
   rows += `
@@ -832,20 +850,19 @@ function renderAgentTable(agents) {
   document.getElementById("agentCountBadge").textContent =
     `${agents.length} agents`;
 
-  tbody.innerHTML = agents
+  const sortedAgents = sortCollection(agents, "agentTable", {
+    name: { type: "string", get: (a) => a.name },
+    deals: { type: "number", get: (a) => a.deals },
+    sales: { type: "number", get: (a) => a.sales },
+    commission: { type: "number", get: (a) => a.commission },
+    top_deal: { type: "number", get: (a) => a.top_deal },
+    avg_gap: { type: "number", get: (a) => a.avg_gap },
+    last_deal_days: { type: "number", get: (a) => a.last_deal_days },
+  });
+
+  tbody.innerHTML = sortedAgents
     .map((a) => {
-      const daysClass =
-        a.last_deal_days <= 14
-          ? "ok"
-          : a.last_deal_days <= 30
-            ? "warn"
-            : "crit";
-      const daysLabel =
-        a.last_deal_days <= 14
-          ? `${a.last_deal_days}d ago`
-          : a.last_deal_days <= 30
-            ? `${a.last_deal_days}d ago`
-            : `${a.last_deal_days}d ⚠`;
+      const { daysClass, daysLabel } = getDaysBadgeMeta(a.last_deal_days);
       return `
     <tr onclick="drillToAgent(${a.id})">
       <td>
@@ -875,20 +892,21 @@ function renderTeamTable(teams) {
   document.getElementById("teamCountBadge").textContent =
     `${teams.length} teams`;
 
-  tbody.innerHTML = teams
+  const sortedTeams = sortCollection(teams, "teamTable", {
+    name: { type: "string", get: (a) => a.name },
+    deals: { type: "number", get: (a) => a.deals },
+    leads: { type: "number", get: (a) => a.leads },
+    listings: { type: "number", get: (a) => a.listings },
+    sales: { type: "number", get: (a) => a.sales },
+    commission: { type: "number", get: (a) => a.commission },
+    top_deal: { type: "number", get: (a) => a.top_deal },
+    avg_gap: { type: "number", get: (a) => a.avg_gap },
+    last_deal_days: { type: "number", get: (a) => a.last_deal_days },
+  });
+
+  tbody.innerHTML = sortedTeams
     .map((a) => {
-      const daysClass =
-        a.last_deal_days <= 14
-          ? "ok"
-          : a.last_deal_days <= 30
-            ? "warn"
-            : "crit";
-      const daysLabel =
-        a.last_deal_days <= 14
-          ? `${a.last_deal_days}d ago`
-          : a.last_deal_days <= 30
-            ? `${a.last_deal_days}d ago`
-            : `${a.last_deal_days}d ⚠`;
+      const { daysClass, daysLabel } = getDaysBadgeMeta(a.last_deal_days);
       return `
     <tr onclick="drillToAgent(${a.id})">
       <td>
@@ -929,6 +947,69 @@ function handleTableFilter() {
     subtitle.innerText = "Top performing property types";
     renderPropertyTable(data.top_property_types);
   }
+}
+
+function renderManagerAgentTable(agents) {
+  const tbody = document.getElementById("managerAgentTableBody");
+  if (!tbody || !agents) return;
+
+  const sortedAgents = sortCollection(agents, "managerAgentTable", {
+    name: { type: "string", get: (a) => a.name },
+    leads: { type: "number", get: (a) => a.leads },
+    reshuffled_leads: { type: "number", get: (a) => a.reshuffled_leads },
+    deals: { type: "number", get: (a) => a.deals },
+    listings: { type: "number", get: (a) => a.listings },
+    sales: { type: "number", get: (a) => a.sales },
+    commission: { type: "number", get: (a) => a.commission },
+    top_deal: { type: "number", get: (a) => a.top_deal },
+    last_deal_days: { type: "number", get: (a) => a.last_deal_days },
+    attendance: { type: "number", get: (a) => a.attendance },
+  });
+
+  tbody.innerHTML = sortedAgents
+    .map((a) => {
+      const dc = getDaysBadgeMeta(a.last_deal_days).daysClass;
+      const ac =
+        a.attendance <= 14 ? "crit" : a.attendance <= 30 ? "warn" : "ok";
+      return `<tr>
+        <td><div class="agent-name-cell"><div class="agent-mini-avatar">${initials(a.name)}</div><div><div style="font-weight:600">${a.name}</div><div style="font-size:10px;color:var(--grey-400)">${a.designation}</div></div></div></td>
+        <td>${a.leads}</td>
+        <td>${a.reshuffled_leads}</td>
+        <td>${a.deals}</td>
+        <td>${a.listings}</td>
+        <td>AED ${fmtCurrency(a.sales)}</td>
+        <td>AED ${fmtCurrency(a.commission)}</td>
+        <td>AED ${fmtCurrency(a.top_deal, true)}</td>
+        <td><span class="days-badge ${dc}">${a.last_deal_days}d ago</span></td>
+        <td><span class="days-badge ${ac}">${a.attendance} days</span></td>
+      </tr>`;
+    })
+    .join("");
+}
+
+function renderAgentDeveloperTable(devs) {
+  const tbody = document.getElementById("agentDevTableBody");
+  if (!tbody || !devs) return;
+
+  const sortedDevs = sortCollection(devs, "agentDeveloperTable", {
+    name: { type: "string", get: (d) => d.name },
+    amount: { type: "number", get: (d) => d.amount },
+    commission: { type: "number", get: (d) => d.commission },
+    deals: { type: "number", get: (d) => d.deals },
+  });
+
+  tbody.innerHTML = sortedDevs
+    .map(
+      (d, i) => `
+      <tr>
+        <td><span class="rank-badge rank-${i + 1}">${i + 1}</span>${d.name}</td>
+        <td>${fmtCurrency(d.amount)}</td>
+        <td>${fmtCurrency(d.commission)}</td>
+        <td>${d.deals}</td>
+      </tr>
+    `,
+    )
+    .join("");
 }
 
 function drillToAgent(agentId) {
@@ -1364,33 +1445,7 @@ function renderManager(data) {
   `;
 
   // Agent table
-  const tbody = document.getElementById("managerAgentTableBody");
-  if (tbody && data.all_agents) {
-    tbody.innerHTML = data.all_agents
-      .map((a) => {
-        const dc =
-          a.last_deal_days <= 14
-            ? "ok"
-            : a.last_deal_days <= 30
-              ? "warn"
-              : "crit";
-        const ac =
-          a.attendance <= 14 ? "crit" : a.attendance <= 30 ? "warn" : "ok";
-        return `<tr>
-        <td><div class="agent-name-cell"><div class="agent-mini-avatar">${initials(a.name)}</div><div><div style="font-weight:600">${a.name}</div><div style="font-size:10px;color:var(--grey-400)">${a.designation}</div></div></div></td>
-        <td>${a.leads}</td>
-        <td>${a.reshuffled_leads}</td>
-        <td>${a.deals}</td>
-        <td>${a.listings}</td>
-        <td>AED ${fmtCurrency(a.sales)}</td>
-        <td>AED ${fmtCurrency(a.commission)}</td>
-        <td>AED ${fmtCurrency(a.top_deal, true)}</td>
-        <td><span class="days-badge ${dc}">${a.last_deal_days}d ago</span></td>
-        <td><span class="days-badge ${ac}">${a.attendance} days</span></td>
-      </tr>`;
-      })
-      .join("");
-  }
+  renderManagerAgentTable(data.all_agents);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1663,24 +1718,11 @@ function renderAgent(data) {
   }
 
   // Developer table
-  const tbody = document.getElementById("agentDevTableBody");
-  if (tbody && ag.top_developers) {
-    tbody.innerHTML = ag.top_developers
-      .map(
-        (d, i) => `
-      <tr>
-        <td><span class="rank-badge rank-${i + 1}">${i + 1}</span>${d.name}</td>
-        <td>${fmtCurrency(d.amount)}</td>
-        <td>${fmtCurrency(d.commission)}</td>
-        <td>${d.deals}</td>
-      </tr>
-    `,
-      )
-      .join("");
-  }
+  renderAgentDeveloperTable(ag.top_developers);
 }
 
 // ── BOOT ───────────────────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", () => {
+  enhanceSortableHeaders();
   loadDashboard();
 });
