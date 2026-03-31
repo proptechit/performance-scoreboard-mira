@@ -168,9 +168,10 @@ if ($role === 'agent') {
 
     // Core deal data
     $allDeals     = fetchAllDeals(array($agentId), $dateRange, $dealType);
+    $wonDeals     = fetchWonDeals(array($agentId), $dateRange, $dealType);
     $agg          = aggregateDeals($allDeals);
     $monthlyDeals = groupDealsByMonth($allDeals, $chartYear);
-    $commSplit    = buildCommissionSplit($allDeals, array($agentId), $dateRange, $dealType);
+    $commSplit    = buildCommissionSplit($wonDeals, array($agentId), $dateRange, $dealType);
     $monthlyTarget = getAgentTarget($agentId, $workPosition);
 
     // Supplementary metrics
@@ -204,7 +205,7 @@ if ($role === 'agent') {
             'current'     => true,
         ),
         'summary' => array(
-            'commissions'            => $commSplit['operational_commission'],
+            'commissions'            => $commSplit['total'],
             'sales_volume'           => $agg['sales_volume'],
             'deal_count'             => $agg['deal_count'],
             'lead_count'             => $leadCount,
@@ -270,6 +271,7 @@ if ($role === 'agent') {
 
     // Team won deals
     $allDeals     = empty($agentIds) ? array() : fetchAllDeals($agentIds, $dateRange, $dealType);
+    $wonDeals     = empty($agentIds) ? array() : fetchWonDeals($agentIds, $dateRange, $dealType);
     $agg          = aggregateDeals($allDeals);
     $monthlyDeals = groupDealsByMonth($allDeals, $chartYear);
     $commSplit    = empty($agentIds) ? array(
@@ -278,7 +280,7 @@ if ($role === 'agent') {
         'committed_commission_pct' => 0,
         'operational_commission' => 0,
         'operational_commission_pct' => 0,
-    ) : buildCommissionSplit($allDeals, $agentIds, $dateRange, $dealType);
+    ) : buildCommissionSplit($wonDeals, $agentIds, $dateRange, $dealType);
     $targetDeptId  = $deptId > 0 ? $deptId : getUserDeptId($managerId);
     $monthlyTarget = getTeamTarget($targetDeptId);
 
@@ -335,7 +337,7 @@ if ($role === 'agent') {
             'avg_sales_per_deal'     => $agg['avg_sales_per_deal'],
             'avg_sales_per_month'    => (int)round($agg['sales_volume'] / 12),
             'top_deal'               => $agg['top_deal'],
-            'commissions'            => $commSplit['operational_commission'],
+            'commissions'            => $commSplit['total'],
             'committed_commission'   => $commSplit['committed_commission'],
             'operational_commission' => $commSplit['operational_commission'],
             'avg_revenue_per_deal'   => $agg['avg_sales_per_deal'],
@@ -365,6 +367,7 @@ if ($role === 'agent') {
 
     // Company-wide won deals (no agent filter = all)
     $allDeals     = empty($allAgentIds) ? array() : fetchAllDeals($allAgentIds, $dateRange, $dealType);
+    $wonDeals     = empty($allAgentIds) ? array() : fetchWonDeals($allAgentIds, $dateRange, $dealType);
     $agg          = aggregateDeals($allDeals);
     $monthlyDeals = groupDealsByMonth($allDeals, $chartYear);
     $commSplit    = empty($allAgentIds) ? array(
@@ -373,7 +376,7 @@ if ($role === 'agent') {
         'committed_commission_pct' => 0,
         'operational_commission' => 0,
         'operational_commission_pct' => 0,
-    ) : buildCommissionSplit($allDeals, $allAgentIds, $dateRange, $dealType);
+    ) : buildCommissionSplit($wonDeals, $allAgentIds, $dateRange, $dealType);
     $monthlyTarget = getCompanyTarget();
 
     // Company-wide supplementary
@@ -483,7 +486,7 @@ if ($role === 'agent') {
         'avg_sales_per_deal'         => $agg['avg_sales_per_deal'],
         'avg_sales_per_month'        => (int)round($agg['sales_volume'] / 12),
         'top_deal'                   => $agg['top_deal'],
-        'commissions'                => $commSplit['operational_commission'],
+        'commissions'                => $commSplit['total'],
         'committed_commission'       => $commSplit['committed_commission'],
         'committed_commission_pct'   => $commSplit['committed_commission_pct'],
         'operational_commission'     => $commSplit['operational_commission'],
