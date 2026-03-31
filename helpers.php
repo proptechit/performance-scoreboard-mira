@@ -567,7 +567,6 @@ function countActiveLeads($agentIds, $dateRange)
         FROM b_crm_deal d
         WHERE d.CATEGORY_ID IN {$in}
           AND d.STAGE_ID NOT IN {$excludeIn}
-          AND d.DELETED   = 'N'
           AND DATE(d.DATE_CREATE) >= '{$from}'
           AND DATE(d.DATE_CREATE) <= '{$to}'
           {$agentFilter}
@@ -599,7 +598,6 @@ function countReshuffledLeads($agentIds, $dateRange)
         FROM b_crm_deal d
         WHERE d.CATEGORY_ID IN {$in}
           AND d.STAGE_ID NOT IN {$excludeIn}
-          AND d.DELETED   = 'N'
           AND (d.{$fAssign} IS NOT NULL AND d.{$fAssign} > 0)
           AND DATE(d.DATE_CREATE) >= '{$from}'
           AND DATE(d.DATE_CREATE) <= '{$to}'
@@ -695,7 +693,6 @@ function countAttendanceDays($userId, $dateRange)
           AND a.{$typeField}   = '{$typeIn}'
           AND DATE(a.DATE_CREATE) >= '{$from}'
           AND DATE(a.DATE_CREATE) <= '{$to}'
-          AND a.DELETED = 'N'
     ");
     return (int)($row['cnt'] ?? 0);
 }
@@ -756,7 +753,6 @@ function daysSinceLastDeal($agentIds)
         FROM b_crm_deal d
         WHERE d.CATEGORY_ID = {$catId}
           AND d.STAGE_ID    = '{$stageWon}'
-          AND d.DELETED     = 'N'
           {$agentFilter}
     ");
 
@@ -785,7 +781,6 @@ function avgGapBetweenDeals($agentId, $dateRange)
         FROM b_crm_deal d
         WHERE d.CATEGORY_ID   = {$catId}
           AND d.STAGE_ID      = '{$stageWon}'
-          AND d.DELETED       = 'N'
           AND d.ASSIGNED_BY_ID = {$uid}
           AND DATE(d.CLOSEDATE) >= '{$from}'
           AND DATE(d.CLOSEDATE) <= '{$to}'
@@ -828,7 +823,6 @@ function countNoDealIn60Days($agentIds)
         FROM b_crm_deal
         WHERE CATEGORY_ID    = {$catId}
           AND STAGE_ID       = '{$stageWon}'
-          AND DELETED        = 'N'
           AND ASSIGNED_BY_ID IN {$inAgents}
           AND DATE(CLOSEDATE) >= '{$cutoff}'
     ");
