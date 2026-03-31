@@ -213,6 +213,33 @@ function getDaysBadgeMeta(days) {
   return { daysClass, daysLabel };
 }
 
+function setActiveView(viewId) {
+  ["view-ceo", "view-manager", "view-agent"].forEach((id) =>
+    document.getElementById(id)?.classList.add("hidden"),
+  );
+  document.getElementById(`view-${viewId}`)?.classList.remove("hidden");
+}
+
+function updateRoleBadge(name, fallbackInitial) {
+  const labelEl = document.getElementById("roleLabel");
+  const avatarEl = document.getElementById("roleAvatar");
+  if (labelEl) labelEl.textContent = name;
+  if (avatarEl) avatarEl.textContent = initials(name || fallbackInitial);
+}
+
+function fetchDrilldownView(params) {
+  const qs = Object.entries(params)
+    .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
+    .join("&");
+  document.getElementById("loadingOverlay").classList.remove("hidden");
+
+  return fetch(`data.php?${qs}`)
+    .then((r) => r.json())
+    .finally(() =>
+      document.getElementById("loadingOverlay").classList.add("hidden"),
+    );
+}
+
 function isZeroValueOther(item, amountKeys = []) {
   if (!item || item.name !== "Other") return false;
   return amountKeys.every((key) => Number(item[key] || 0) === 0);
@@ -346,6 +373,7 @@ function renderCEO(data) {
   const now = new Date();
   document.getElementById("ceoDateLabel").textContent =
     `As of ${now.toLocaleDateString("en-AE", { day: "numeric", month: "long", year: "numeric" })}`;
+  updateRoleBadge("CEO", "C");
 
   // KPI Grid
   const kpis = [
@@ -943,7 +971,7 @@ function renderTeamTable(teams) {
     .map((a) => {
       const { daysClass, daysLabel } = getDaysBadgeMeta(a.last_deal_days);
       return `
-    <tr onclick="drillToAgent(${a.id})">
+    <tr onclick="drillToManager(${a.manager_id})">
       <td>
         <div class="agent-name-cell">
           <div class="agent-mini-avatar">${initials(a.name)}</div>
@@ -1006,7 +1034,7 @@ function renderManagerAgentTable(agents) {
       const dc = getDaysBadgeMeta(a.last_deal_days).daysClass;
       const ac =
         a.attendance <= 14 ? "crit" : a.attendance <= 30 ? "warn" : "ok";
-      return `<tr>
+      return `<tr onclick="drillToAgent(${a.id})">
         <td><div class="agent-name-cell"><div class="agent-mini-avatar">${initials(a.name)}</div><div><div style="font-weight:600">${a.name}</div><div style="font-size:10px;color:var(--grey-400)">${a.designation}</div></div></div></td>
         <td>${a.leads}</td>
         <td>${a.reshuffled_leads}</td>
@@ -1049,39 +1077,38 @@ function renderAgentDeveloperTable(devs) {
 }
 
 function drillToAgent(agentId) {
-  // Switch to agent view for this agent
-  currentRole = "agent";
-  document
-    .querySelectorAll(".role-btn")
-    .forEach((b) => b.classList.remove("active"));
-  document.getElementById("f_agent") &&
-    (document.getElementById("f_agent").value = agentId);
-  // re-simulate by changing role params
   const params = getFilterParams();
   params.role = "agent";
   params.agent_id = agentId;
-  const qs = Object.entries(params)
-    .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
-    .join("&");
-  document.getElementById("loadingOverlay").classList.remove("hidden");
-  fetch(`data.php?${qs}`)
-    .then((r) => r.json())
+  fetchDrilldownView(params)
     .then((data) => {
+      if (data.error) {
+        alert(data.error);
+        return;
+      }
       currentData = data;
-      ["view-ceo", "view-manager", "view-agent"].forEach((id) =>
-        document.getElementById(id).classList.add("hidden"),
-      );
-      document.getElementById("view-agent").classList.remove("hidden");
+      setActiveView("agent");
       renderAgent(data);
-      document.getElementById("roleLabel").textContent =
-        data.agent?.profile?.name || "Agent";
-      document.getElementById("roleAvatar").textContent = initials(
-        data.agent?.profile?.name || "A",
-      );
-    })
-    .finally(() =>
-      document.getElementById("loadingOverlay").classList.add("hidden"),
-    );
+      updateRoleBadge(data.agent?.profile?.name || "Agent", "A");
+    });
+}
+
+function drillToManager(managerId) {
+  if (!managerId) return;
+  const params = getFilterParams();
+  params.role = "manager";
+  params.manager_id = managerId;
+  fetchDrilldownView(params)
+    .then((data) => {
+      if (data.error) {
+        alert(data.error);
+        return;
+      }
+      currentData = data;
+      setActiveView("manager");
+      renderManager(data);
+      updateRoleBadge(data.manager?.profile?.name || "Manager", "M");
+    });
 }
 
 // Year Comparison

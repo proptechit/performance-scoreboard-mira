@@ -48,12 +48,23 @@ $rawYear      = isset($_GET['year'])       ? trim($_GET['year'])        : 'All';
 $rawQuarter   = isset($_GET['quarter'])    ? trim($_GET['quarter'])     : 'All';
 $rawMonth     = isset($_GET['month'])      ? trim($_GET['month'])       : 'All';
 $rawDealType  = isset($_GET['deal_type'])  ? trim($_GET['deal_type'])   : 'All';
+$rawRole      = isset($_GET['role'])       ? trim($_GET['role'])        : '';
+$rawAgentId   = isset($_GET['agent_id'])   ? (int)$_GET['agent_id']     : $currentUserId;
+$rawManagerId = isset($_GET['manager_id']) ? (int)$_GET['manager_id']   : $currentUserId;
 $rawYear1     = isset($_GET['year1'])      ? (int)$_GET['year1']        : 2024;
 $rawYear2     = isset($_GET['year2'])      ? (int)$_GET['year2']        : 2025;
 
 // Validate role (whitelist)
 $allowedRoles = array('ceo', 'manager', 'agent');
-$role = getUserRole($currentUserId);
+$currentUserRole = getUserRole($currentUserId);
+$requestedRole = in_array($rawRole, $allowedRoles, true) ? $rawRole : $currentUserRole;
+$role = $currentUserRole;
+
+if ($currentUserRole === 'ceo') {
+    $role = $requestedRole;
+} elseif ($currentUserRole === 'manager' && in_array($requestedRole, array('manager', 'agent'), true)) {
+    $role = $requestedRole;
+}
 
 // Validate year
 $validYears = $GLOBALS['CFG_FILTER_META']['years'];
@@ -76,8 +87,23 @@ $year1 = in_array($rawYear1, $validYears, true) ? $rawYear1 : 2024;
 $year2 = in_array($rawYear2, $validYears, true) ? $rawYear2 : 2025;
 
 // Assign IDs based on role
-$agentId   = $currentUserId;
-$managerId = $currentUserId;
+$agentId   = ($role === 'agent' && $rawAgentId > 0) ? $rawAgentId : $currentUserId;
+$managerId = ($role === 'manager' && $rawManagerId > 0) ? $rawManagerId : $currentUserId;
+
+if ($role === 'manager' && getUserRole($managerId) !== 'manager') {
+    echo json_encode(array('error' => 'Invalid manager selection', 'manager_id' => $managerId));
+    exit;
+}
+
+if ($role === 'agent') {
+    if ($currentUserRole === 'manager') {
+        $managedAgentIds = getAgentIdsByManager($currentUserId);
+        if (!in_array($agentId, $managedAgentIds, true)) {
+            echo json_encode(array('error' => 'Unauthorized agent selection', 'agent_id' => $agentId));
+            exit;
+        }
+    }
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 2. BUILD DATE RANGE
@@ -394,6 +420,7 @@ if ($role === 'agent') {
         $teamPerformance[] = array(
             'id'             => $tid,
             'name'           => $team['NAME'],
+            'manager_id'     => (int)($team['UF_HEAD'] ?? 0),
             'deals'          => $tagg['deal_count'],
             'leads'          => $teamLeads,
             'listings'       => $teamList,
