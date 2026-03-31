@@ -515,7 +515,7 @@ function fetchCommittedDeals($agentIds, $dateRange, $dealType = 'All')
 /**
  * Build SQL WHERE fragment for property type filter.
  */
-function buildPropertyTypeFilter($dealType, $alias = 'd')
+function buildPropertyTypeFilter($dealType, $alias = 'uts')
 {
     if ($dealType === 'All') {
         return '';
@@ -596,13 +596,18 @@ function countReshuffledLeads($agentIds, $dateRange)
     $row = dbQueryOne("
         SELECT COUNT(*) AS cnt
         FROM b_crm_deal d
+
+        LEFT JOIN b_uts_crm_deal uts
+            ON uts.VALUE_ID = d.ID
+
         WHERE d.CATEGORY_ID IN {$in}
           AND d.STAGE_ID NOT IN {$excludeIn}
-          AND (d.{$fAssign} IS NOT NULL AND d.{$fAssign} > 0)
+          AND (uts.{$fAssign} IS NOT NULL AND uts.{$fAssign} > 0)
           AND DATE(d.DATE_CREATE) >= '{$from}'
           AND DATE(d.DATE_CREATE) <= '{$to}'
           {$agentFilter}
     ");
+
     return (int)($row['cnt'] ?? 0);
 }
 
