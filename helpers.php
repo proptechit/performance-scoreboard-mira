@@ -1015,6 +1015,14 @@ function buildDealDistribution($deals)
         );
     }
 
+    // Remove Other if it has 0 deals for cleaner chart
+    $result = array_filter($result, function ($r) {
+        if ($r['name'] === 'Other' && $r['deals'] === 0) {
+            return false;
+        }
+        return true;
+    });
+
     // Sort descending by amount
     usort($result, function ($a, $b) {
         return $b['amount'] - $a['amount'];
@@ -1096,6 +1104,20 @@ function buildSalesByDealType($deals, $year)
             }
         }
     }
+
+    // Remove Other if it has 0 deals for cleaner chart
+    $result = array_filter($result, function ($label) use ($result) {
+        if ($label === 'Other') {
+            $totalDeals = array_sum(array_map(function ($m) {
+                return $m['deals'];
+            }, $result[$label]));
+            if ($totalDeals === 0) {
+                return false;
+            }
+        }
+        return true;
+    }, ARRAY_FILTER_USE_KEY);
+
     return $result;
 }
 
