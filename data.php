@@ -134,10 +134,10 @@ if ($role === 'agent') {
     $workPosition = $userRow['WORK_POSITION'] ?? '';
 
     // Core deal data
-    $wonDeals     = fetchWonDeals(array($agentId), $dateRange, $dealType);
-    $agg          = aggregateDeals($wonDeals);
-    $monthlyDeals = groupDealsByMonth($wonDeals, $chartYear);
-    $commSplit    = buildCommissionSplit($wonDeals, array($agentId), $dateRange, $dealType);
+    $allDeals     = fetchAllDeals(array($agentId), $dateRange, $dealType);
+    $agg          = aggregateDeals($allDeals);
+    $monthlyDeals = groupDealsByMonth($allDeals, $chartYear);
+    $commSplit    = buildCommissionSplit($allDeals, array($agentId), $dateRange, $dealType);
     $monthlyTarget = getAgentTarget($agentId, $workPosition);
 
     // Supplementary metrics
@@ -149,9 +149,9 @@ if ($role === 'agent') {
     $reshuffled   = countReshuffledLeads(array($agentId), $dateRange);
 
     // Chart data
-    $dealDist         = buildDealDistribution($wonDeals);
-    $topDevelopers    = buildTopDevelopers($wonDeals, 7);
-    $topPropertyTypes = buildTopPropertyTypes($wonDeals);
+    $dealDist         = buildDealDistribution($allDeals);
+    $topDevelopers    = buildTopDevelopers($allDeals, 7);
+    $topPropertyTypes = buildTopPropertyTypes($allDeals);
     $targetVsActual   = buildTargetVsActual($monthlyDeals, $monthlyTarget);
     $avgTicketSize    = buildAvgTicketSize($monthlyDeals);
 
@@ -217,10 +217,10 @@ if ($role === 'agent') {
     }
 
     // Team won deals
-    $wonDeals     = fetchWonDeals($agentIds, $dateRange, $dealType);
-    $agg          = aggregateDeals($wonDeals);
-    $monthlyDeals = groupDealsByMonth($wonDeals, $chartYear);
-    $commSplit    = buildCommissionSplit($wonDeals, $agentIds, $dateRange, $dealType);
+    $allDeals     = fetchAllDeals($agentIds, $dateRange, $dealType);
+    $agg          = aggregateDeals($allDeals);
+    $monthlyDeals = groupDealsByMonth($allDeals, $chartYear);
+    $commSplit    = buildCommissionSplit($allDeals, $agentIds, $dateRange, $dealType);
     $deptId       = getUserDeptId($managerId);
     $monthlyTarget = getTeamTarget($deptId);
 
@@ -231,7 +231,7 @@ if ($role === 'agent') {
     $noDeal60     = countNoDealIn60Days($agentIds);
 
     // Charts
-    $dealDist       = buildDealDistribution($wonDeals);
+    $dealDist       = buildDealDistribution($allDeals);
     $targetVsActual = buildTargetVsActual($monthlyDeals, $monthlyTarget);
 
     $commissionTrend = array();
@@ -241,7 +241,7 @@ if ($role === 'agent') {
 
     // Per-agent rows — slice from already-fetched deals (no extra deal queries)
     $dealsByAgent = array();
-    foreach ($wonDeals as $d) {
+    foreach ($allDeals as $d) {
         $rid = (int)$d['ASSIGNED_BY_ID'];
         if (!isset($dealsByAgent[$rid])) {
             $dealsByAgent[$rid] = array();
@@ -305,10 +305,10 @@ if ($role === 'agent') {
     }, $allAgents);
 
     // Company-wide won deals (no agent filter = all)
-    $wonDeals     = fetchWonDeals(array(), $dateRange, $dealType);
-    $agg          = aggregateDeals($wonDeals);
-    $monthlyDeals = groupDealsByMonth($wonDeals, $chartYear);
-    $commSplit    = buildCommissionSplit($wonDeals, array(), $dateRange, $dealType);
+    $allDeals     = fetchAllDeals(array(), $dateRange, $dealType);
+    $agg          = aggregateDeals($allDeals);
+    $monthlyDeals = groupDealsByMonth($allDeals, $chartYear);
+    $commSplit    = buildCommissionSplit($allDeals, array(), $dateRange, $dealType);
     $monthlyTarget = getCompanyTarget();
 
     // Company-wide supplementary
@@ -316,11 +316,11 @@ if ($role === 'agent') {
     $noDeal60 = countNoDealIn60Days($allAgentIds);
 
     // Charts
-    $dealDist         = buildDealDistribution($wonDeals);
-    $topDevelopers    = buildTopDevelopers($wonDeals, 10);
-    $topPropertyTypes = buildTopPropertyTypes($wonDeals);
+    $dealDist         = buildDealDistribution($allDeals);
+    $topDevelopers    = buildTopDevelopers($allDeals, 10);
+    $topPropertyTypes = buildTopPropertyTypes($allDeals);
     $targetVsActual   = buildTargetVsActual($monthlyDeals, $monthlyTarget);
-    $salesByDealType  = buildSalesByDealType($wonDeals, $chartYear);
+    $salesByDealType  = buildSalesByDealType($allDeals, $chartYear);
 
     $commissionTrend = array();
     foreach ($monthlyDeals as $m) {
@@ -330,7 +330,7 @@ if ($role === 'agent') {
     // ── AGENT PERFORMANCE TABLE ──────────────────────────────────────────
     // Pre-group deals by agent (single pass — avoids N queries)
     $dealsByAgent = array();
-    foreach ($wonDeals as $d) {
+    foreach ($allDeals as $d) {
         $rid = (int)$d['ASSIGNED_BY_ID'];
         if (!isset($dealsByAgent[$rid])) {
             $dealsByAgent[$rid] = array();

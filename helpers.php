@@ -466,16 +466,60 @@ function fetchWonDeals($agentIds, $dateRange, $dealType = 'All')
     ");
 }
 
+function fetchAllDeals($agentIds, $dateRange, $dealType = 'All')
+{
+    $catId    = dbInt(PIPELINE_TRANSACTION);
+    $from     = dbEsc($dateRange['from']);
+    $to       = dbEsc($dateRange['to']);
+
+    $fAmount  = FIELD_DEAL_AMOUNT;
+    $fComm    = FIELD_COMMISSION;
+    $fDev     = FIELD_DEVELOPER;
+    $fType    = FIELD_PROPERTY_TYPE;
+    $fMgr     = FIELD_MANAGER_ID;
+
+    $agentFilter = '';
+    if (!empty($agentIds)) {
+        $agentFilter = 'AND d.ASSIGNED_BY_ID IN ' . inClauseInt($agentIds);
+    }
+
+    $typeFilter = buildPropertyTypeFilter($dealType, 'uts');
+
+    return dbQuery("
+        SELECT
+            d.ID,
+            d.ASSIGNED_BY_ID,
+            d.CLOSEDATE,
+            d.{$fAmount}            AS sale_amount,
+
+            uts.{$fComm}            AS commission,
+            uts.{$fDev}             AS developer_id,
+            uts.{$fType}            AS property_type_id,
+            uts.{$fMgr}             AS manager_id
+
+        FROM b_crm_deal d
+
+        LEFT JOIN b_uts_crm_deal uts 
+            ON uts.VALUE_ID = d.ID
+
+        WHERE d.CATEGORY_ID = {$catId}
+          {$agentFilter}
+          {$typeFilter}
+
+        ORDER BY d.CLOSEDATE ASC
+    ");
+}
+
 /**
  * Fetch committed deals (all stages in pipeline 3 except WON and LOSE).
  */
 function fetchCommittedDeals($agentIds, $dateRange, $dealType = 'All')
 {
     $catId     = dbInt(PIPELINE_TRANSACTION);
-    $stageWon  = dbEsc(STAGE_WON);
-    $stageLose = dbEsc(STAGE_LOSE);
     $from      = dbEsc($dateRange['from']);
     $to        = dbEsc($dateRange['to']);
+
+    $stages = inClauseStr($GLOBALS['CFG_COMMITTED_STAGES']);
 
     $fAmount = FIELD_DEAL_AMOUNT;
     $fComm   = FIELD_COMMISSION;
@@ -501,8 +545,7 @@ function fetchCommittedDeals($agentIds, $dateRange, $dealType = 'All')
             ON uts.VALUE_ID = d.ID
 
         WHERE d.CATEGORY_ID = {$catId}
-          AND d.STAGE_ID   != '{$stageWon}'
-          AND d.STAGE_ID   != '{$stageLose}'
+          AND d.STAGE_ID IN {$stages}
           AND DATE(d.DATE_CREATE) >= '{$from}'
           AND DATE(d.DATE_CREATE) <= '{$to}'
           {$agentFilter}
@@ -845,7 +888,7 @@ function countNoDealIn60Days($agentIds)
  * Returns array of 12 items (one per month) with:
  *   month, month_num, sales, commission, deals
  *
- * @param  array $deals     Raw deal rows from fetchWonDeals()
+ * @param  array $deals     Raw deal rows from fetchAllDeals()
  * @param  int   $year      The year to build 12 months for
  * @return array
  */
@@ -1132,7 +1175,7 @@ function getCompanyTarget()
 function fetchYearSummary($year, $agentIds = array())
 {
     $range = buildDateRange($year, 'All', 'All');
-    $deals = fetchWonDeals($agentIds, $range, 'All');
+    $deals = fetchAllDeals($agentIds, $range, 'All');
     $agg   = aggregateDeals($deals);
     return array(
         'sales'      => $agg['sales_volume'],
@@ -1215,7 +1258,7 @@ function buildCommissionSplit($wonDeals, $agentIds, $dateRange, $dealType)
 function fetchYearMonthly($year, $agentIds = array())
 {
     $range = buildDateRange($year, 'All', 'All');
-    $deals = fetchWonDeals($agentIds, $range, 'All');
+    $deals = fetchAllDeals($agentIds, $range, 'All');
     return groupDealsByMonth($deals, $year);
 }
 
