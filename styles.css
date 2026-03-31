@@ -695,6 +695,11 @@ body {
   border-bottom: 1px solid var(--grey-200);
 }
 
+.data-table th.is-sortable,
+.agent-table th.is-sortable {
+  padding: 0;
+}
+
 .data-table th:first-child {
   text-align: left;
 }
@@ -898,6 +903,97 @@ body {
   letter-spacing: 0.8px;
   color: rgba(255, 255, 255, 0.5);
   text-align: right;
+}
+
+.sort-button {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 12px;
+  font: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+  transition:
+    color 0.18s ease,
+    background 0.18s ease,
+    opacity 0.18s ease;
+}
+
+.agent-table .sort-button {
+  padding: 10px 14px;
+}
+
+.data-table th:first-child .sort-button,
+.agent-table th:first-child .sort-button {
+  justify-content: flex-start;
+}
+
+.sort-button:hover {
+  color: var(--navy);
+}
+
+.agent-table .sort-button:hover {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.sort-button:focus-visible {
+  outline: 2px solid rgba(201, 168, 76, 0.45);
+  outline-offset: -2px;
+  border-radius: inherit;
+}
+
+.sort-button-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sort-icon {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  width: 10px;
+  min-width: 10px;
+  opacity: 0.55;
+  transition: opacity 0.18s ease;
+}
+
+.sort-icon svg {
+  display: block;
+}
+
+.sort-caret {
+  fill: currentColor;
+}
+
+.sort-button.is-active {
+  color: var(--navy);
+}
+
+.agent-table .sort-button.is-active {
+  color: var(--gold-light);
+}
+
+.sort-button.is-active .sort-icon,
+.sort-button:hover .sort-icon {
+  opacity: 1;
+}
+
+.sort-button.is-asc .sort-caret-down,
+.sort-button.is-desc .sort-caret-up {
+  opacity: 0.28;
+}
+
+.sort-button.is-asc .sort-caret-up,
+.sort-button.is-desc .sort-caret-down {
+  opacity: 1;
 }
 
 .agent-table th:first-child {

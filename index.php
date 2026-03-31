@@ -193,10 +193,10 @@
                         <table class="data-table">
                             <thead>
                                 <tr>
-                                    <th>Developer</th>
-                                    <th>Amount (AED)</th>
-                                    <th>Commission</th>
-                                    <th>Deals</th>
+                                    <th data-table-id="developerTable" data-sort-key="name" data-sort-type="string">Developer</th>
+                                    <th data-table-id="developerTable" data-sort-key="amount" data-sort-type="number">Amount (AED)</th>
+                                    <th data-table-id="developerTable" data-sort-key="commission" data-sort-type="number">Commission</th>
+                                    <th data-table-id="developerTable" data-sort-key="deals" data-sort-type="number">Deals</th>
                                 </tr>
                             </thead>
                             <tbody id="developerTableBody"></tbody>
@@ -217,20 +217,20 @@
                     <table class="data-table" id="salesByDealTypeTable">
                         <thead>
                             <tr>
-                                <th>Deal Type / Row</th>
-                                <th>Jan</th>
-                                <th>Feb</th>
-                                <th>Mar</th>
-                                <th>Apr</th>
-                                <th>May</th>
-                                <th>Jun</th>
-                                <th>Jul</th>
-                                <th>Aug</th>
-                                <th>Sep</th>
-                                <th>Oct</th>
-                                <th>Nov</th>
-                                <th>Dec</th>
-                                <th>Grand Total</th>
+                                <th data-table-id="salesByDealTypeTable" data-sort-key="type" data-sort-type="string">Deal Type / Row</th>
+                                <th data-table-id="salesByDealTypeTable" data-sort-key="Jan" data-sort-type="number">Jan</th>
+                                <th data-table-id="salesByDealTypeTable" data-sort-key="Feb" data-sort-type="number">Feb</th>
+                                <th data-table-id="salesByDealTypeTable" data-sort-key="Mar" data-sort-type="number">Mar</th>
+                                <th data-table-id="salesByDealTypeTable" data-sort-key="Apr" data-sort-type="number">Apr</th>
+                                <th data-table-id="salesByDealTypeTable" data-sort-key="May" data-sort-type="number">May</th>
+                                <th data-table-id="salesByDealTypeTable" data-sort-key="Jun" data-sort-type="number">Jun</th>
+                                <th data-table-id="salesByDealTypeTable" data-sort-key="Jul" data-sort-type="number">Jul</th>
+                                <th data-table-id="salesByDealTypeTable" data-sort-key="Aug" data-sort-type="number">Aug</th>
+                                <th data-table-id="salesByDealTypeTable" data-sort-key="Sep" data-sort-type="number">Sep</th>
+                                <th data-table-id="salesByDealTypeTable" data-sort-key="Oct" data-sort-type="number">Oct</th>
+                                <th data-table-id="salesByDealTypeTable" data-sort-key="Nov" data-sort-type="number">Nov</th>
+                                <th data-table-id="salesByDealTypeTable" data-sort-key="Dec" data-sort-type="number">Dec</th>
+                                <th data-table-id="salesByDealTypeTable" data-sort-key="grand_total" data-sort-type="number">Grand Total</th>
                             </tr>
                         </thead>
                         <tbody id="salesByDealTypeBody"></tbody>
@@ -255,13 +255,13 @@
                     <table class="agent-table">
                         <thead>
                             <tr>
-                                <th>Agent</th>
-                                <th>Deals</th>
-                                <th>Sales Volume (AED)</th>
-                                <th>Commission</th>
-                                <th>Top Deal</th>
-                                <th>Avg Gap</th>
-                                <th>Last Deal</th>
+                                <th data-table-id="agentTable" data-sort-key="name" data-sort-type="string">Agent</th>
+                                <th data-table-id="agentTable" data-sort-key="deals" data-sort-type="number">Deals</th>
+                                <th data-table-id="agentTable" data-sort-key="sales" data-sort-type="number">Sales Volume (AED)</th>
+                                <th data-table-id="agentTable" data-sort-key="commission" data-sort-type="number">Commission</th>
+                                <th data-table-id="agentTable" data-sort-key="top_deal" data-sort-type="number">Top Deal</th>
+                                <th data-table-id="agentTable" data-sort-key="avg_gap" data-sort-type="number">Avg Gap</th>
+                                <th data-table-id="agentTable" data-sort-key="last_deal_days" data-sort-type="number">Last Deal</th>
                             </tr>
                         </thead>
                         <tbody id="agentTableBody"></tbody>
@@ -286,15 +286,15 @@
                     <table class="agent-table">
                         <thead>
                             <tr>
-                                <th>Team</th>
-                                <th>Deals</th>
-                                <th>Leads</th>
-                                <th>Listings</th>
-                                <th>Sales Volume (AED)</th>
-                                <th>Commission</th>
-                                <th>Top Deal</th>
-                                <th>Avg Gap</th>
-                                <th>Last Deal</th>
+                                <th data-table-id="teamTable" data-sort-key="name" data-sort-type="string">Team</th>
+                                <th data-table-id="teamTable" data-sort-key="deals" data-sort-type="number">Deals</th>
+                                <th data-table-id="teamTable" data-sort-key="leads" data-sort-type="number">Leads</th>
+                                <th data-table-id="teamTable" data-sort-key="listings" data-sort-type="number">Listings</th>
+                                <th data-table-id="teamTable" data-sort-key="sales" data-sort-type="number">Sales Volume (AED)</th>
+                                <th data-table-id="teamTable" data-sort-key="commission" data-sort-type="number">Commission</th>
+                                <th data-table-id="teamTable" data-sort-key="top_deal" data-sort-type="number">Top Deal</th>
+                                <th data-table-id="teamTable" data-sort-key="avg_gap" data-sort-type="number">Avg Gap</th>
+                                <th data-table-id="teamTable" data-sort-key="last_deal_days" data-sort-type="number">Last Deal</th>
                             </tr>
                         </thead>
                         <tbody id="teamTableBody"></tbody>
@@ -371,16 +371,16 @@
                     <table class="agent-table">
                         <thead>
                             <tr>
-                                <th>Agent</th>
-                                <th>Leads</th>
-                                <th>Reshuffled Leads</th>
-                                <th>Deals</th>
-                                <th>Listings</th>
-                                <th>Sales Volume</th>
-                                <th>Commission</th>
-                                <th>Top Deal</th>
-                                <th>Last Deal</th>
-                                <th>Attendence</th>
+                                <th data-table-id="managerAgentTable" data-sort-key="name" data-sort-type="string">Agent</th>
+                                <th data-table-id="managerAgentTable" data-sort-key="leads" data-sort-type="number">Leads</th>
+                                <th data-table-id="managerAgentTable" data-sort-key="reshuffled_leads" data-sort-type="number">Reshuffled Leads</th>
+                                <th data-table-id="managerAgentTable" data-sort-key="deals" data-sort-type="number">Deals</th>
+                                <th data-table-id="managerAgentTable" data-sort-key="listings" data-sort-type="number">Listings</th>
+                                <th data-table-id="managerAgentTable" data-sort-key="sales" data-sort-type="number">Sales Volume</th>
+                                <th data-table-id="managerAgentTable" data-sort-key="commission" data-sort-type="number">Commission</th>
+                                <th data-table-id="managerAgentTable" data-sort-key="top_deal" data-sort-type="number">Top Deal</th>
+                                <th data-table-id="managerAgentTable" data-sort-key="last_deal_days" data-sort-type="number">Last Deal</th>
+                                <th data-table-id="managerAgentTable" data-sort-key="attendance" data-sort-type="number">Attendence</th>
                             </tr>
                         </thead>
                         <tbody id="managerAgentTableBody"></tbody>
@@ -463,10 +463,10 @@
                     <table class="data-table">
                         <thead>
                             <tr>
-                                <th>Developer</th>
-                                <th>Amount (AED)</th>
-                                <th>Commission</th>
-                                <th>Deals</th>
+                                <th data-table-id="agentDeveloperTable" data-sort-key="name" data-sort-type="string">Developer</th>
+                                <th data-table-id="agentDeveloperTable" data-sort-key="amount" data-sort-type="number">Amount (AED)</th>
+                                <th data-table-id="agentDeveloperTable" data-sort-key="commission" data-sort-type="number">Commission</th>
+                                <th data-table-id="agentDeveloperTable" data-sort-key="deals" data-sort-type="number">Deals</th>
                             </tr>
                         </thead>
                         <tbody id="agentDevTableBody"></tbody>

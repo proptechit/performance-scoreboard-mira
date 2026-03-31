@@ -2,6 +2,7 @@
 let currentData = null;
 let compareMetric = "sales";
 let charts = {};
+const tableSortState = {};
 
 const CHART_COLORS = [
   "#3b82f6",
@@ -40,6 +41,176 @@ function initials(name) {
     .join("")
     .slice(0, 3)
     .toUpperCase();
+}
+
+const SORT_ICON = `
+  <span class="sort-icon" aria-hidden="true">
+    <svg class="sort-caret sort-caret-up" width="10" height="5" viewBox="0 0 10 5">
+      <path d="M5 0L10 5H0L5 0Z"></path>
+    </svg>
+    <svg class="sort-caret sort-caret-down" width="10" height="5" viewBox="0 0 10 5">
+      <path d="M0 0H10L5 5L0 0Z"></path>
+    </svg>
+  </span>
+`;
+
+const MONTHS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+function getSortState(tableId) {
+  return tableSortState[tableId] || null;
+}
+
+function compareSortValues(a, b, type = "string") {
+  const aMissing = a === null || a === undefined || a === "";
+  const bMissing = b === null || b === undefined || b === "";
+  if (aMissing && bMissing) return 0;
+  if (aMissing) return 1;
+  if (bMissing) return -1;
+
+  if (type === "number") return Number(a) - Number(b);
+  return String(a).localeCompare(String(b), undefined, {
+    numeric: true,
+    sensitivity: "base",
+  });
+}
+
+function sortCollection(items, tableId, sorters) {
+  const sort = getSortState(tableId);
+  if (!sort || !sorters[sort.key]) return [...items];
+
+  const sorter = sorters[sort.key];
+  const direction = sort.dir === "desc" ? -1 : 1;
+
+  return [...items]
+    .map((item, index) => ({ item, index }))
+    .sort((left, right) => {
+      const result =
+        compareSortValues(
+          sorter.get(left.item),
+          sorter.get(right.item),
+          sorter.type,
+        ) * direction;
+      return result || left.index - right.index;
+    })
+    .map(({ item }) => item);
+}
+
+function refreshSortableHeaders(tableId) {
+  document
+    .querySelectorAll(`[data-table-id="${tableId}"][data-sort-key]`)
+    .forEach((th) => {
+      const button = th.querySelector(".sort-button");
+      if (!button) return;
+      const sort = getSortState(tableId);
+      const isActive = sort?.key === th.dataset.sortKey;
+      const direction = isActive ? sort.dir : null;
+
+      button.classList.toggle("is-active", isActive);
+      button.classList.toggle("is-asc", direction === "asc");
+      button.classList.toggle("is-desc", direction === "desc");
+      th.setAttribute(
+        "aria-sort",
+        direction === "asc"
+          ? "ascending"
+          : direction === "desc"
+            ? "descending"
+            : "none",
+      );
+    });
+}
+
+function refreshAllSortableHeaders() {
+  const tableIds = new Set(
+    Array.from(document.querySelectorAll("[data-table-id][data-sort-key]")).map(
+      (el) => el.dataset.tableId,
+    ),
+  );
+  tableIds.forEach((tableId) => refreshSortableHeaders(tableId));
+}
+
+function enhanceSortableHeaders() {
+  document.querySelectorAll("[data-table-id][data-sort-key]").forEach((th) => {
+    if (th.dataset.sortReady === "true") return;
+
+    const label = th.textContent.trim();
+    const tableId = th.dataset.tableId;
+    const sortKey = th.dataset.sortKey;
+
+    th.classList.add("is-sortable");
+    th.innerHTML = `
+      <button type="button" class="sort-button" data-table-id="${tableId}" data-sort-key="${sortKey}">
+        <span class="sort-button-label">${label}</span>
+        ${SORT_ICON}
+      </button>
+    `;
+    th.querySelector(".sort-button")?.addEventListener("click", () => {
+      toggleTableSort(tableId, sortKey);
+    });
+    th.dataset.sortReady = "true";
+  });
+
+  refreshAllSortableHeaders();
+}
+
+function rerenderSortedTable(tableId) {
+  switch (tableId) {
+    case "developerTable":
+      handleTableFilter();
+      break;
+    case "salesByDealTypeTable":
+      renderSalesByDealTypeTable(currentData?.sales_by_deal_type);
+      break;
+    case "agentTable":
+      renderAgentTable(currentData?.agent_performance);
+      break;
+    case "teamTable":
+      renderTeamTable(currentData?.team_performance);
+      break;
+    case "managerAgentTable":
+      renderManagerAgentTable(currentData?.all_agents);
+      break;
+    case "agentDeveloperTable":
+      renderAgentDeveloperTable(currentData?.agent?.top_developers);
+      break;
+  }
+}
+
+function toggleTableSort(tableId, sortKey) {
+  const current = getSortState(tableId);
+  let next = { key: sortKey, dir: "asc" };
+
+  if (current?.key === sortKey) {
+    if (current.dir === "asc") next.dir = "desc";
+    else {
+      delete tableSortState[tableId];
+      refreshSortableHeaders(tableId);
+      rerenderSortedTable(tableId);
+      return;
+    }
+  }
+
+  tableSortState[tableId] = next;
+  refreshSortableHeaders(tableId);
+  rerenderSortedTable(tableId);
+}
+
+function getDaysBadgeMeta(days) {
+  const daysClass = days <= 14 ? "ok" : days <= 30 ? "warn" : "crit";
+  const daysLabel = days <= 30 ? `${days}d ago` : `${days}d ⚠`;
+  return { daysClass, daysLabel };
 }
 
 // ── CHART HELPERS ──────────────────────────────────────────────────────────
