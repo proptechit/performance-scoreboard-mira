@@ -269,13 +269,26 @@ function getAgentsByDept($deptIds)
     if (!is_array($deptIds)) {
         $deptIds = array($deptIds);
     }
+
     $in = inClauseInt($deptIds);
+
     return dbQuery("
-        SELECT u.ID, u.NAME, u.LAST_NAME, u.WORK_POSITION, u.UF_DEPARTMENT,
-               u.DATE_REGISTER, u.PERSONAL_PHOTO
+        SELECT DISTINCT
+            u.ID,
+            u.NAME,
+            u.LAST_NAME,
+            u.WORK_POSITION,
+            u.DATE_REGISTER,
+            u.PERSONAL_PHOTO
         FROM b_user u
+
+        JOIN b_utm_user ud
+            ON ud.VALUE_ID = u.ID
+           AND ud.FIELD_ID = 40   -- UF_DEPARTMENT
+
         WHERE u.ACTIVE = 'Y'
-          AND u.UF_DEPARTMENT IN {$in}
+          AND ud.VALUE_INT IN {$in}
+
         ORDER BY u.LAST_NAME ASC, u.NAME ASC
     ");
 }
@@ -286,9 +299,15 @@ function getAgentsByDept($deptIds)
 function getUserProfile($userId)
 {
     $uid = dbInt($userId);
+
     return dbQueryOne("
-        SELECT u.ID, u.NAME, u.LAST_NAME, u.WORK_POSITION, u.UF_DEPARTMENT,
-               u.DATE_REGISTER, u.EMAIL
+        SELECT 
+            u.ID,
+            u.NAME,
+            u.LAST_NAME,
+            u.WORK_POSITION,
+            u.DATE_REGISTER,
+            u.EMAIL
         FROM b_user u
         WHERE u.ID = {$uid}
         LIMIT 1
@@ -304,14 +323,19 @@ function getManagerForAgent($userId)
 
     $row = dbQueryOne("
         SELECT CONCAT(m.NAME, ' ', m.LAST_NAME) AS FULL_NAME
-        FROM b_user u
+        FROM b_utm_user ud
+
         JOIN b_iblock_section s 
-            ON JSON_CONTAINS(u.UF_DEPARTMENT, CAST(s.ID AS JSON))
+            ON s.ID = ud.VALUE_INT
+
         LEFT JOIN b_uts_iblock_3_section uts 
             ON uts.VALUE_ID = s.ID
+
         JOIN b_user m 
             ON m.ID = uts.UF_HEAD
-        WHERE u.ID = {$uid}
+
+        WHERE ud.VALUE_ID = {$uid}
+          AND ud.FIELD_ID = 40
         LIMIT 1
     ");
 
@@ -326,25 +350,16 @@ function getManagerForAgent($userId)
 function getUserDeptId($userId)
 {
     $uid = dbInt($userId);
-    $row = dbQueryOne("SELECT UF_DEPARTMENT FROM b_user WHERE ID = {$uid} LIMIT 1");
-    if (empty($row['UF_DEPARTMENT'])) {
-        return 0;
-    }
-    // UF_DEPARTMENT can be a serialized array or JSON depending on Bitrix version
-    $raw = $row['UF_DEPARTMENT'];
-    if (is_numeric($raw)) {
-        return (int)$raw;
-    }
-    $decoded = json_decode($raw, true);
-    if (is_array($decoded) && !empty($decoded)) {
-        return (int)$decoded[0];
-    }
-    // Try unserialize
-    $uns = @unserialize($raw);
-    if (is_array($uns) && !empty($uns)) {
-        return (int)$uns[0];
-    }
-    return 0;
+
+    $row = dbQueryOne("
+        SELECT VALUE_INT
+        FROM b_utm_user
+        WHERE VALUE_ID = {$uid}
+          AND FIELD_ID = 40
+        LIMIT 1
+    ");
+
+    return (int)($row['VALUE_INT'] ?? 0);
 }
 
 /**
@@ -356,12 +371,19 @@ function getAgentIdsByManager($managerId)
     $mid = dbInt($managerId);
 
     $rows = dbQuery("
-        SELECT u.ID
+        SELECT DISTINCT u.ID
         FROM b_user u
+
+        JOIN b_utm_user ud
+            ON ud.VALUE_ID = u.ID
+           AND ud.FIELD_ID = 40
+
         JOIN b_iblock_section s 
-            ON JSON_CONTAINS(u.UF_DEPARTMENT, CAST(s.ID AS JSON))
+            ON s.ID = ud.VALUE_INT
+
         LEFT JOIN b_uts_iblock_3_section uts 
             ON uts.VALUE_ID = s.ID
+
         WHERE uts.UF_HEAD = {$mid}
           AND u.ACTIVE = 'Y'
     ");
@@ -1121,17 +1143,23 @@ function fetchYearSummary($year, $agentIds = array())
 function countAllActiveAgents()
 {
     $parentId = dbInt(DEPT_SALES_ROOT);
+
     $row = dbQueryOne("
         SELECT COUNT(DISTINCT u.ID) AS cnt
         FROM b_user u
+
+        JOIN b_utm_user ud
+            ON ud.VALUE_ID = u.ID
+           AND ud.FIELD_ID = 40
+
+        JOIN b_iblock_section s 
+            ON s.ID = ud.VALUE_INT
+
         WHERE u.ACTIVE = 'Y'
-          AND EXISTS (
-              SELECT 1 FROM b_hr_department d
-              WHERE d.PARENT = {$parentId}
-                AND d.ACTIVE = 'Y'
-                AND JSON_CONTAINS(u.UF_DEPARTMENT, CAST(d.ID AS JSON))
-          )
+          AND s.IBLOCK_ID = 3
+          AND s.IBLOCK_SECTION_ID = {$parentId}
     ");
+
     return (int)($row['cnt'] ?? 0);
 }
 
