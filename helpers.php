@@ -1074,7 +1074,7 @@ function buildTargetVsActual($monthlyDeals, $monthlyTarget)
         $result[] = array(
             'month'  => $m['month'],
             'target' => $target,
-            'actual' => (int)$m['sales'],
+            'actual' => (int)$m['commission'],
         );
     }
     return $result;
