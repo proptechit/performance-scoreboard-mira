@@ -582,7 +582,7 @@ function fetchAllDeals($agentIds, $dateRange, $dealType = 'All')
 
     $typeFilter = buildPropertyTypeFilter($dealType, 'uts');
 
-    $rows = dbQuery("
+    return dbQuery("
         SELECT
             d.ID,
             d.ASSIGNED_BY_ID,
@@ -608,8 +608,6 @@ function fetchAllDeals($agentIds, $dateRange, $dealType = 'All')
 
         ORDER BY d.DATE_CREATE ASC
     ");
-
-    return filterDealsByReportDateRange($rows, $dateRange, 'DATE_CREATE');
 }
 
 /**
