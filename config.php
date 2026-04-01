@@ -206,8 +206,10 @@ define('DEPT_SALES_ROOT', 3);  // Parent department ID for all sales teams
 // ═══════════════════════════════════════════════════════════════════════════
 $GLOBALS['CFG_CEO_USER_IDS'] = array(
     // TODO: Add Bitrix user IDs for CEO/GM users
-    168,   // TAMARA GETIGEZHEVA
     1,     // Mira International (Admin)
+    5,     // Kristina Boeva
+    7,     // Abinas Subair
+    13,    // Aldo De Jager
 );
 
 $GLOBALS['CFG_MANAGER_USER_IDS'] = array(
