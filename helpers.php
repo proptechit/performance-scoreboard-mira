@@ -475,11 +475,37 @@ function parseReportDate($dateStr)
         return null;
     }
 
+    $dateStr = trim((string)$dateStr);
+
+    $formats = array();
+
+    if (strpos($dateStr, '/') !== false) {
+        $formats = array(
+            'd/m/Y h:i:s a',
+            'd/m/Y h:i:s A',
+            'd/m/Y H:i:s',
+            'd/m/Y',
+        );
+    } elseif (strpos($dateStr, '-') !== false) {
+        $formats = array(
+            'Y-m-d H:i:s',
+            'Y-m-d',
+        );
+    }
+
+    foreach ($formats as $format) {
+        $dt = \DateTime::createFromFormat($format, $format === 'd/m/Y h:i:s a' || $format === 'd/m/Y h:i:s A'
+            ? strtolower($dateStr)
+            : $dateStr);
+        if ($dt instanceof \DateTime) {
+            return $dt;
+        }
+    }
+
     try {
         return new \DateTime($dateStr);
     } catch (\Exception $e) {
-        $fallback = \DateTime::createFromFormat('d/m/Y h:i:s a', strtolower($dateStr));
-        return $fallback ?: null;
+        return null;
     }
 }
 
@@ -1020,20 +1046,9 @@ function groupDealsByMonth($deals, $year)
     $monthMap = array();
     foreach ($deals as $d) {
         $dateStr = $d['DATE_CREATE'] ?? ($d['CLOSEDATE'] ?? '');
-
-        if (empty($dateStr)) {
+        $dt = parseReportDate($dateStr);
+        if (!$dt) {
             continue;
-        }
-
-        // Try standard format first
-        try {
-            $dt = new \DateTime($dateStr);
-        } catch (\Exception $e) {
-            // Fallback for format like: 14/02/2026 01:30:00 am
-            $dt = \DateTime::createFromFormat('d/m/Y h:i:s a', strtolower($dateStr));
-            if (!$dt) {
-                continue; // skip invalid date
-            }
         }
 
         if ((int)$dt->format('Y') !== (int)$year) {
@@ -1169,20 +1184,9 @@ function buildSalesByDealType($deals, $year)
 
     foreach ($deals as $d) {
         $dateStr = $d['DATE_CREATE'] ?? ($d['CLOSEDATE'] ?? '');
-
-        if (empty($dateStr)) {
+        $dt = parseReportDate($dateStr);
+        if (!$dt) {
             continue;
-        }
-
-        // Try standard format first
-        try {
-            $dt = new \DateTime($dateStr);
-        } catch (\Exception $e) {
-            // Fallback for format like: 14/02/2026 01:30:00 am
-            $dt = \DateTime::createFromFormat('d/m/Y h:i:s a', strtolower($dateStr));
-            if (!$dt) {
-                continue; // skip invalid date
-            }
         }
 
         if ((int)$dt->format('Y') !== (int)$year) {
