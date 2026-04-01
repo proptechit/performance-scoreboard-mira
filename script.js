@@ -424,9 +424,19 @@ function renderCEO(data) {
       badge: null,
     },
     {
-      label: "Top Transaction",
+      label: "Top Sale",
       value: "AED " + fmtCurrency(s.top_deal, true),
-      sub: "Highest single sale",
+      sub: "Highest sale from a single deal",
+      icon: "🏆",
+      badge: {
+        txt: "#1",
+        cls: "gold",
+      },
+    },
+    {
+      label: "Top Commission",
+      value: "AED " + fmtCurrency(s.top_commission, true),
+      sub: "Highest gross commission from a single deal",
       icon: "🏆",
       badge: {
         txt: "#1",
@@ -1346,19 +1356,19 @@ function renderManager(data) {
       icon: "📊",
     },
     {
-      label: "Top Transaction",
-      value: "AED " + fmtCurrency(s.top_deal, true),
-      icon: "🏆",
-    },
-    {
       label: "Commissions",
       value: "AED " + fmtCurrency(s.commissions, true),
       icon: "💼",
     },
     {
+      label: "Top Sale",
+      value: "AED " + fmtCurrency(s.top_deal, true),
+      icon: "🏆",
+    },
+    {
       label: "Top Commission",
       value: "AED " + fmtCurrency(s.top_commission, true),
-      icon: "⭐",
+      icon: "🏆",
     },
   ];
 
@@ -1580,13 +1590,13 @@ function renderAgent(data) {
       icon: "⏱️",
     },
     {
-      label: "Top Transaction",
+      label: "Top Transaction Sale",
       value: "AED " + fmtCurrency(s.top_deal, true),
       sub: fmtCurrency(s.top_deal),
       icon: "🏆",
     },
     {
-      label: "Top Commission",
+      label: "Top Transaction Commission",
       value: "AED " + fmtCurrency(s.top_commission, true),
       sub: "Single deal",
       icon: "⭐",
