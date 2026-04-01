@@ -863,15 +863,24 @@ function aggregateDeals($deals)
     $comm      = 0.0;
     $topDeal   = 0.0;
     $topComm   = 0.0;
+    $topDealId = 0;
+    $topCommId = 0;
 
     foreach ($deals as $d) {
+        $dealId     = (int)($d['ID'] ?? 0);
         $amount    = (float)($d['sale_amount'] ?? 0);
         $c         = (float)($d['commission']  ?? 0);
         $count++;
         $sales    += $amount;
         $comm     += $c;
-        if ($amount > $topDeal) $topDeal = $amount;
-        if ($c      > $topComm) $topComm = $c;
+        if ($amount > $topDeal) {
+            $topDeal = $amount;
+            $topDealId = $dealId;
+        }
+        if ($c > $topComm) {
+            $topComm = $c;
+            $topCommId = $dealId;
+        }
     }
 
     return array(
@@ -879,7 +888,9 @@ function aggregateDeals($deals)
         'sales_volume'     => (int)$sales,
         'commissions'      => (int)$comm,
         'top_deal'         => (int)$topDeal,
+        'top_deal_id'      => $topDealId,
         'top_commission'   => (int)$topComm,
+        'top_commission_id'=> $topCommId,
         'avg_sales_per_deal' => $count > 0 ? (int)round($sales / $count) : 0,
     );
 }
@@ -1478,7 +1489,9 @@ function buildAgentPerformanceRow($userRow, $wonDeals, $dateRange)
         'sales'            => $agg['sales_volume'],
         'commission'       => $agg['commissions'],
         'top_deal'         => $agg['top_deal'],
+        'top_deal_id'      => $agg['top_deal_id'],
         'top_commission'   => $agg['top_commission'],
+        'top_commission_id'=> $agg['top_commission_id'],
         'avg_gap'          => $avgGap,
         'last_deal_days'   => $lastDealDays,
         'attendance'       => $attendance,

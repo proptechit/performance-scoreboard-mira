@@ -1070,6 +1070,18 @@ body {
   color: var(--red);
 }
 
+.deal-link {
+  color: var(--gold-dim);
+  font-weight: 600;
+  text-decoration: none;
+  transition: color 0.18s ease;
+}
+
+.deal-link:hover {
+  color: var(--gold);
+  text-decoration: underline;
+}
+
 /* ── SALES BY DEAL TYPE TABLE ──────────────────────────────────────────────── */
 .deal-type-header {
   background: var(--navy-light);

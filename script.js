@@ -227,6 +227,15 @@ function updateRoleBadge(name, fallbackInitial) {
   if (avatarEl) avatarEl.textContent = initials(name || fallbackInitial);
 }
 
+function getDealUrl(dealId) {
+  return `https://crm.mira-international.com/crm/deal/details/${dealId}/`;
+}
+
+function renderDealReference(dealId) {
+  if (!dealId) return "Deal ID unavailable";
+  return `<a class="deal-link" href="${getDealUrl(dealId)}" target="_blank" rel="noopener noreferrer">Deal #${dealId}</a>`;
+}
+
 function fetchDrilldownView(params) {
   const qs = Object.entries(params)
     .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
@@ -424,9 +433,9 @@ function renderCEO(data) {
       badge: null,
     },
     {
-      label: "Top Sale",
+      label: "Highest Sale",
       value: "AED " + fmtCurrency(s.top_deal, true),
-      sub: "Highest sale from a single deal",
+      subHtml: renderDealReference(s.top_deal_id),
       icon: "🏆",
       badge: {
         txt: "#1",
@@ -434,9 +443,9 @@ function renderCEO(data) {
       },
     },
     {
-      label: "Top Commission",
+      label: "Highest Commission",
       value: "AED " + fmtCurrency(s.top_commission, true),
-      sub: "Highest gross commission from a single deal",
+      subHtml: renderDealReference(s.top_commission_id),
       icon: "🏆",
       badge: {
         txt: "#1",
@@ -490,7 +499,7 @@ function renderCEO(data) {
       </div>
       <div class="kpi-value">${k.value}</div>
       ${k.badge ? `<span class="kpi-badge ${k.badge.cls}">${k.badge.txt}</span>` : ""}
-      <div class="kpi-sub">${k.sub}</div>
+      <div class="kpi-sub">${k.subHtml || k.sub || ""}</div>
     </div>
   `,
     )
@@ -519,6 +528,10 @@ function renderCEO(data) {
   `;
   document.getElementById("topCommissionVal").textContent =
     "AED " + fmtCurrency(s.top_commission);
+  const topCommissionMeta = document.getElementById("topCommissionMeta");
+  if (topCommissionMeta) {
+    topCommissionMeta.innerHTML = renderDealReference(s.top_commission_id);
+  }
 
   // Charts
   renderCommissionTrend(data.commission_trend);
@@ -1361,13 +1374,15 @@ function renderManager(data) {
       icon: "💼",
     },
     {
-      label: "Top Sale",
+      label: "Highest Sale",
       value: "AED " + fmtCurrency(s.top_deal, true),
+      subHtml: renderDealReference(s.top_deal_id),
       icon: "🏆",
     },
     {
-      label: "Top Commission",
+      label: "Highest Commission",
       value: "AED " + fmtCurrency(s.top_commission, true),
+      subHtml: renderDealReference(s.top_commission_id),
       icon: "🏆",
     },
   ];
@@ -1375,9 +1390,10 @@ function renderManager(data) {
   document.getElementById("managerKpiGrid").innerHTML = kpis
     .map(
       (k, i) => `
-    <div class="kpi-card ${k.highlight ? "highlight" : ""}" style="animation-delay:${0.04 + i * 0.03}s">
+      <div class="kpi-card ${k.highlight ? "highlight" : ""}" style="animation-delay:${0.04 + i * 0.03}s">
       <div class="kpi-label"><span>${k.label}</span><span style="font-size:16px;">${k.icon}</span></div>
       <div class="kpi-value">${k.value}</div>
+      ${k.subHtml || k.sub ? `<div class="kpi-sub">${k.subHtml || k.sub}</div>` : ""}
     </div>
   `,
     )
@@ -1590,15 +1606,15 @@ function renderAgent(data) {
       icon: "⏱️",
     },
     {
-      label: "Top Transaction Sale",
+      label: "Highest Sale",
       value: "AED " + fmtCurrency(s.top_deal, true),
-      sub: fmtCurrency(s.top_deal),
+      subHtml: renderDealReference(s.top_deal_id),
       icon: "🏆",
     },
     {
-      label: "Top Transaction Commission",
+      label: "Highest Commission",
       value: "AED " + fmtCurrency(s.top_commission, true),
-      sub: "Single deal",
+      subHtml: renderDealReference(s.top_commission_id),
       icon: "⭐",
     },
     {
@@ -1613,10 +1629,10 @@ function renderAgent(data) {
   document.getElementById("agentKpiGrid").innerHTML = kpis
     .map(
       (k, i) => `
-    <div class="kpi-card ${k.highlight ? "highlight" : ""}" style="animation-delay:${0.04 + i * 0.03}s">
+      <div class="kpi-card ${k.highlight ? "highlight" : ""}" style="animation-delay:${0.04 + i * 0.03}s">
       <div class="kpi-label"><span>${k.label}</span><span style="font-size:15px;">${k.icon}</span></div>
       <div class="kpi-value">${k.value}</div>
-      <div class="kpi-sub">${k.sub}</div>
+      <div class="kpi-sub">${k.subHtml || k.sub || ""}</div>
     </div>
   `,
     )

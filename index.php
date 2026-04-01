@@ -151,7 +151,7 @@
                     <div style="margin-top:20px;padding:14px;background:var(--navy);border-radius:10px;">
                         <div style="font-size:10px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.8px;font-weight:600;margin-bottom:6px;">Top Commission</div>
                         <div style="font-size:22px;font-weight:700;color:var(--gold-light);font-variant-numeric:tabular-nums;" id="topCommissionVal">–</div>
-                        <div style="font-size:11px;color:rgba(255,255,255,0.35);margin-top:4px;">Highest single deal commission</div>
+                        <div style="font-size:11px;color:rgba(255,255,255,0.35);margin-top:4px;" id="topCommissionMeta">Highest single deal commission</div>
                     </div>
                 </div>
             </div>
