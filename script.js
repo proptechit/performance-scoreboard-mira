@@ -385,7 +385,7 @@ function renderCEO(data) {
       badge: null,
     },
     {
-      label: "No. of Transaction (Last 60 Days)",
+      label: "No Transaction (in Last 60 Days)",
       value: fmtNum(s.no_deal_60_days),
       sub: "Need follow-up",
       icon: "⚠️",
@@ -1325,7 +1325,7 @@ function renderManager(data) {
       icon: "👥",
     },
     {
-      label: "No. of Transaction (Last 60 Days)",
+      label: "No Transaction (in Last 60 Days)",
       value: fmtNum(s.no_deal_60_days),
       icon: "⚠️",
       highlight: true,
