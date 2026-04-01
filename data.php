@@ -22,6 +22,9 @@
 // ── Output headers ──────────────────────────────────────────────────────────
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+header('Expires: 0');
 
 // ── Load dependencies ───────────────────────────────────────────────────────
 require_once __DIR__ . '/config.php';
@@ -122,6 +125,7 @@ $chartYear = ($year !== 'All' && is_numeric($year)) ? (int)$year : (int)date('Y'
 
 $cache    = new ScoreboardCache();
 $cacheKey = $cache->buildKey($role . '_' . $currentUserId, array(
+    'cache_version' => CACHE_VERSION,
     'agent_id'   => $agentId,
     'manager_id' => $managerId,
     'dept_id'    => $deptId,
