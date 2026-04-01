@@ -702,6 +702,113 @@ function buildPropertyTypeFilter($dealType, $alias = 'uts')
     return 'AND ' . $alias . '.' . FIELD_PROPERTY_TYPE . ' IN ' . inClauseInt($matchIds);
 }
 
+function getLeadPipelinesForDealType($dealType)
+{
+    if ($dealType === 'Offplan') {
+        return array(PIPELINE_OFFPLAN);
+    }
+    if ($dealType === 'Secondary') {
+        return array(PIPELINE_SECONDARY);
+    }
+    if ($dealType === 'Rental') {
+        return array();
+    }
+    return array(PIPELINE_OFFPLAN, PIPELINE_SECONDARY);
+}
+
+function fetchLeadBreakdownRows($agentIds, $dateRange, $dealType = 'All')
+{
+    $pipelines = getLeadPipelinesForDealType($dealType);
+    if (empty($pipelines)) {
+        return array();
+    }
+
+    $catIn  = inClauseInt($pipelines);
+    $from   = dbEsc($dateRange['from']);
+    $to     = dbEsc($dateRange['to']);
+    $source = FIELD_LEAD_SOURCE;
+
+    $agentFilter = '';
+    if (!empty($agentIds)) {
+        $agentFilter = 'AND d.ASSIGNED_BY_ID IN ' . inClauseInt($agentIds);
+    }
+
+    return dbQuery("
+        SELECT
+            d.CATEGORY_ID,
+            d.STAGE_ID,
+            d.{$source} AS source_id,
+            COUNT(*) AS cnt
+        FROM b_crm_deal d
+        WHERE d.CATEGORY_ID IN {$catIn}
+          AND DATE(d.DATE_CREATE) >= '{$from}'
+          AND DATE(d.DATE_CREATE) <= '{$to}'
+          {$agentFilter}
+        GROUP BY d.CATEGORY_ID, d.STAGE_ID, d.{$source}
+    ");
+}
+
+function buildLeadStageBreakdown($rows)
+{
+    $stageMap = $GLOBALS['CFG_LEAD_STAGE_MAP'];
+    $grouped  = array();
+    $total    = 0;
+
+    foreach ($rows as $row) {
+        $pipelineId = (int)($row['CATEGORY_ID'] ?? 0);
+        $stageId    = (string)($row['STAGE_ID'] ?? '');
+        $count      = (int)($row['cnt'] ?? 0);
+        $label      = $stageMap[$pipelineId][$stageId] ?? $stageId ?: 'Unknown';
+
+        if (!isset($grouped[$label])) {
+            $grouped[$label] = 0;
+        }
+        $grouped[$label] += $count;
+        $total += $count;
+    }
+
+    return formatLeadBreakdownItems($grouped, $total);
+}
+
+function buildLeadSourceBreakdown($rows)
+{
+    $sourceMap = $GLOBALS['CFG_LEAD_SOURCE_MAP'];
+    $grouped   = array();
+    $total     = 0;
+
+    foreach ($rows as $row) {
+        $sourceId = trim((string)($row['source_id'] ?? ''));
+        $count    = (int)($row['cnt'] ?? 0);
+        $label    = $sourceMap[$sourceId] ?? ($sourceId !== '' ? $sourceId : 'Unknown');
+
+        if (!isset($grouped[$label])) {
+            $grouped[$label] = 0;
+        }
+        $grouped[$label] += $count;
+        $total += $count;
+    }
+
+    return formatLeadBreakdownItems($grouped, $total);
+}
+
+function formatLeadBreakdownItems($grouped, $total)
+{
+    $items = array();
+    foreach ($grouped as $label => $count) {
+        $items[] = array(
+            'name'  => $label,
+            'count' => (int)$count,
+            'value' => $total > 0 ? round(((int)$count / $total) * 100, 2) : 0,
+        );
+    }
+
+    usort($items, function ($a, $b) {
+        return $b['count'] <=> $a['count'];
+    });
+
+    return $items;
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // 5. LEAD QUERIES  (Pipelines 1 = Offplan, 2 = Secondary)
 // ═══════════════════════════════════════════════════════════════════════════

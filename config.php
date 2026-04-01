@@ -74,6 +74,7 @@ define('FIELD_DEVELOPER',         'UF_CRM_1773307643');        // Developer (enu
 define('FIELD_PROPERTY_TYPE',     'UF_CRM_1766811061237');     // Offplan/Secondary/Rental (enum)
 define('FIELD_MANAGER_ID',        'UF_CRM_1766937679');        // Manager's Bitrix user ID
 define('FIELD_REASSIGNMENT_CNT',  'UF_CRM_1770111873652');     // Lead assignment count (reshuffled if > 0)
+define('FIELD_LEAD_SOURCE',       'SOURCE_ID');                // Standard Bitrix lead/deal source field
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 4. PROPERTY TYPE ENUM VALUES  (UF_CRM_1766811061237)
@@ -226,6 +227,117 @@ $GLOBALS['CFG_ALLOWED_AGENT_POSITIONS'] = array(
 );
 
 // ═══════════════════════════════════════════════════════════════════════════
+// 10A. LEAD STAGE / SOURCE MAPPINGS
+//      Dummy mappings for manager/agent lead charts.
+//      Update labels or add/remove stage IDs later as needed.
+// ═══════════════════════════════════════════════════════════════════════════
+$GLOBALS['CFG_LEAD_STAGE_MAP'] = array(
+    PIPELINE_OFFPLAN => array(
+        // Initial
+        'C1:NEW'                => 'New Lead',
+        'C1:UC_PQEWDF'          => 'From Amo CRM',
+
+        // Assignment / early stages
+        'C1:UC_Y44ID0'          => 'Assigned',
+        'C1:UC_GT3BE1'          => 'No Answer',
+        'C1:UC_C55DKF'          => 'Qualified',
+
+        // Mid funnel
+        'C1:PREPAYMENT_INVOICE' => 'Option Sent',
+        'C1:UC_VU0VYQ'          => 'Meeting Scheduled',
+
+        // Lead temperature
+        'C1:EXECUTING'          => 'Cold',
+        'C1:FINAL_INVOICE'      => 'Warm',
+        'C1:UC_BHOWXH'          => 'Hot',
+
+        // Conversion
+        'C1:UC_EO8A5H'          => 'EOI Submitted',
+
+        // Final
+        'C1:WON'                => 'Won',
+        'C1:LOSE'               => 'Lost',
+
+        // Lost reasons (you were missing these)
+        'C1:APOLOGY'            => 'Invalid Number',
+        'C1:UC_6CZF3Y'          => 'Real Estate Brokers',
+        'C1:UC_FGP2M3'          => 'Secondary',
+        'C1:UC_NY1USR'          => 'Job Seekers',
+        'C1:UC_AR04OX'          => 'Never Respond',
+        'C1:UC_P2JQLK'          => 'Other',
+        'C1:2'                  => 'Not Interested',
+        'C1:3'                  => 'Already Purchased',
+    ),
+    PIPELINE_SECONDARY => array(
+        // Initial
+        'C2:NEW'                => 'New',
+
+        // Early stages
+        'C2:UC_2MP0F2'          => 'No Answer',
+        'C2:UC_TDEII1'          => 'Contacted',
+
+        // Qualification
+        'C2:PREPARATION'        => 'Qualified',
+
+        // Lead status
+        'C2:EXECUTING'          => 'Hot',
+        'C2:PREPAYMENT_INVOICE' => 'Cold',
+
+        // Final
+        'C2:WON'                => 'Won',
+        'C2:LOSE'               => 'Lost',
+
+        // Missing (important)
+        'C2:APOLOGY'            => 'Disqualified',
+    ),
+);
+
+$GLOBALS['CFG_LEAD_SOURCE_MAP'] = array(
+    ''              => 'Unknown',
+
+    // Direct sources
+    'WEB'           => 'Website',
+    'CALL'          => 'Call',
+    'EMAIL'         => 'Email',
+    'CALLBACK'      => 'Callback',
+    'WEBFORM'       => 'CRM Form',
+
+    // Marketing / Ads
+    'ADVERTISING'   => 'Advertising',
+    'RC_GENERATOR'  => 'Sales Boost',
+
+    // Social Media
+    'REPEAT_SALE'   => 'Facebook',
+    '7'             => 'TikTok',
+    '6'             => 'Snapchat',
+
+    // Search Engines
+    '3'             => 'Google',
+    '5'             => 'Yandex',
+
+    // Messaging
+    '4'             => 'WhatsApp Marketing',
+
+    // Portals
+    '8'             => 'Property Finder',
+    '9'             => 'Bayut',
+    '10'            => 'Dubizzle',
+
+    // CRM / Integrations
+    '2'             => 'Hubspot',
+    '11'            => 'Amo CRM',
+    '1'             => 'Tilda',
+
+    // Offline / Other
+    'PARTNER'       => 'Existing Client',
+    'RECOMMENDATION' => 'By Recommendation',
+    'TRADE_SHOW'    => 'Exhibition',
+    'STORE'         => 'Online Store',
+    'BOOKING'       => 'Booking',
+    'OTHER'         => 'Other',
+);
+
+// ═══════════════════════════════════════════════════════════════════════════
 // 10. MONTHLY TARGETS  (AED)
 //     Structure:
 //       'company'  => flat monthly target for the whole company
@@ -280,7 +392,7 @@ $GLOBALS['CFG_POSITION_TARGET'] = array(
 define('CACHE_DIR',     __DIR__ . '/cache/');   // Cache folder (must be writable)
 define('CACHE_TTL',     300);                    // Seconds – 5 minutes default
 define('CACHE_ENABLED', true);                   // Set false to disable during dev
-define('CACHE_VERSION', '2026-04-01-topdeal-fix');
+define('CACHE_VERSION', '2026-04-01-lead-breakdown');
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 13. FILTER META  (returned to frontend for populating dropdowns)

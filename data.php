@@ -185,6 +185,7 @@ if ($role === 'agent') {
     $attendance   = countAttendanceDays($agentId, $dateRange);
     $leadCount    = countActiveLeads(array($agentId), $dateRange);
     $reshuffled   = countReshuffledLeads(array($agentId), $dateRange);
+    $leadRows     = fetchLeadBreakdownRows(array($agentId), $dateRange, $dealType);
 
     // Chart data
     $dealDist         = buildDealDistribution($allDeals);
@@ -192,6 +193,8 @@ if ($role === 'agent') {
     $topPropertyTypes = buildTopPropertyTypes($allDeals);
     $targetVsActual   = buildTargetVsActual($monthlyDeals, $monthlyTarget);
     $avgTicketSize    = buildAvgTicketSize($monthlyDeals);
+    $leadsByStage     = buildLeadStageBreakdown($leadRows);
+    $leadsBySource    = buildLeadSourceBreakdown($leadRows);
 
     $commissionTrend = array();
     foreach ($monthlyDeals as $m) {
@@ -233,6 +236,8 @@ if ($role === 'agent') {
         'top_property_types' => $topPropertyTypes,
         'avg_ticket_size'    => $avgTicketSize,
         'commission_trend'   => $commissionTrend,
+        'leads_by_stage'     => $leadsByStage,
+        'leads_by_source'    => $leadsBySource,
     );
 
     // ───────────────────────────────────────────────────────────────────────────
@@ -295,10 +300,13 @@ if ($role === 'agent') {
     $reshuffled   = empty($agentIds) ? 0 : countReshuffledLeads($agentIds, $dateRange);
     $listingCount = empty($agentIds) ? 0 : countTotalListings($agentIds);
     $noDeal60     = countNoDealIn60Days($agentIds);
+    $leadRows     = empty($agentIds) ? array() : fetchLeadBreakdownRows($agentIds, $dateRange, $dealType);
 
     // Charts
     $dealDist       = buildDealDistribution($allDeals);
     $targetVsActual = buildTargetVsActual($monthlyDeals, $monthlyTarget);
+    $leadsByStage   = buildLeadStageBreakdown($leadRows);
+    $leadsBySource  = buildLeadSourceBreakdown($leadRows);
 
     $commissionTrend = array();
     foreach ($monthlyDeals as $m) {
@@ -355,6 +363,8 @@ if ($role === 'agent') {
         'commission_trend'  => $commissionTrend,
         'target_vs_actual'  => $targetVsActual,
         'deal_distribution' => $dealDist,
+        'leads_by_stage'    => $leadsByStage,
+        'leads_by_source'   => $leadsBySource,
     );
     $response['all_agents'] = $allAgentRows;
 

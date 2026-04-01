@@ -672,6 +672,13 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+.legend-empty {
+  font-size: 12px;
+  color: var(--grey-400);
+  text-align: center;
+  padding: 12px 0 4px;
+}
+
 /* ── DEVELOPER TABLE ───────────────────────────────────────────────────────── */
 .data-table {
   width: 100%;

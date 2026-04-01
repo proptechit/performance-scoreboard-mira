@@ -363,6 +363,41 @@
                 </div>
             </div>
 
+            <div class="chart-grid-2 mb-24">
+                <div class="chart-card">
+                    <div class="chart-card-header">
+                        <div>
+                            <div class="chart-card-title">Leads by Stage</div>
+                            <div class="chart-card-subtitle">Current lead mix by stage</div>
+                        </div>
+                    </div>
+                    <div class="donut-wrapper" style="height:220px;">
+                        <canvas id="managerLeadStageChart"></canvas>
+                        <div class="donut-center">
+                            <div class="donut-center-value" id="managerLeadStageVal">–</div>
+                            <div class="donut-center-label">Leads</div>
+                        </div>
+                    </div>
+                    <div class="chart-legend" id="managerLeadStageLegend"></div>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-card-header">
+                        <div>
+                            <div class="chart-card-title">Leads by Source</div>
+                            <div class="chart-card-subtitle">Lead acquisition breakdown</div>
+                        </div>
+                    </div>
+                    <div class="donut-wrapper" style="height:220px;">
+                        <canvas id="managerLeadSourceChart"></canvas>
+                        <div class="donut-center">
+                            <div class="donut-center-value" id="managerLeadSourceVal">–</div>
+                            <div class="donut-center-label">Leads</div>
+                        </div>
+                    </div>
+                    <div class="chart-legend" id="managerLeadSourceLegend"></div>
+                </div>
+            </div>
+
             <div class="chart-card mb-24">
                 <div class="chart-card-header">
                     <div class="chart-card-title">Team Agents</div>
@@ -451,6 +486,41 @@
                     <div class="chart-container" style="height:200px;">
                         <canvas id="agentTicketChart"></canvas>
                     </div>
+                </div>
+            </div>
+
+            <div class="chart-grid-2 mb-24">
+                <div class="chart-card">
+                    <div class="chart-card-header">
+                        <div>
+                            <div class="chart-card-title">Leads by Stage</div>
+                            <div class="chart-card-subtitle">Current lead mix by stage</div>
+                        </div>
+                    </div>
+                    <div class="donut-wrapper" style="height:220px;">
+                        <canvas id="agentLeadStageChart"></canvas>
+                        <div class="donut-center">
+                            <div class="donut-center-value" id="agentLeadStageVal">–</div>
+                            <div class="donut-center-label">Leads</div>
+                        </div>
+                    </div>
+                    <div class="chart-legend" id="agentLeadStageLegend"></div>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-card-header">
+                        <div>
+                            <div class="chart-card-title">Leads by Source</div>
+                            <div class="chart-card-subtitle">Lead acquisition breakdown</div>
+                        </div>
+                    </div>
+                    <div class="donut-wrapper" style="height:220px;">
+                        <canvas id="agentLeadSourceChart"></canvas>
+                        <div class="donut-center">
+                            <div class="donut-center-value" id="agentLeadSourceVal">–</div>
+                            <div class="donut-center-label">Leads</div>
+                        </div>
+                    </div>
+                    <div class="chart-legend" id="agentLeadSourceLegend"></div>
                 </div>
             </div>
 

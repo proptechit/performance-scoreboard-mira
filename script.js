@@ -681,6 +681,78 @@ function renderDealDonut(dist, canvasId, legendId, centerId, totalSales) {
   }
 }
 
+function renderBreakdownDonut(items, canvasId, legendId, centerId, centerLabel) {
+  destroyChart(canvasId);
+  const ctx = document.getElementById(canvasId);
+  const filteredItems = Array.isArray(items)
+    ? items.filter((item) => Number(item?.count || 0) > 0)
+    : [];
+  if (!ctx) return;
+
+  const centerEl = centerId ? document.getElementById(centerId) : null;
+  const legendEl = document.getElementById(legendId);
+
+  if (!filteredItems.length) {
+    if (centerEl) centerEl.textContent = "0";
+    if (legendEl) {
+      legendEl.innerHTML = `<div class="legend-empty">No ${centerLabel.toLowerCase()} available</div>`;
+    }
+    return;
+  }
+
+  const total = filteredItems.reduce((sum, item) => sum + Number(item.count || 0), 0);
+  if (centerEl) centerEl.textContent = fmtNum(total);
+
+  charts[canvasId] = new Chart(ctx, {
+    type: "doughnut",
+    data: {
+      labels: filteredItems.map((item) => item.name),
+      datasets: [
+        {
+          data: filteredItems.map((item) => item.count),
+          backgroundColor: filteredItems.map(
+            (_, i) => CHART_COLORS[i % CHART_COLORS.length],
+          ),
+          borderWidth: 0,
+          hoverOffset: 6,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: "68%",
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: (ctx) => {
+              const pct = total > 0 ? ((ctx.raw / total) * 100).toFixed(1) : "0.0";
+              return `${ctx.label}: ${fmtNum(ctx.raw)} (${pct}%)`;
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (legendEl) {
+    legendEl.innerHTML = filteredItems
+      .map(
+        (item, i) => `
+      <div class="legend-item">
+        <div class="legend-dot-label">
+          <div class="legend-dot" style="background:${CHART_COLORS[i % CHART_COLORS.length]}"></div>
+          <span class="legend-name">${item.name}</span>
+        </div>
+        <span class="legend-pct">${item.value.toFixed(1)}%</span>
+        <span class="legend-amount">${fmtNum(item.count)} ${centerLabel}</span>
+      </div>
+    `,
+      )
+      .join("");
+  }
+}
+
 function renderTargetActual(data) {
   destroyChart("targetActualChart");
   const ctx = document.getElementById("targetActualChart");
@@ -1524,6 +1596,22 @@ function renderManager(data) {
     mgr.deal_distribution?.reduce((sum, d) => sum + d.amount, 0),
   );
 
+  renderBreakdownDonut(
+    mgr.leads_by_stage,
+    "managerLeadStageChart",
+    "managerLeadStageLegend",
+    "managerLeadStageVal",
+    "Leads",
+  );
+
+  renderBreakdownDonut(
+    mgr.leads_by_source,
+    "managerLeadSourceChart",
+    "managerLeadSourceLegend",
+    "managerLeadSourceVal",
+    "Leads",
+  );
+
   // Comm split
   document.getElementById("managerCommSplit").innerHTML = `
     <div class="split-row"><span class="split-label">Total</span><span class="split-value">AED ${fmtCurrency(s.commissions)}</span></div>
@@ -1709,6 +1797,22 @@ function renderAgent(data) {
     "agentDealLegend",
     "agentDonutVal",
     ag.deal_distribution?.reduce((sum, d) => sum + (d.amount || 0), 0),
+  );
+
+  renderBreakdownDonut(
+    ag.leads_by_stage,
+    "agentLeadStageChart",
+    "agentLeadStageLegend",
+    "agentLeadStageVal",
+    "Leads",
+  );
+
+  renderBreakdownDonut(
+    ag.leads_by_source,
+    "agentLeadSourceChart",
+    "agentLeadSourceLegend",
+    "agentLeadSourceVal",
+    "Leads",
   );
 
   // Ticket size
