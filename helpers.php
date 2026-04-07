@@ -650,6 +650,44 @@ function fetchAllDeals($agentIds, $dateRange, $dealType = 'All')
 }
 
 /**
+ * Fetch all deals in the Transactions pipeline without report filters.
+ * Scope is limited only by owner IDs when provided.
+ */
+function fetchTransactionPipelineDeals($agentIds = array())
+{
+    $catId   = dbInt(PIPELINE_TRANSACTION);
+    $fAmount = FIELD_DEAL_AMOUNT;
+    $fComm   = FIELD_COMMISSION;
+    $fDev    = FIELD_DEVELOPER;
+    $fType   = FIELD_PROPERTY_TYPE;
+    $fMgr    = FIELD_MANAGER_ID;
+
+    $agentFilter = '';
+    if (!empty($agentIds)) {
+        $agentFilter = 'AND d.ASSIGNED_BY_ID IN ' . inClauseInt($agentIds);
+    }
+
+    return dbQuery("
+        SELECT
+            d.ID,
+            d.ASSIGNED_BY_ID,
+            d.DATE_CREATE,
+            d.CLOSEDATE,
+            d.{$fAmount}            AS sale_amount,
+            uts.{$fComm}            AS commission,
+            uts.{$fDev}             AS developer_id,
+            uts.{$fType}            AS property_type_id,
+            uts.{$fMgr}             AS manager_id
+        FROM b_crm_deal d
+        LEFT JOIN b_uts_crm_deal uts
+            ON uts.VALUE_ID = d.ID
+        WHERE d.CATEGORY_ID = {$catId}
+          {$agentFilter}
+        ORDER BY d.DATE_CREATE ASC
+    ");
+}
+
+/**
  * Fetch committed deals (all stages in pipeline 3 except WON and LOSE).
  */
 function fetchCommittedDeals($agentIds, $dateRange, $dealType = 'All')

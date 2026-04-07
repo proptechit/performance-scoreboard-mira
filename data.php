@@ -175,6 +175,7 @@ if ($role === 'agent') {
     $wonDeals       = fetchWonDeals(array($agentId), $dateRange, $dealType);
     $committedDeals = fetchCommittedDeals(array($agentId), $dateRange, $dealType);
     $agg            = aggregateDeals($allDeals);
+    $pipelineAgg    = aggregateDeals(fetchTransactionPipelineDeals(array($agentId)));
     $monthlyDeals   = groupDealsByMonth($allDeals, $chartYear);
     $commSplit      = aggregateCommissionDeals($wonDeals, $committedDeals);
     $monthlyTarget = getAgentTarget($agentId, $workPosition);
@@ -223,10 +224,10 @@ if ($role === 'agent') {
             'avg_revenue'            => $agg['avg_sales_per_deal'],
             'avg_selling_price'      => $agg['avg_sales_per_deal'],
             'avg_gap_days'           => $avgGap,
-            'top_deal'               => $agg['top_deal'],
-            'top_deal_id'            => $agg['top_deal_id'],
-            'top_commission'         => $commSplit['top_commission'],
-            'top_commission_id'      => $commSplit['top_commission_id'],
+            'top_deal'               => $pipelineAgg['top_deal'],
+            'top_deal_id'            => $pipelineAgg['top_deal_id'],
+            'top_commission'         => $pipelineAgg['top_commission'],
+            'top_commission_id'      => $pipelineAgg['top_commission_id'],
             'days_since_last'        => $lastDealDays,
             'committed_commission'   => $commSplit['committed_commission'],
             'operational_commission' => $commSplit['operational_commission'],
@@ -292,6 +293,7 @@ if ($role === 'agent') {
     $wonDeals       = empty($dealOwnerIds) ? array() : fetchWonDeals($dealOwnerIds, $dateRange, $dealType);
     $committedDeals = empty($dealOwnerIds) ? array() : fetchCommittedDeals($dealOwnerIds, $dateRange, $dealType);
     $agg            = aggregateDeals($allDeals);
+    $pipelineAgg    = aggregateDeals(fetchTransactionPipelineDeals($dealOwnerIds));
     $monthlyDeals   = groupDealsByMonth($allDeals, $chartYear);
     $commSplit      = empty($dealOwnerIds) ? array(
         'total' => 0,
@@ -380,15 +382,15 @@ if ($role === 'agent') {
             'sales_volume'           => $agg['sales_volume'],
             'avg_sales_per_deal'     => $agg['avg_sales_per_deal'],
             'avg_sales_per_month'    => (int)round($agg['sales_volume'] / 12),
-            'top_deal'               => $agg['top_deal'],
-            'top_deal_id'            => $agg['top_deal_id'],
+            'top_deal'               => $pipelineAgg['top_deal'],
+            'top_deal_id'            => $pipelineAgg['top_deal_id'],
             'commissions'            => $commSplit['total'],
             'committed_commission'   => $commSplit['committed_commission'],
             'operational_commission' => $commSplit['operational_commission'],
             'avg_revenue_per_deal'   => $agg['avg_sales_per_deal'],
             'avg_revenue_per_month'  => (int)round($commSplit['operational_commission'] / 12),
-            'top_commission'         => $commSplit['top_commission'],
-            'top_commission_id'      => $commSplit['top_commission_id'],
+            'top_commission'         => $pipelineAgg['top_commission'],
+            'top_commission_id'      => $pipelineAgg['top_commission_id'],
         ),
         'commission_trend'  => $commissionTrend,
         'target_vs_actual'  => $targetVsActual,
@@ -420,6 +422,7 @@ if ($role === 'agent') {
     $wonDeals       = empty($allDealOwnerIds) ? array() : fetchWonDeals($allDealOwnerIds, $dateRange, $dealType);
     $committedDeals = empty($allDealOwnerIds) ? array() : fetchCommittedDeals($allDealOwnerIds, $dateRange, $dealType);
     $agg            = aggregateDeals($allDeals);
+    $pipelineAgg    = aggregateDeals(fetchTransactionPipelineDeals($allDealOwnerIds));
     $monthlyDeals   = groupDealsByMonth($allDeals, $chartYear);
     $commSplit      = empty($allDealOwnerIds) ? array(
         'total' => 0,
@@ -577,8 +580,8 @@ if ($role === 'agent') {
         'sales_volume'               => $agg['sales_volume'],
         'avg_sales_per_deal'         => $agg['avg_sales_per_deal'],
         'avg_sales_per_month'        => (int)round($agg['sales_volume'] / 12),
-        'top_deal'                   => $agg['top_deal'],
-        'top_deal_id'                => $agg['top_deal_id'],
+        'top_deal'                   => $pipelineAgg['top_deal'],
+        'top_deal_id'                => $pipelineAgg['top_deal_id'],
         'commissions'                => $commSplit['total'],
         'committed_commission'       => $commSplit['committed_commission'],
         'committed_commission_pct'   => $commSplit['committed_commission_pct'],
@@ -588,8 +591,8 @@ if ($role === 'agent') {
         'avg_revenue_per_month'      => (int)round($commSplit['operational_commission'] / 12),
         'active_listings_rent'       => $listings['rent'],
         'active_listings_sale'       => $listings['sale'],
-        'top_commission'             => $commSplit['top_commission'],
-        'top_commission_id'          => $commSplit['top_commission_id'],
+        'top_commission'             => $pipelineAgg['top_commission'],
+        'top_commission_id'          => $pipelineAgg['top_commission_id'],
     );
 
     $response['commission_trend']   = $commissionTrend;
