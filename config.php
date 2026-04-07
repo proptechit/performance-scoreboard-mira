@@ -387,6 +387,7 @@ $GLOBALS['CFG_POSITION_TARGET'] = array(
     'SPC'   => 125000, // Senior Property Consultant
     'PRIME' => 125000, // Prime
     'POA'   => 170000, // Private Office Advisor
+    'Sales Manager' => 125000,
 );
 
 // ═══════════════════════════════════════════════════════════════════════════
