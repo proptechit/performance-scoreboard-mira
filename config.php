@@ -226,6 +226,7 @@ $GLOBALS['CFG_ALLOWED_AGENT_POSITIONS'] = array(
     'SPC',
     'PRIME',
     'POA',
+    'Sales Manager'
 );
 
 // ═══════════════════════════════════════════════════════════════════════════
