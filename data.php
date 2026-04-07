@@ -175,7 +175,7 @@ if ($role === 'agent') {
     $wonDeals       = fetchWonDeals(array($agentId), $dateRange, $dealType);
     $committedDeals = fetchCommittedDeals(array($agentId), $dateRange, $dealType);
     $agg            = aggregateDeals($allDeals);
-    $pipelineAgg    = aggregateDeals(fetchTransactionPipelineDeals(array($agentId)));
+    $pipelineAgg    = aggregateDeals(fetchTransactionPipelineDeals());
     $monthlyDeals   = groupDealsByMonth($allDeals, $chartYear);
     $commSplit      = aggregateCommissionDeals($wonDeals, $committedDeals);
     $monthlyTarget = getAgentTarget($agentId, $workPosition);
@@ -293,7 +293,7 @@ if ($role === 'agent') {
     $wonDeals       = empty($dealOwnerIds) ? array() : fetchWonDeals($dealOwnerIds, $dateRange, $dealType);
     $committedDeals = empty($dealOwnerIds) ? array() : fetchCommittedDeals($dealOwnerIds, $dateRange, $dealType);
     $agg            = aggregateDeals($allDeals);
-    $pipelineAgg    = aggregateDeals(fetchTransactionPipelineDeals($dealOwnerIds));
+    $pipelineAgg    = aggregateDeals(fetchTransactionPipelineDeals());
     $monthlyDeals   = groupDealsByMonth($allDeals, $chartYear);
     $commSplit      = empty($dealOwnerIds) ? array(
         'total' => 0,
@@ -422,7 +422,7 @@ if ($role === 'agent') {
     $wonDeals       = empty($allDealOwnerIds) ? array() : fetchWonDeals($allDealOwnerIds, $dateRange, $dealType);
     $committedDeals = empty($allDealOwnerIds) ? array() : fetchCommittedDeals($allDealOwnerIds, $dateRange, $dealType);
     $agg            = aggregateDeals($allDeals);
-    $pipelineAgg    = aggregateDeals(fetchTransactionPipelineDeals($allDealOwnerIds));
+    $pipelineAgg    = aggregateDeals(fetchTransactionPipelineDeals());
     $monthlyDeals   = groupDealsByMonth($allDeals, $chartYear);
     $commSplit      = empty($allDealOwnerIds) ? array(
         'total' => 0,
