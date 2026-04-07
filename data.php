@@ -281,13 +281,19 @@ if ($role === 'agent') {
         }
     }
 
+    $dealOwnerIds = $agentIds;
+    if ($managerId > 0) {
+        $dealOwnerIds[] = $managerId;
+    }
+    $dealOwnerIds = array_values(array_unique(array_map('intval', $dealOwnerIds)));
+
     // Team won deals
-    $allDeals       = empty($agentIds) ? array() : fetchAllDeals($agentIds, $dateRange, $dealType);
-    $wonDeals       = empty($agentIds) ? array() : fetchWonDeals($agentIds, $dateRange, $dealType);
-    $committedDeals = empty($agentIds) ? array() : fetchCommittedDeals($agentIds, $dateRange, $dealType);
+    $allDeals       = empty($dealOwnerIds) ? array() : fetchAllDeals($dealOwnerIds, $dateRange, $dealType);
+    $wonDeals       = empty($dealOwnerIds) ? array() : fetchWonDeals($dealOwnerIds, $dateRange, $dealType);
+    $committedDeals = empty($dealOwnerIds) ? array() : fetchCommittedDeals($dealOwnerIds, $dateRange, $dealType);
     $agg            = aggregateDeals($allDeals);
     $monthlyDeals   = groupDealsByMonth($allDeals, $chartYear);
-    $commSplit      = empty($agentIds) ? array(
+    $commSplit      = empty($dealOwnerIds) ? array(
         'total' => 0,
         'committed_commission' => 0,
         'committed_commission_pct' => 0,
@@ -406,14 +412,16 @@ if ($role === 'agent') {
     $allAgentIds = array_map(function ($a) {
         return (int)$a['ID'];
     }, $allAgents);
+    $allManagerIds = getSalesTeamHeadIds($salesTeams);
+    $allDealOwnerIds = array_values(array_unique(array_merge($allAgentIds, $allManagerIds)));
 
     // Company-wide won deals (no agent filter = all)
-    $allDeals       = empty($allAgentIds) ? array() : fetchAllDeals($allAgentIds, $dateRange, $dealType);
-    $wonDeals       = empty($allAgentIds) ? array() : fetchWonDeals($allAgentIds, $dateRange, $dealType);
-    $committedDeals = empty($allAgentIds) ? array() : fetchCommittedDeals($allAgentIds, $dateRange, $dealType);
+    $allDeals       = empty($allDealOwnerIds) ? array() : fetchAllDeals($allDealOwnerIds, $dateRange, $dealType);
+    $wonDeals       = empty($allDealOwnerIds) ? array() : fetchWonDeals($allDealOwnerIds, $dateRange, $dealType);
+    $committedDeals = empty($allDealOwnerIds) ? array() : fetchCommittedDeals($allDealOwnerIds, $dateRange, $dealType);
     $agg            = aggregateDeals($allDeals);
     $monthlyDeals   = groupDealsByMonth($allDeals, $chartYear);
-    $commSplit      = empty($allAgentIds) ? array(
+    $commSplit      = empty($allDealOwnerIds) ? array(
         'total' => 0,
         'committed_commission' => 0,
         'committed_commission_pct' => 0,
@@ -490,14 +498,20 @@ if ($role === 'agent') {
         $teamIds    = array_map(function ($a) {
             return (int)$a['ID'];
         }, $teamAgents);
-        if (empty($teamIds)) {
+        $teamDealOwnerIds = $teamIds;
+        $teamManagerId = (int)($team['UF_HEAD'] ?? 0);
+        if ($teamManagerId > 0) {
+            $teamDealOwnerIds[] = $teamManagerId;
+        }
+        $teamDealOwnerIds = array_values(array_unique($teamDealOwnerIds));
+        if (empty($teamDealOwnerIds)) {
             continue;
         }
 
         $teamDeals = array();
         $teamWonDeals = array();
         $teamCommittedDeals = array();
-        foreach ($teamIds as $tid2) {
+        foreach ($teamDealOwnerIds as $tid2) {
             if (isset($dealsByAgent[$tid2])) {
                 foreach ($dealsByAgent[$tid2] as $d) {
                     $teamDeals[] = $d;
@@ -524,7 +538,7 @@ if ($role === 'agent') {
         $teamPerformance[] = array(
             'id'             => $tid,
             'name'           => $team['NAME'],
-            'manager_id'     => (int)($team['UF_HEAD'] ?? 0),
+            'manager_id'     => $teamManagerId,
             'deals'          => $tagg['deal_count'],
             'leads'          => $teamLeads,
             'listings'       => $teamList,

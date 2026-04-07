@@ -291,6 +291,19 @@ function getSalesTeams()
     ");
 }
 
+function getSalesTeamHeadIds($teams)
+{
+    $headIds = array();
+    foreach ($teams as $team) {
+        $headId = (int)($team['UF_HEAD'] ?? 0);
+        if ($headId > 0) {
+            $headIds[] = $headId;
+        }
+    }
+
+    return array_values(array_unique($headIds));
+}
+
 function getSalesTeamById($deptId)
 {
     $deptId = dbInt($deptId);
