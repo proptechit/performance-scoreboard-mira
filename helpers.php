@@ -1205,7 +1205,7 @@ function avgGapBetweenDeals($agentId, $dateRange)
 }
 
 /**
- * Count agents with no won deal in last 60 days.
+ * Count agents with no transaction-pipeline deal in last 60 days.
  *
  * @param  array $agentIds  All agent user IDs to check
  * @return int
@@ -1216,18 +1216,19 @@ function countNoDealIn60Days($agentIds)
         return 0;
     }
     $catId    = dbInt(PIPELINE_TRANSACTION);
-    $stageWon = dbEsc(STAGE_WON);
     $cutoff   = dbEsc(date('Y-m-d', strtotime('-60 days')));
     $inAgents = inClauseInt($agentIds);
 
-    // Agents who DO have a recent deal
+    // Agents who DO have a recent transaction-pipeline deal
     $rows = dbQuery("
         SELECT DISTINCT ASSIGNED_BY_ID
         FROM b_crm_deal
         WHERE CATEGORY_ID    = {$catId}
-          AND STAGE_ID       = '{$stageWon}'
           AND ASSIGNED_BY_ID IN {$inAgents}
-          AND DATE(CLOSEDATE) >= '{$cutoff}'
+          AND (
+                DATE(CLOSEDATE) >= '{$cutoff}'
+             OR DATE(DATE_CREATE) >= '{$cutoff}'
+          )
     ");
 
     $activeAgents = count($rows);
