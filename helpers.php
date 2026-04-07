@@ -1126,13 +1126,12 @@ function aggregateCommissionDeals($wonDeals, $committedDeals = array())
 }
 
 /**
- * Calculate days since last won deal for a set of agents.
- * Returns int (days) or 0 if no deals exist.
+ * Calculate days since last transaction-pipeline deal for a set of agents.
+ * Returns int (days) or 999 if no deals exist.
  */
 function daysSinceLastDeal($agentIds)
 {
     $catId    = dbInt(PIPELINE_TRANSACTION);
-    $stageWon = dbEsc(STAGE_WON);
 
     $agentFilter = '';
     if (!empty($agentIds)) {
@@ -1140,10 +1139,9 @@ function daysSinceLastDeal($agentIds)
     }
 
     $row = dbQueryOne("
-        SELECT MAX(d.CLOSEDATE) AS last_date
+        SELECT MAX(COALESCE(d.CLOSEDATE, d.DATE_CREATE)) AS last_date
         FROM b_crm_deal d
         WHERE d.CATEGORY_ID = {$catId}
-          AND d.STAGE_ID    = '{$stageWon}'
           {$agentFilter}
     ");
 
