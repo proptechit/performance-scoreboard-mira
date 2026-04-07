@@ -171,11 +171,12 @@ if ($role === 'agent') {
     }
 
     // Core deal data
-    $allDeals     = fetchAllDeals(array($agentId), $dateRange, $dealType);
-    $wonDeals     = fetchWonDeals(array($agentId), $dateRange, $dealType);
-    $agg          = aggregateDeals($allDeals);
-    $monthlyDeals = groupDealsByMonth($allDeals, $chartYear);
-    $commSplit    = buildCommissionSplit($wonDeals, array($agentId), $dateRange, $dealType);
+    $allDeals       = fetchAllDeals(array($agentId), $dateRange, $dealType);
+    $wonDeals       = fetchWonDeals(array($agentId), $dateRange, $dealType);
+    $committedDeals = fetchCommittedDeals(array($agentId), $dateRange, $dealType);
+    $agg            = aggregateDeals($allDeals);
+    $monthlyDeals   = groupDealsByMonth($allDeals, $chartYear);
+    $commSplit      = aggregateCommissionDeals($wonDeals, $committedDeals);
     $monthlyTarget = getAgentTarget($agentId, $workPosition);
 
     // Supplementary metrics
@@ -224,8 +225,8 @@ if ($role === 'agent') {
             'avg_gap_days'           => $avgGap,
             'top_deal'               => $agg['top_deal'],
             'top_deal_id'            => $agg['top_deal_id'],
-            'top_commission'         => $agg['top_commission'],
-            'top_commission_id'      => $agg['top_commission_id'],
+            'top_commission'         => $commSplit['top_commission'],
+            'top_commission_id'      => $commSplit['top_commission_id'],
             'days_since_last'        => $lastDealDays,
             'committed_commission'   => $commSplit['committed_commission'],
             'operational_commission' => $commSplit['operational_commission'],
@@ -281,17 +282,20 @@ if ($role === 'agent') {
     }
 
     // Team won deals
-    $allDeals     = empty($agentIds) ? array() : fetchAllDeals($agentIds, $dateRange, $dealType);
-    $wonDeals     = empty($agentIds) ? array() : fetchWonDeals($agentIds, $dateRange, $dealType);
-    $agg          = aggregateDeals($allDeals);
-    $monthlyDeals = groupDealsByMonth($allDeals, $chartYear);
-    $commSplit    = empty($agentIds) ? array(
+    $allDeals       = empty($agentIds) ? array() : fetchAllDeals($agentIds, $dateRange, $dealType);
+    $wonDeals       = empty($agentIds) ? array() : fetchWonDeals($agentIds, $dateRange, $dealType);
+    $committedDeals = empty($agentIds) ? array() : fetchCommittedDeals($agentIds, $dateRange, $dealType);
+    $agg            = aggregateDeals($allDeals);
+    $monthlyDeals   = groupDealsByMonth($allDeals, $chartYear);
+    $commSplit      = empty($agentIds) ? array(
         'total' => 0,
         'committed_commission' => 0,
         'committed_commission_pct' => 0,
         'operational_commission' => 0,
         'operational_commission_pct' => 0,
-    ) : buildCommissionSplit($wonDeals, $agentIds, $dateRange, $dealType);
+        'top_commission' => 0,
+        'top_commission_id' => 0,
+    ) : aggregateCommissionDeals($wonDeals, $committedDeals);
     $targetDeptId  = $deptId > 0 ? $deptId : getUserDeptId($managerId);
     $monthlyTarget = getTeamTarget($targetDeptId);
 
@@ -323,13 +327,33 @@ if ($role === 'agent') {
         $dealsByAgent[$rid][] = $d;
     }
 
+    $wonDealsByAgent = array();
+    foreach ($wonDeals as $d) {
+        $rid = (int)$d['ASSIGNED_BY_ID'];
+        if (!isset($wonDealsByAgent[$rid])) {
+            $wonDealsByAgent[$rid] = array();
+        }
+        $wonDealsByAgent[$rid][] = $d;
+    }
+
+    $committedDealsByAgent = array();
+    foreach ($committedDeals as $d) {
+        $rid = (int)$d['ASSIGNED_BY_ID'];
+        if (!isset($committedDealsByAgent[$rid])) {
+            $committedDealsByAgent[$rid] = array();
+        }
+        $committedDealsByAgent[$rid][] = $d;
+    }
+
     $allAgentRows = array();
     foreach ($agentIds as $aid) {
         if (!isset($agentRows[$aid])) {
             continue;
         }
-        $agentDeals     = isset($dealsByAgent[$aid]) ? $dealsByAgent[$aid] : array();
-        $allAgentRows[] = buildAgentPerformanceRow($agentRows[$aid], $agentDeals, $dateRange);
+        $agentDeals          = isset($dealsByAgent[$aid]) ? $dealsByAgent[$aid] : array();
+        $agentWonDeals       = isset($wonDealsByAgent[$aid]) ? $wonDealsByAgent[$aid] : array();
+        $agentCommittedDeals = isset($committedDealsByAgent[$aid]) ? $committedDealsByAgent[$aid] : array();
+        $allAgentRows[] = buildAgentPerformanceRow($agentRows[$aid], $agentDeals, $agentWonDeals, $agentCommittedDeals, $dateRange);
     }
 
     $response['view']    = 'manager';
@@ -357,8 +381,8 @@ if ($role === 'agent') {
             'operational_commission' => $commSplit['operational_commission'],
             'avg_revenue_per_deal'   => $agg['avg_sales_per_deal'],
             'avg_revenue_per_month'  => (int)round($commSplit['operational_commission'] / 12),
-            'top_commission'         => $agg['top_commission'],
-            'top_commission_id'      => $agg['top_commission_id'],
+            'top_commission'         => $commSplit['top_commission'],
+            'top_commission_id'      => $commSplit['top_commission_id'],
         ),
         'commission_trend'  => $commissionTrend,
         'target_vs_actual'  => $targetVsActual,
@@ -384,17 +408,20 @@ if ($role === 'agent') {
     }, $allAgents);
 
     // Company-wide won deals (no agent filter = all)
-    $allDeals     = empty($allAgentIds) ? array() : fetchAllDeals($allAgentIds, $dateRange, $dealType);
-    $wonDeals     = empty($allAgentIds) ? array() : fetchWonDeals($allAgentIds, $dateRange, $dealType);
-    $agg          = aggregateDeals($allDeals);
-    $monthlyDeals = groupDealsByMonth($allDeals, $chartYear);
-    $commSplit    = empty($allAgentIds) ? array(
+    $allDeals       = empty($allAgentIds) ? array() : fetchAllDeals($allAgentIds, $dateRange, $dealType);
+    $wonDeals       = empty($allAgentIds) ? array() : fetchWonDeals($allAgentIds, $dateRange, $dealType);
+    $committedDeals = empty($allAgentIds) ? array() : fetchCommittedDeals($allAgentIds, $dateRange, $dealType);
+    $agg            = aggregateDeals($allDeals);
+    $monthlyDeals   = groupDealsByMonth($allDeals, $chartYear);
+    $commSplit      = empty($allAgentIds) ? array(
         'total' => 0,
         'committed_commission' => 0,
         'committed_commission_pct' => 0,
         'operational_commission' => 0,
         'operational_commission_pct' => 0,
-    ) : buildCommissionSplit($wonDeals, $allAgentIds, $dateRange, $dealType);
+        'top_commission' => 0,
+        'top_commission_id' => 0,
+    ) : aggregateCommissionDeals($wonDeals, $committedDeals);
     $monthlyTarget = getCompanyTarget();
 
     // Company-wide supplementary
@@ -424,11 +451,31 @@ if ($role === 'agent') {
         $dealsByAgent[$rid][] = $d;
     }
 
+    $wonDealsByAgent = array();
+    foreach ($wonDeals as $d) {
+        $rid = (int)$d['ASSIGNED_BY_ID'];
+        if (!isset($wonDealsByAgent[$rid])) {
+            $wonDealsByAgent[$rid] = array();
+        }
+        $wonDealsByAgent[$rid][] = $d;
+    }
+
+    $committedDealsByAgent = array();
+    foreach ($committedDeals as $d) {
+        $rid = (int)$d['ASSIGNED_BY_ID'];
+        if (!isset($committedDealsByAgent[$rid])) {
+            $committedDealsByAgent[$rid] = array();
+        }
+        $committedDealsByAgent[$rid][] = $d;
+    }
+
     $agentPerformance = array();
     foreach ($allAgents as $agentRow) {
-        $aid        = (int)$agentRow['ID'];
-        $agentDeals = isset($dealsByAgent[$aid]) ? $dealsByAgent[$aid] : array();
-        $agentPerformance[] = buildAgentPerformanceRow($agentRow, $agentDeals, $dateRange);
+        $aid                 = (int)$agentRow['ID'];
+        $agentDeals          = isset($dealsByAgent[$aid]) ? $dealsByAgent[$aid] : array();
+        $agentWonDeals       = isset($wonDealsByAgent[$aid]) ? $wonDealsByAgent[$aid] : array();
+        $agentCommittedDeals = isset($committedDealsByAgent[$aid]) ? $committedDealsByAgent[$aid] : array();
+        $agentPerformance[] = buildAgentPerformanceRow($agentRow, $agentDeals, $agentWonDeals, $agentCommittedDeals, $dateRange);
     }
 
     usort($agentPerformance, function ($a, $b) {
@@ -448,15 +495,28 @@ if ($role === 'agent') {
         }
 
         $teamDeals = array();
+        $teamWonDeals = array();
+        $teamCommittedDeals = array();
         foreach ($teamIds as $tid2) {
             if (isset($dealsByAgent[$tid2])) {
                 foreach ($dealsByAgent[$tid2] as $d) {
                     $teamDeals[] = $d;
                 }
             }
+            if (isset($wonDealsByAgent[$tid2])) {
+                foreach ($wonDealsByAgent[$tid2] as $d) {
+                    $teamWonDeals[] = $d;
+                }
+            }
+            if (isset($committedDealsByAgent[$tid2])) {
+                foreach ($committedDealsByAgent[$tid2] as $d) {
+                    $teamCommittedDeals[] = $d;
+                }
+            }
         }
 
-        $tagg     = aggregateDeals($teamDeals);
+        $tagg      = aggregateDeals($teamDeals);
+        $teamComm  = aggregateCommissionDeals($teamWonDeals, $teamCommittedDeals);
         $teamList  = countTotalListings($teamIds);
         $teamLeads = countActiveLeads($teamIds, $dateRange);
         $lastDeal  = daysSinceLastDeal($teamIds);
@@ -469,7 +529,7 @@ if ($role === 'agent') {
             'leads'          => $teamLeads,
             'listings'       => $teamList,
             'sales'          => $tagg['sales_volume'],
-            'commission'     => $tagg['commissions'],
+            'commission'     => $teamComm['total'],
             'top_deal'       => $tagg['top_deal'],
             'avg_gap'        => 0,
             'last_deal_days' => $lastDeal,
@@ -514,8 +574,8 @@ if ($role === 'agent') {
         'avg_revenue_per_month'      => (int)round($commSplit['operational_commission'] / 12),
         'active_listings_rent'       => $listings['rent'],
         'active_listings_sale'       => $listings['sale'],
-        'top_commission'             => $agg['top_commission'],
-        'top_commission_id'          => $agg['top_commission_id'],
+        'top_commission'             => $commSplit['top_commission'],
+        'top_commission_id'          => $commSplit['top_commission_id'],
     );
 
     $response['commission_trend']   = $commissionTrend;

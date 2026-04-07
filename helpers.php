@@ -1027,6 +1027,54 @@ function aggregateDeals($deals)
 }
 
 /**
+ * Aggregate commission-focused metrics from won + committed deal sets.
+ * Keeps commission totals and top commission aligned to the same dataset.
+ */
+function aggregateCommissionDeals($wonDeals, $committedDeals = array())
+{
+    $operationalComm = 0.0;
+    $committedComm   = 0.0;
+    $topComm         = 0.0;
+    $topCommId       = 0;
+    $seenDealIds     = array();
+
+    foreach ($wonDeals as $d) {
+        $dealId = (int)($d['ID'] ?? 0);
+        $c      = (float)($d['commission'] ?? 0);
+
+        $operationalComm += $c;
+        if ($c > $topComm) {
+            $topComm   = $c;
+            $topCommId = $dealId;
+        }
+        $seenDealIds[$dealId] = true;
+    }
+
+    foreach ($committedDeals as $d) {
+        $dealId = (int)($d['ID'] ?? 0);
+        $c      = (float)($d['commission'] ?? 0);
+
+        $committedComm += $c;
+        if (!isset($seenDealIds[$dealId]) && $c > $topComm) {
+            $topComm   = $c;
+            $topCommId = $dealId;
+        }
+    }
+
+    $total = $operationalComm + $committedComm;
+
+    return array(
+        'total'                      => (int)$total,
+        'committed_commission'       => (int)$committedComm,
+        'committed_commission_pct'   => $total > 0 ? round(($committedComm / $total) * 100, 1) : 0,
+        'operational_commission'     => (int)$operationalComm,
+        'operational_commission_pct' => $total > 0 ? round(($operationalComm / $total) * 100, 1) : 0,
+        'top_commission'             => (int)$topComm,
+        'top_commission_id'          => $topCommId,
+    );
+}
+
+/**
  * Calculate days since last won deal for a set of agents.
  * Returns int (days) or 0 if no deals exist.
  */
@@ -1526,25 +1574,8 @@ function countAllActiveAgents()
  */
 function buildCommissionSplit($wonDeals, $agentIds, $dateRange, $dealType)
 {
-    $operationalComm = 0;
-    foreach ($wonDeals as $d) {
-        $operationalComm += (float)($d['commission'] ?? 0);
-    }
-
     $committedDeals = fetchCommittedDeals($agentIds, $dateRange, $dealType);
-    $committedComm  = 0;
-    foreach ($committedDeals as $d) {
-        $committedComm += (float)($d['commission'] ?? 0);
-    }
-
-    $total = $operationalComm + $committedComm;
-    return array(
-        'total'                      => (int)$total,
-        'committed_commission'       => (int)$committedComm,
-        'committed_commission_pct'   => $total > 0 ? round(($committedComm / $total) * 100, 1) : 0,
-        'operational_commission'     => (int)$operationalComm,
-        'operational_commission_pct' => $total > 0 ? round(($operationalComm / $total) * 100, 1) : 0,
-    );
+    return aggregateCommissionDeals($wonDeals, $committedDeals);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1575,10 +1606,11 @@ function fetchYearMonthly($year, $agentIds = array())
  * @param  array $dateRange
  * @return array
  */
-function buildAgentPerformanceRow($userRow, $wonDeals, $dateRange)
+function buildAgentPerformanceRow($userRow, $allDeals, $wonDeals, $committedDeals, $dateRange)
 {
     $uid = (int)$userRow['ID'];
-    $agg = aggregateDeals($wonDeals);
+    $agg = aggregateDeals($allDeals);
+    $commissionAgg = aggregateCommissionDeals($wonDeals, $committedDeals);
 
     $leadCount       = countActiveLeads(array($uid), $dateRange);
     $reshuffledCount = countReshuffledLeads(array($uid), $dateRange);
@@ -1596,11 +1628,11 @@ function buildAgentPerformanceRow($userRow, $wonDeals, $dateRange)
         'listings'         => $listingCount,
         'deals'            => $agg['deal_count'],
         'sales'            => $agg['sales_volume'],
-        'commission'       => $agg['commissions'],
+        'commission'       => $commissionAgg['total'],
         'top_deal'         => $agg['top_deal'],
         'top_deal_id'      => $agg['top_deal_id'],
-        'top_commission'   => $agg['top_commission'],
-        'top_commission_id'=> $agg['top_commission_id'],
+        'top_commission'   => $commissionAgg['top_commission'],
+        'top_commission_id'=> $commissionAgg['top_commission_id'],
         'avg_gap'          => $avgGap,
         'last_deal_days'   => $lastDealDays,
         'attendance'       => $attendance,
