@@ -268,16 +268,6 @@ function getNonAgentUserIds()
     )));
 }
 
-function getAllowedAgentPositionSqlClause($fieldExpr = 'u.WORK_POSITION')
-{
-    $positions = array_map('normalizeWorkPosition', $GLOBALS['CFG_ALLOWED_AGENT_POSITIONS'] ?? array());
-    if (empty($positions)) {
-        return '';
-    }
-
-    return 'AND UPPER(TRIM(' . $fieldExpr . ')) IN ' . inClauseStr($positions);
-}
-
 function getSalesReportDepartmentIds($includeRoot = true)
 {
     $deptIds = array_map('intval', $GLOBALS['CFG_SALES_REPORT_DEPARTMENT_IDS'] ?? array(DEPT_SALES_ROOT));
@@ -408,7 +398,6 @@ function getAgentsByDept($deptIds)
     $excludeNonAgents = !empty($nonAgentIds)
         ? 'AND u.ID NOT IN ' . inClauseInt($nonAgentIds)
         : '';
-    $allowedPositionFilter = getAllowedAgentPositionSqlClause('u.WORK_POSITION');
 
     return dbQuery("
         SELECT DISTINCT
@@ -427,7 +416,6 @@ function getAgentsByDept($deptIds)
         WHERE u.ACTIVE = 'Y'
           AND ud.VALUE_INT IN {$in}
           {$excludeNonAgents}
-          {$allowedPositionFilter}
 
         ORDER BY u.LAST_NAME ASC, u.NAME ASC
     ");
@@ -516,7 +504,6 @@ function getAgentIdsByManager($managerId)
     $excludeNonAgents = !empty($nonAgentIds)
         ? 'AND u.ID NOT IN ' . inClauseInt($nonAgentIds)
         : '';
-    $allowedPositionFilter = getAllowedAgentPositionSqlClause('u.WORK_POSITION');
 
     $rows = dbQuery("
         SELECT DISTINCT u.ID
@@ -536,7 +523,6 @@ function getAgentIdsByManager($managerId)
           AND u.ACTIVE = 'Y'
           AND ud.VALUE_INT IN " . inClauseInt($allowedDeptIds) . "
           {$excludeNonAgents}
-          {$allowedPositionFilter}
     ");
 
     return array_map(function ($r) {
@@ -1664,7 +1650,6 @@ function countAllActiveAgents()
     $excludeNonAgents = !empty($nonAgentIds)
         ? 'AND u.ID NOT IN ' . inClauseInt($nonAgentIds)
         : '';
-    $allowedPositionFilter = getAllowedAgentPositionSqlClause('u.WORK_POSITION');
 
     $row = dbQueryOne("
         SELECT COUNT(DISTINCT u.ID) AS cnt
@@ -1681,7 +1666,6 @@ function countAllActiveAgents()
           AND s.IBLOCK_ID = 3
           AND s.ID IN " . inClauseInt($allowedDeptIds) . "
           {$excludeNonAgents}
-          {$allowedPositionFilter}
     ");
 
     return (int)($row['cnt'] ?? 0);
