@@ -236,6 +236,23 @@ function renderDealReference(dealId) {
   return `<a class="deal-link" href="${getDealUrl(dealId)}" target="_blank" rel="noopener noreferrer">Deal #${dealId}</a>`;
 }
 
+function isCeoDrilldownView(data = currentData) {
+  return data?.current_user_role === "ceo" && data?.view !== "ceo";
+}
+
+function getCeoBackButtonHtml(data = currentData) {
+  if (!isCeoDrilldownView(data)) return "";
+  return `
+    <button type="button" class="view-back-button" onclick="returnToCeoView()">
+      Back to CEO View
+    </button>
+  `;
+}
+
+function returnToCeoView() {
+  window.location.reload();
+}
+
 function fetchDrilldownView(params) {
   const qs = Object.entries(params)
     .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
@@ -1389,7 +1406,9 @@ function renderManager(data) {
 
   // Profile banner
   document.getElementById("managerProfileBanner").innerHTML = `
-    <div class="profile-banner">
+    <div class="profile-banner-wrap">
+      ${getCeoBackButtonHtml(data)}
+      <div class="profile-banner">
       <div class="profile-avatar">${initials(p.name)}</div>
       <div class="profile-info">
         <div class="profile-name">${p.name}</div>
@@ -1399,6 +1418,7 @@ function renderManager(data) {
         </div>
       </div>
       <span class="profile-badge">${p.designation}</span>
+      </div>
     </div>
   `;
 
@@ -1637,7 +1657,9 @@ function renderAgent(data) {
 
   // Profile banner
   document.getElementById("agentProfileBanner").innerHTML = `
-    <div class="profile-banner">
+    <div class="profile-banner-wrap">
+      ${getCeoBackButtonHtml(data)}
+      <div class="profile-banner">
       <div class="profile-avatar">${initials(p.name)}</div>
       <div class="profile-info">
         <div class="profile-name">${p.name}</div>
@@ -1651,6 +1673,7 @@ function renderAgent(data) {
       <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;">
         <span class="profile-badge">${p.designation}</span>
         ${p.current ? '<span class="current-badge">● Current</span>' : ""}
+      </div>
       </div>
     </div>
   `;

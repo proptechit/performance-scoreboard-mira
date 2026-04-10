@@ -148,8 +148,9 @@ if ($cached !== null) {
 // ═══════════════════════════════════════════════════════════════════════════
 
 $response = array(
-    'role'    => $role,
-    'filters' => $GLOBALS['CFG_FILTER_META'],
+    'role'              => $role,
+    'current_user_role' => $currentUserRole,
+    'filters'           => $GLOBALS['CFG_FILTER_META'],
 );
 
 // ───────────────────────────────────────────────────────────────────────────

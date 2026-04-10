@@ -261,6 +261,37 @@ body {
   margin: 0 auto;
 }
 
+.profile-banner-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.view-back-button {
+  align-self: flex-start;
+  background: var(--white);
+  border: 1px solid rgba(15, 30, 53, 0.12);
+  color: var(--navy);
+  border-radius: 999px;
+  padding: 10px 16px;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: "DM Sans", sans-serif;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+}
+
+.view-back-button:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+  border-color: rgba(15, 30, 53, 0.22);
+}
+
+.view-back-button:active {
+  transform: translateY(0);
+}
+
 /* ── SECTION TITLE ─────────────────────────────────────────────────────────── */
 .section-header {
   display: flex;
