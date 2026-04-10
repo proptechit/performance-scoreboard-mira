@@ -594,6 +594,12 @@ function filterDealsByReportDateRange($deals, $dateRange, $primaryField = 'DATE_
     }));
 }
 
+function getEffectiveDealCreateDateExpr($dealAlias = 'd', $utsAlias = 'uts')
+{
+    $importedCreateField = FIELD_IMPORTED_CREATE_DATE;
+    return "COALESCE(NULLIF({$utsAlias}.{$importedCreateField}, ''), {$dealAlias}.DATE_CREATE)";
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // 4. DEAL QUERIES  (Transactions pipeline = PIPELINE_TRANSACTION = 3)
 // ═══════════════════════════════════════════════════════════════════════════
@@ -670,6 +676,8 @@ function fetchAllDeals($agentIds, $dateRange, $dealType = 'All')
     $fDev     = FIELD_DEVELOPER;
     $fType    = FIELD_PROPERTY_TYPE;
     $fMgr     = FIELD_MANAGER_ID;
+    $fImportedCreate = FIELD_IMPORTED_CREATE_DATE;
+    $effectiveCreateExpr = getEffectiveDealCreateDateExpr('d', 'uts');
 
     $agentFilter = '';
     if (!empty($agentIds)) {
@@ -684,6 +692,8 @@ function fetchAllDeals($agentIds, $dateRange, $dealType = 'All')
             d.ASSIGNED_BY_ID,
             d.DATE_CREATE,
             d.CLOSEDATE,
+            uts.{$fImportedCreate}   AS imported_create_date,
+            {$effectiveCreateExpr}   AS effective_create_date,
             d.{$fAmount}            AS sale_amount,
 
             uts.{$fComm}            AS commission,
@@ -697,12 +707,12 @@ function fetchAllDeals($agentIds, $dateRange, $dealType = 'All')
             ON uts.VALUE_ID = d.ID
 
         WHERE d.CATEGORY_ID = {$catId}
-          AND DATE(d.DATE_CREATE) >= '{$from}'
-          AND DATE(d.DATE_CREATE) <= '{$to}'
+          AND DATE({$effectiveCreateExpr}) >= '{$from}'
+          AND DATE({$effectiveCreateExpr}) <= '{$to}'
           {$agentFilter}
           {$typeFilter}
 
-        ORDER BY d.DATE_CREATE ASC
+        ORDER BY {$effectiveCreateExpr} ASC
     ");
 }
 
@@ -718,6 +728,8 @@ function fetchTransactionPipelineDeals($agentIds = array())
     $fDev    = FIELD_DEVELOPER;
     $fType   = FIELD_PROPERTY_TYPE;
     $fMgr    = FIELD_MANAGER_ID;
+    $fImportedCreate = FIELD_IMPORTED_CREATE_DATE;
+    $effectiveCreateExpr = getEffectiveDealCreateDateExpr('d', 'uts');
 
     $agentFilter = '';
     if (!empty($agentIds)) {
@@ -730,6 +742,8 @@ function fetchTransactionPipelineDeals($agentIds = array())
             d.ASSIGNED_BY_ID,
             d.DATE_CREATE,
             d.CLOSEDATE,
+            uts.{$fImportedCreate}   AS imported_create_date,
+            {$effectiveCreateExpr}   AS effective_create_date,
             d.{$fAmount}            AS sale_amount,
             uts.{$fComm}            AS commission,
             uts.{$fDev}             AS developer_id,
@@ -740,7 +754,7 @@ function fetchTransactionPipelineDeals($agentIds = array())
             ON uts.VALUE_ID = d.ID
         WHERE d.CATEGORY_ID = {$catId}
           {$agentFilter}
-        ORDER BY d.DATE_CREATE ASC
+        ORDER BY {$effectiveCreateExpr} ASC
     ");
 }
 
@@ -757,6 +771,8 @@ function fetchCommittedDeals($agentIds, $dateRange, $dealType = 'All')
 
     $fAmount = FIELD_DEAL_AMOUNT;
     $fComm   = FIELD_COMMISSION;
+    $fImportedCreate = FIELD_IMPORTED_CREATE_DATE;
+    $effectiveCreateExpr = getEffectiveDealCreateDateExpr('d', 'uts');
 
     $agentFilter = '';
     if (!empty($agentIds)) {
@@ -770,6 +786,8 @@ function fetchCommittedDeals($agentIds, $dateRange, $dealType = 'All')
             d.ID,
             d.ASSIGNED_BY_ID,
             d.DATE_CREATE,
+            uts.{$fImportedCreate}   AS imported_create_date,
+            {$effectiveCreateExpr}   AS effective_create_date,
             d.{$fAmount}        AS sale_amount,
             uts.{$fComm}        AS commission
 
@@ -780,12 +798,12 @@ function fetchCommittedDeals($agentIds, $dateRange, $dealType = 'All')
 
         WHERE d.CATEGORY_ID = {$catId}
           AND d.STAGE_ID IN {$stages}
-          AND DATE(d.DATE_CREATE) >= '{$from}'
-          AND DATE(d.DATE_CREATE) <= '{$to}'
+          AND DATE({$effectiveCreateExpr}) >= '{$from}'
+          AND DATE({$effectiveCreateExpr}) <= '{$to}'
           {$agentFilter}
           {$typeFilter}
 
-        ORDER BY d.DATE_CREATE ASC
+        ORDER BY {$effectiveCreateExpr} ASC
     ");
 }
 
@@ -1189,6 +1207,7 @@ function aggregateCommissionDeals($wonDeals, $committedDeals = array())
 function daysSinceLastDeal($agentIds)
 {
     $catId    = dbInt(PIPELINE_TRANSACTION);
+    $effectiveCreateExpr = getEffectiveDealCreateDateExpr('d', 'uts');
 
     $agentFilter = '';
     if (!empty($agentIds)) {
@@ -1196,8 +1215,10 @@ function daysSinceLastDeal($agentIds)
     }
 
     $row = dbQueryOne("
-        SELECT MAX(COALESCE(d.CLOSEDATE, d.DATE_CREATE)) AS last_date
+        SELECT MAX(COALESCE(d.CLOSEDATE, {$effectiveCreateExpr})) AS last_date
         FROM b_crm_deal d
+        LEFT JOIN b_uts_crm_deal uts
+            ON uts.VALUE_ID = d.ID
         WHERE d.CATEGORY_ID = {$catId}
           {$agentFilter}
     ");
@@ -1273,16 +1294,19 @@ function countNoDealIn60Days($agentIds)
     $catId    = dbInt(PIPELINE_TRANSACTION);
     $cutoff   = dbEsc(date('Y-m-d', strtotime('-60 days')));
     $inAgents = inClauseInt($agentIds);
+    $effectiveCreateExpr = getEffectiveDealCreateDateExpr('d', 'uts');
 
     // Agents who DO have a recent transaction-pipeline deal
     $rows = dbQuery("
         SELECT DISTINCT ASSIGNED_BY_ID
-        FROM b_crm_deal
-        WHERE CATEGORY_ID    = {$catId}
-          AND ASSIGNED_BY_ID IN {$inAgents}
+        FROM b_crm_deal d
+        LEFT JOIN b_uts_crm_deal uts
+            ON uts.VALUE_ID = d.ID
+        WHERE d.CATEGORY_ID    = {$catId}
+          AND d.ASSIGNED_BY_ID IN {$inAgents}
           AND (
-                DATE(CLOSEDATE) >= '{$cutoff}'
-             OR DATE(DATE_CREATE) >= '{$cutoff}'
+                DATE(d.CLOSEDATE) >= '{$cutoff}'
+             OR DATE({$effectiveCreateExpr}) >= '{$cutoff}'
           )
     ");
 
@@ -1307,7 +1331,7 @@ function groupDealsByMonth($deals, $year)
 {
     $monthMap = array();
     foreach ($deals as $d) {
-        $dateStr = $d['DATE_CREATE'] ?? ($d['CLOSEDATE'] ?? '');
+        $dateStr = $d['effective_create_date'] ?? ($d['DATE_CREATE'] ?? ($d['CLOSEDATE'] ?? ''));
         $dt = parseReportDate($dateStr);
         if (!$dt) {
             echo json_encode(array('error' => 'Invalid date format in deal', 'date' => $dateStr));
@@ -1446,7 +1470,7 @@ function buildSalesByDealType($deals, $year)
     }
 
     foreach ($deals as $d) {
-        $dateStr = $d['DATE_CREATE'] ?? ($d['CLOSEDATE'] ?? '');
+        $dateStr = $d['effective_create_date'] ?? ($d['DATE_CREATE'] ?? ($d['CLOSEDATE'] ?? ''));
         $dt = parseReportDate($dateStr);
         if (!$dt) {
             echo json_encode(array('error' => 'Invalid date format in deal', 'date' => $dateStr));
