@@ -1022,10 +1022,24 @@ function renderSalesByDealTypeTable(salesData) {
 function renderAgentTable(agents) {
   const tbody = document.getElementById("agentTableBody");
   if (!tbody || !agents) return;
-  document.getElementById("agentCountBadge").textContent =
-    `${agents.length} agents`;
+  const searchQuery = (
+    document.getElementById("agentSearchInput")?.value || ""
+  ).trim().toLowerCase();
 
-  const sortedAgents = sortCollection(agents, "agentTable", {
+  const filteredAgents = searchQuery
+    ? agents.filter((a) =>
+        `${a.name || ""} ${a.designation || ""}`
+          .toLowerCase()
+          .includes(searchQuery),
+      )
+    : agents;
+
+  document.getElementById("agentCountBadge").textContent =
+    filteredAgents.length === agents.length
+      ? `${agents.length} agents`
+      : `${filteredAgents.length} of ${agents.length} agents`;
+
+  const sortedAgents = sortCollection(filteredAgents, "agentTable", {
     name: { type: "string", get: (a) => a.name },
     deals: { type: "number", get: (a) => a.deals },
     sales: { type: "number", get: (a) => a.sales },
@@ -1034,6 +1048,15 @@ function renderAgentTable(agents) {
     avg_gap: { type: "number", get: (a) => a.avg_gap },
     last_deal_days: { type: "number", get: (a) => a.last_deal_days },
   });
+
+  if (!sortedAgents.length) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="7" class="table-empty-state">No agents match your search.</td>
+      </tr>
+    `;
+    return;
+  }
 
   tbody.innerHTML = sortedAgents
     .map((a) => {
@@ -1059,6 +1082,10 @@ function renderAgentTable(agents) {
     `;
     })
     .join("");
+}
+
+function handleAgentSearch() {
+  renderAgentTable(currentData?.agent_performance || []);
 }
 
 function renderTeamTable(teams) {

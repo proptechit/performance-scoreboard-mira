@@ -245,7 +245,14 @@
                         <div class="chart-card-title">Agent Performance Overview</div>
                         <div class="chart-card-subtitle">Click on an agent for detailed view</div>
                     </div>
-                    <div style="display:flex;gap:8px;align-items:center;">
+                    <div class="agent-overview-controls">
+                        <input
+                            type="search"
+                            id="agentSearchInput"
+                            class="table-search-input"
+                            placeholder="Search agent"
+                            oninput="handleAgentSearch()"
+                        >
                         <span id="agentCountBadge" style="font-size:11px;color:var(--grey-400);font-weight:500;"></span>
                         <span style="width:8px;height:8px;border-radius:50%;background:var(--red);display:inline-block;"></span>
                         <!-- <span style="font-size:11px;color:var(--grey-400);">No deal 60+ days</span> -->

@@ -610,6 +610,44 @@ body {
   cursor: pointer;
 }
 
+.agent-overview-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.table-search-input {
+  min-width: 200px;
+  background: var(--off-white);
+  border: 1px solid var(--grey-200);
+  color: var(--navy);
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: "DM Sans", sans-serif;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.table-search-input::placeholder {
+  color: var(--grey-400);
+}
+
+.table-search-input:focus {
+  border-color: rgba(201, 168, 76, 0.8);
+  box-shadow: 0 0 0 3px rgba(201, 168, 76, 0.12);
+}
+
+.table-empty-state {
+  padding: 20px 12px;
+  text-align: center;
+  color: var(--grey-400);
+  font-size: 12px;
+}
+
 .chart-card-title {
   font-size: 13px;
   font-weight: 600;
