@@ -100,6 +100,14 @@ if ($role === 'manager' && $deptId <= 0 && getUserRole($managerId) !== 'manager'
     exit;
 }
 
+if (in_array($role, array('manager', 'agent'), true) && $deptId <= 0) {
+    $scopedUserId = $role === 'agent' ? $agentId : $managerId;
+    if (!isUserInAllowedSalesDepartments($scopedUserId)) {
+        echo json_encode(array('error' => 'Selected user is outside the allowed sales departments', 'user_id' => $scopedUserId));
+        exit;
+    }
+}
+
 if ($role === 'agent') {
     if ($currentUserRole === 'manager') {
         $managedAgentIds = getAgentIdsByManager($currentUserId);

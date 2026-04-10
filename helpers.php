@@ -268,13 +268,65 @@ function getNonAgentUserIds()
     )));
 }
 
+function getSalesReportDepartmentIds($includeRoot = true)
+{
+    $deptIds = array_map('intval', $GLOBALS['CFG_SALES_REPORT_DEPARTMENT_IDS'] ?? array(DEPT_SALES_ROOT));
+    $deptIds = array_values(array_unique(array_filter($deptIds, function ($id) {
+        return $id > 0;
+    })));
+
+    if (!$includeRoot) {
+        $deptIds = array_values(array_filter($deptIds, function ($id) {
+            return $id !== (int)DEPT_SALES_ROOT;
+        }));
+    }
+
+    return $deptIds;
+}
+
+function filterAllowedSalesDepartmentIds($deptIds, $includeRoot = true)
+{
+    if (!is_array($deptIds)) {
+        $deptIds = array($deptIds);
+    }
+
+    $allowedIds = getSalesReportDepartmentIds($includeRoot);
+    return array_values(array_unique(array_intersect(
+        array_map('intval', $deptIds),
+        $allowedIds
+    )));
+}
+
+function isUserInAllowedSalesDepartments($userId)
+{
+    $uid = dbInt($userId);
+    $allowedDeptIds = getSalesReportDepartmentIds(true);
+    if (empty($allowedDeptIds)) {
+        return false;
+    }
+
+    $row = dbQueryOne("
+        SELECT 1 AS match_found
+        FROM b_utm_user
+        WHERE VALUE_ID = {$uid}
+          AND FIELD_ID = 40
+          AND VALUE_INT IN " . inClauseInt($allowedDeptIds) . "
+        LIMIT 1
+    ");
+
+    return !empty($row['match_found']);
+}
+
 /**
  * Fetch all sub-departments under DEPT_SALES_ROOT.
  * Returns array of ['ID', 'NAME', 'UF_HEAD'] rows.
  */
 function getSalesTeams()
 {
-    $parentId = dbInt(DEPT_SALES_ROOT);
+    $teamIds = getSalesReportDepartmentIds(false);
+    if (empty($teamIds)) {
+        return array();
+    }
 
     return dbQuery("
         SELECT 
@@ -286,7 +338,7 @@ function getSalesTeams()
             ON uts.VALUE_ID = s.ID
         WHERE s.IBLOCK_ID = 3
           AND s.ACTIVE = 'Y'
-          AND s.IBLOCK_SECTION_ID = {$parentId}
+          AND s.ID IN " . inClauseInt($teamIds) . "
         ORDER BY s.SORT ASC, s.NAME ASC
     ");
 }
@@ -307,6 +359,9 @@ function getSalesTeamHeadIds($teams)
 function getSalesTeamById($deptId)
 {
     $deptId = dbInt($deptId);
+    if (!in_array($deptId, getSalesReportDepartmentIds(false), true)) {
+        return array();
+    }
 
     return dbQueryOne("
         SELECT 
@@ -332,8 +387,9 @@ function getSalesTeamById($deptId)
  */
 function getAgentsByDept($deptIds)
 {
-    if (!is_array($deptIds)) {
-        $deptIds = array($deptIds);
+    $deptIds = filterAllowedSalesDepartmentIds($deptIds, true);
+    if (empty($deptIds)) {
+        return array();
     }
 
     $in = inClauseInt($deptIds);
@@ -422,12 +478,14 @@ function getManagerForAgent($userId)
 function getUserDeptId($userId)
 {
     $uid = dbInt($userId);
+    $allowedDeptIds = getSalesReportDepartmentIds(true);
 
     $row = dbQueryOne("
         SELECT VALUE_INT
         FROM b_utm_user
         WHERE VALUE_ID = {$uid}
           AND FIELD_ID = 40
+          AND VALUE_INT IN " . inClauseInt($allowedDeptIds) . "
         LIMIT 1
     ");
 
@@ -441,6 +499,7 @@ function getUserDeptId($userId)
 function getAgentIdsByManager($managerId)
 {
     $mid = dbInt($managerId);
+    $allowedDeptIds = getSalesReportDepartmentIds(true);
     $nonAgentIds = getNonAgentUserIds();
     $excludeNonAgents = !empty($nonAgentIds)
         ? 'AND u.ID NOT IN ' . inClauseInt($nonAgentIds)
@@ -462,6 +521,7 @@ function getAgentIdsByManager($managerId)
 
         WHERE uts.UF_HEAD = {$mid}
           AND u.ACTIVE = 'Y'
+          AND ud.VALUE_INT IN " . inClauseInt($allowedDeptIds) . "
           {$excludeNonAgents}
     ");
 
@@ -1581,7 +1641,11 @@ function fetchYearSummary($year, $agentIds = array())
  */
 function countAllActiveAgents()
 {
-    $parentId = dbInt(DEPT_SALES_ROOT);
+    $allowedDeptIds = getSalesReportDepartmentIds(true);
+    if (empty($allowedDeptIds)) {
+        return 0;
+    }
+
     $nonAgentIds = getNonAgentUserIds();
     $excludeNonAgents = !empty($nonAgentIds)
         ? 'AND u.ID NOT IN ' . inClauseInt($nonAgentIds)
@@ -1600,7 +1664,7 @@ function countAllActiveAgents()
 
         WHERE u.ACTIVE = 'Y'
           AND s.IBLOCK_ID = 3
-          AND s.IBLOCK_SECTION_ID = {$parentId}
+          AND s.ID IN " . inClauseInt($allowedDeptIds) . "
           {$excludeNonAgents}
     ");
 

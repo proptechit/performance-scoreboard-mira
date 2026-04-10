@@ -196,6 +196,17 @@ define('ATTENDANCE_TYPE_IN',   'IN');
 // ═══════════════════════════════════════════════════════════════════════════
 define('DEPT_SALES_ROOT', 3);  // Parent department ID for all sales teams
 
+$GLOBALS['CFG_SALES_REPORT_DEPARTMENT_IDS'] = array(
+    3,   // Sales department (parent)
+    22,  // Sales Team 1
+    31,  // Sales Team 2
+    26,  // Sales Team 3
+    21,  // Sales Team 4
+    32,  // Sales Team 5
+    23,  // Private Office
+    30,  // Tamara Getigezheva
+);
+
 // ═══════════════════════════════════════════════════════════════════════════
 // 9. ROLE DEFINITIONS
 //    Map Bitrix user IDs to roles.
