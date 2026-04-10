@@ -1295,9 +1295,14 @@ function avgGapBetweenDeals($agentId, $dateRange)
     }
 
     $gaps  = array();
-    $dates = array_map(function ($r) {
-        return new \DateTime($r['close_date']);
-    }, $rows);
+    $dates = array_values(array_filter(array_map(function ($r) {
+        return parseReportDate($r['close_date'] ?? '');
+    }, $rows)));
+
+    if (count($dates) < 2) {
+        return 0;
+    }
+
     for ($i = 1; $i < count($dates); $i++) {
         $gaps[] = (int)$dates[$i - 1]->diff($dates[$i])->days;
     }
