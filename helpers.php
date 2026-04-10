@@ -527,6 +527,7 @@ function filterDealsByReportDateRange($deals, $dateRange, $primaryField = 'DATE_
         $dateStr = $deal[$primaryField] ?? ($deal['CLOSEDATE'] ?? '');
         $dt = parseReportDate($dateStr);
         if (!$dt) {
+            echo json_encode(array('error' => 'Invalid date format', 'date' => $dateStr));
             return false;
         }
         return $dt >= $from && $dt <= $to;
@@ -1068,7 +1069,7 @@ function aggregateDeals($deals)
         'top_deal'         => (int)$topDeal,
         'top_deal_id'      => $topDealId,
         'top_commission'   => (int)$topComm,
-        'top_commission_id'=> $topCommId,
+        'top_commission_id' => $topCommId,
         'avg_sales_per_deal' => $count > 0 ? (int)round($sales / $count) : 0,
     );
 }
@@ -1249,6 +1250,7 @@ function groupDealsByMonth($deals, $year)
         $dateStr = $d['DATE_CREATE'] ?? ($d['CLOSEDATE'] ?? '');
         $dt = parseReportDate($dateStr);
         if (!$dt) {
+            echo json_encode(array('error' => 'Invalid date format in deal', 'date' => $dateStr));
             continue;
         }
 
@@ -1387,6 +1389,7 @@ function buildSalesByDealType($deals, $year)
         $dateStr = $d['DATE_CREATE'] ?? ($d['CLOSEDATE'] ?? '');
         $dt = parseReportDate($dateStr);
         if (!$dt) {
+            echo json_encode(array('error' => 'Invalid date format in deal', 'date' => $dateStr));
             continue;
         }
 
@@ -1676,7 +1679,7 @@ function buildAgentPerformanceRow($userRow, $allDeals, $wonDeals, $committedDeal
         'top_deal'         => $agg['top_deal'],
         'top_deal_id'      => $agg['top_deal_id'],
         'top_commission'   => $commissionAgg['top_commission'],
-        'top_commission_id'=> $commissionAgg['top_commission_id'],
+        'top_commission_id' => $commissionAgg['top_commission_id'],
         'avg_gap'          => $avgGap,
         'last_deal_days'   => $lastDealDays,
         'attendance'       => $attendance,
