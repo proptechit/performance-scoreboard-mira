@@ -597,7 +597,12 @@ function filterDealsByReportDateRange($deals, $dateRange, $primaryField = 'DATE_
 function getEffectiveDealCreateDateExpr($dealAlias = 'd', $utsAlias = 'uts')
 {
     $importedCreateField = FIELD_IMPORTED_CREATE_DATE;
-    return "COALESCE(NULLIF({$utsAlias}.{$importedCreateField}, ''), {$dealAlias}.DATE_CREATE)";
+    $importedCreateExpr = "CAST({$utsAlias}.{$importedCreateField} AS CHAR)";
+    return "CASE
+        WHEN {$utsAlias}.{$importedCreateField} IS NULL THEN {$dealAlias}.DATE_CREATE
+        WHEN {$importedCreateExpr} IN ('', '0000-00-00') THEN {$dealAlias}.DATE_CREATE
+        ELSE {$importedCreateExpr}
+    END";
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
