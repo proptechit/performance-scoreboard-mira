@@ -338,7 +338,6 @@ function getAgentsByDept($deptIds)
 
     $in = inClauseInt($deptIds);
 
-    $allowedPositions = inClauseStr($GLOBALS['CFG_ALLOWED_AGENT_POSITIONS']);
     $nonAgentIds = getNonAgentUserIds();
     $excludeNonAgents = !empty($nonAgentIds)
         ? 'AND u.ID NOT IN ' . inClauseInt($nonAgentIds)
@@ -360,7 +359,6 @@ function getAgentsByDept($deptIds)
 
         WHERE u.ACTIVE = 'Y'
           AND ud.VALUE_INT IN {$in}
-          AND UPPER(TRIM(u.WORK_POSITION)) IN {$allowedPositions}
           {$excludeNonAgents}
 
         ORDER BY u.LAST_NAME ASC, u.NAME ASC
@@ -443,7 +441,6 @@ function getUserDeptId($userId)
 function getAgentIdsByManager($managerId)
 {
     $mid = dbInt($managerId);
-    $allowedPositions = inClauseStr($GLOBALS['CFG_ALLOWED_AGENT_POSITIONS']);
     $nonAgentIds = getNonAgentUserIds();
     $excludeNonAgents = !empty($nonAgentIds)
         ? 'AND u.ID NOT IN ' . inClauseInt($nonAgentIds)
@@ -465,7 +462,6 @@ function getAgentIdsByManager($managerId)
 
         WHERE uts.UF_HEAD = {$mid}
           AND u.ACTIVE = 'Y'
-          AND UPPER(TRIM(u.WORK_POSITION)) IN {$allowedPositions}
           {$excludeNonAgents}
     ");
 
@@ -1583,7 +1579,6 @@ function fetchYearSummary($year, $agentIds = array())
 function countAllActiveAgents()
 {
     $parentId = dbInt(DEPT_SALES_ROOT);
-    $allowedPositions = inClauseStr($GLOBALS['CFG_ALLOWED_AGENT_POSITIONS']);
     $nonAgentIds = getNonAgentUserIds();
     $excludeNonAgents = !empty($nonAgentIds)
         ? 'AND u.ID NOT IN ' . inClauseInt($nonAgentIds)
@@ -1603,7 +1598,6 @@ function countAllActiveAgents()
         WHERE u.ACTIVE = 'Y'
           AND s.IBLOCK_ID = 3
           AND s.IBLOCK_SECTION_ID = {$parentId}
-          AND UPPER(TRIM(u.WORK_POSITION)) IN {$allowedPositions}
           {$excludeNonAgents}
     ");
 

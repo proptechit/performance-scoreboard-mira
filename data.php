@@ -165,10 +165,6 @@ if ($role === 'agent') {
 
     $managerName  = getManagerForAgent($agentId);
     $workPosition = $userRow['WORK_POSITION'] ?? '';
-    if (!isAllowedAgentPosition($workPosition)) {
-        echo json_encode(array('error' => 'Agent is not eligible for this report', 'agent_id' => $agentId));
-        exit;
-    }
 
     // Core deal data
     $allDeals       = fetchAllDeals(array($agentId), $dateRange, $dealType);
