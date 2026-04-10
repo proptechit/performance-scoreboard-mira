@@ -605,6 +605,17 @@ function getEffectiveDealCreateDateExpr($dealAlias = 'd', $utsAlias = 'uts')
     END";
 }
 
+function getEffectiveDealCloseDateExpr($dealAlias = 'd', $utsAlias = 'uts')
+{
+    $importedCloseField = FIELD_IMPORTED_CLOSE_DATE;
+    $importedCloseExpr = "CAST({$utsAlias}.{$importedCloseField} AS CHAR)";
+    return "CASE
+        WHEN {$utsAlias}.{$importedCloseField} IS NULL THEN {$dealAlias}.CLOSEDATE
+        WHEN {$importedCloseExpr} IN ('', '0000-00-00') THEN {$dealAlias}.CLOSEDATE
+        ELSE {$importedCloseExpr}
+    END";
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // 4. DEAL QUERIES  (Transactions pipeline = PIPELINE_TRANSACTION = 3)
 // ═══════════════════════════════════════════════════════════════════════════
@@ -634,6 +645,8 @@ function fetchWonDeals($agentIds, $dateRange, $dealType = 'All')
     $fDev     = FIELD_DEVELOPER;
     $fType    = FIELD_PROPERTY_TYPE;
     $fMgr     = FIELD_MANAGER_ID;
+    $fImportedClose = FIELD_IMPORTED_CLOSE_DATE;
+    $effectiveCloseExpr = getEffectiveDealCloseDateExpr('d', 'uts');
 
     $agentFilter = '';
     if (!empty($agentIds)) {
@@ -647,6 +660,8 @@ function fetchWonDeals($agentIds, $dateRange, $dealType = 'All')
             d.ID,
             d.ASSIGNED_BY_ID,
             d.CLOSEDATE,
+            uts.{$fImportedClose}    AS imported_close_date,
+            {$effectiveCloseExpr}    AS effective_close_date,
             d.{$fAmount}            AS sale_amount,
 
             uts.{$fComm}            AS commission,
@@ -661,12 +676,12 @@ function fetchWonDeals($agentIds, $dateRange, $dealType = 'All')
 
         WHERE d.CATEGORY_ID = {$catId}
           AND d.STAGE_ID    = '{$stageWon}'
-          AND DATE(d.CLOSEDATE) >= '{$from}'
-          AND DATE(d.CLOSEDATE) <= '{$to}'
+          AND DATE({$effectiveCloseExpr}) >= '{$from}'
+          AND DATE({$effectiveCloseExpr}) <= '{$to}'
           {$agentFilter}
           {$typeFilter}
 
-        ORDER BY d.CLOSEDATE ASC
+        ORDER BY {$effectiveCloseExpr} ASC
     ");
 }
 
@@ -1213,6 +1228,7 @@ function daysSinceLastDeal($agentIds)
 {
     $catId    = dbInt(PIPELINE_TRANSACTION);
     $effectiveCreateExpr = getEffectiveDealCreateDateExpr('d', 'uts');
+    $effectiveCloseExpr = getEffectiveDealCloseDateExpr('d', 'uts');
 
     $agentFilter = '';
     if (!empty($agentIds)) {
@@ -1220,7 +1236,7 @@ function daysSinceLastDeal($agentIds)
     }
 
     $row = dbQueryOne("
-        SELECT MAX(COALESCE(d.CLOSEDATE, {$effectiveCreateExpr})) AS last_date
+        SELECT MAX(COALESCE({$effectiveCloseExpr}, {$effectiveCreateExpr})) AS last_date
         FROM b_crm_deal d
         LEFT JOIN b_uts_crm_deal uts
             ON uts.VALUE_ID = d.ID
@@ -1259,16 +1275,19 @@ function avgGapBetweenDeals($agentId, $dateRange)
     $uid      = dbInt($agentId);
     $from     = dbEsc($dateRange['from']);
     $to       = dbEsc($dateRange['to']);
+    $effectiveCloseExpr = getEffectiveDealCloseDateExpr('d', 'uts');
 
     $rows = dbQuery("
-        SELECT DATE(d.CLOSEDATE) AS close_date
+        SELECT DATE({$effectiveCloseExpr}) AS close_date
         FROM b_crm_deal d
+        LEFT JOIN b_uts_crm_deal uts
+            ON uts.VALUE_ID = d.ID
         WHERE d.CATEGORY_ID   = {$catId}
           AND d.STAGE_ID      = '{$stageWon}'
           AND d.ASSIGNED_BY_ID = {$uid}
-          AND DATE(d.CLOSEDATE) >= '{$from}'
-          AND DATE(d.CLOSEDATE) <= '{$to}'
-        ORDER BY d.CLOSEDATE ASC
+          AND DATE({$effectiveCloseExpr}) >= '{$from}'
+          AND DATE({$effectiveCloseExpr}) <= '{$to}'
+        ORDER BY {$effectiveCloseExpr} ASC
     ");
 
     if (count($rows) < 2) {
@@ -1300,6 +1319,7 @@ function countNoDealIn60Days($agentIds)
     $cutoff   = dbEsc(date('Y-m-d', strtotime('-60 days')));
     $inAgents = inClauseInt($agentIds);
     $effectiveCreateExpr = getEffectiveDealCreateDateExpr('d', 'uts');
+    $effectiveCloseExpr = getEffectiveDealCloseDateExpr('d', 'uts');
 
     // Agents who DO have a recent transaction-pipeline deal
     $rows = dbQuery("
@@ -1310,7 +1330,7 @@ function countNoDealIn60Days($agentIds)
         WHERE d.CATEGORY_ID    = {$catId}
           AND d.ASSIGNED_BY_ID IN {$inAgents}
           AND (
-                DATE(d.CLOSEDATE) >= '{$cutoff}'
+                DATE({$effectiveCloseExpr}) >= '{$cutoff}'
              OR DATE({$effectiveCreateExpr}) >= '{$cutoff}'
           )
     ");
