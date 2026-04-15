@@ -74,7 +74,7 @@ define('FIELD_DEVELOPER',         'UF_CRM_1773307643');        // Developer (enu
 define('FIELD_PROPERTY_TYPE',     'UF_CRM_1766811061237');     // Offplan/Secondary/Rental (enum)
 define('FIELD_MANAGER_ID',        'UF_CRM_1766937679');        // Manager's Bitrix user ID
 define('FIELD_REASSIGNMENT_CNT',  'UF_CRM_1770111873652');     // Lead assignment count (reshuffled if > 0)
-define('FIELD_IMPORTED_CREATE_DATE', 'UF_CRM_1775842977829');  // Imported/original deal create date
+define('FIELD_IMPORTED_CREATE_DATE', 'UF_CRM_1775842945815');  // Imported/original deal create date
 define('FIELD_IMPORTED_CLOSE_DATE',  'UF_CRM_1775842990567');  // Imported/original deal close date
 define('FIELD_LEAD_SOURCE',       'SOURCE_ID');                // Standard Bitrix lead/deal source field
 
