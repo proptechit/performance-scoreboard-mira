@@ -599,8 +599,8 @@ function getEffectiveDealCreateDateExpr($dealAlias = 'd', $utsAlias = 'uts')
     $importedCreateField = FIELD_IMPORTED_CREATE_DATE;
     $importedCreateExpr = "CAST({$utsAlias}.{$importedCreateField} AS CHAR)";
     return "CASE
-        WHEN {$importedCreateExpr} IN ('', '0000-00-00') THEN {$dealAlias}.DATE_CREATE
         WHEN {$utsAlias}.{$importedCreateField} IS NULL THEN {$dealAlias}.DATE_CREATE
+        WHEN {$importedCreateExpr} IN ('', '0000-00-00') THEN {$dealAlias}.DATE_CREATE
         ELSE {$importedCreateExpr}
     END";
 }
@@ -610,8 +610,8 @@ function getEffectiveDealCloseDateExpr($dealAlias = 'd', $utsAlias = 'uts')
     $importedCloseField = FIELD_IMPORTED_CLOSE_DATE;
     $importedCloseExpr = "CAST({$utsAlias}.{$importedCloseField} AS CHAR)";
     return "CASE
-    WHEN {$importedCloseExpr} IN ('', '0000-00-00') THEN {$dealAlias}.CLOSEDATE
         WHEN {$utsAlias}.{$importedCloseField} IS NULL THEN {$dealAlias}.CLOSEDATE
+        WHEN {$importedCloseExpr} IN ('', '0000-00-00') THEN {$dealAlias}.CLOSEDATE
         ELSE {$importedCloseExpr}
     END";
 }
