@@ -1226,9 +1226,9 @@ function aggregateCommissionDeals($wonDeals, $committedDeals = array())
  */
 function daysSinceLastDeal($agentIds)
 {
-    $catId    = dbInt(PIPELINE_TRANSACTION);
-    $effectiveCreateExpr = getEffectiveDealCreateDateExpr('d', 'uts');
-    $effectiveCloseExpr = getEffectiveDealCloseDateExpr('d', 'uts');
+    $catId = dbInt(PIPELINE_TRANSACTION);
+    $importedCloseField  = FIELD_IMPORTED_CLOSE_DATE;
+    $importedCreateField = FIELD_IMPORTED_CREATE_DATE;
 
     $agentFilter = '';
     if (!empty($agentIds)) {
@@ -1236,7 +1236,25 @@ function daysSinceLastDeal($agentIds)
     }
 
     $row = dbQueryOne("
-        SELECT MAX(COALESCE({$effectiveCloseExpr}, {$effectiveCreateExpr})) AS last_date
+        SELECT MAX(
+            COALESCE(
+                -- Prefer a real imported close date
+                CASE
+                    WHEN uts.{$importedCloseField} IS NULL THEN NULL
+                    WHEN CAST(uts.{$importedCloseField} AS CHAR) IN ('', '0000-00-00') THEN NULL
+                    ELSE CAST(uts.{$importedCloseField} AS CHAR)
+                END,
+                -- Then a real imported create date
+                CASE
+                    WHEN uts.{$importedCreateField} IS NULL THEN NULL
+                    WHEN CAST(uts.{$importedCreateField} AS CHAR) IN ('', '0000-00-00') THEN NULL
+                    ELSE CAST(uts.{$importedCreateField} AS CHAR)
+                END,
+                -- Fall back to native Bitrix dates
+                d.CLOSEDATE,
+                d.DATE_CREATE
+            )
+        ) AS last_date
         FROM b_crm_deal d
         LEFT JOIN b_uts_crm_deal uts
             ON uts.VALUE_ID = d.ID
@@ -1248,21 +1266,16 @@ function daysSinceLastDeal($agentIds)
         return 999;
     }
 
-    $dateStr = $row['last_date'];
-
-    // ✅ Robust parsing
     try {
-        $lastDate = new \DateTime($dateStr);
+        $lastDate = new \DateTime($row['last_date']);
     } catch (\Exception $e) {
-        $lastDate = \DateTime::createFromFormat('d/m/Y h:i:s a', strtolower($dateStr));
+        $lastDate = \DateTime::createFromFormat('d/m/Y h:i:s a', strtolower($row['last_date']));
         if (!$lastDate) {
             return 999;
         }
     }
 
-    $now = new \DateTime();
-
-    return (int)$lastDate->diff($now)->days;
+    return (int)(new \DateTime())->diff($lastDate)->days;
 }
 
 /**
