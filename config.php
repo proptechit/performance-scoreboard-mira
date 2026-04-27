@@ -183,6 +183,18 @@ define('SPA_LISTINGS_TABLE',      'b_crm_dynamic_items_1052');
 define('LISTING_STAGE_ACTIVE',    'DT1052_11:SUCCESS');        // Published = active
 define('LISTING_TYPE_SALE_VALUE', 493);                        // UF_CRM_5_1752569908 = 493 → For Sale
 define('LISTING_TYPE_FIELD',      'UF_CRM_5_1752569908');      // Listing type field
+define('LISTING_BRANCH_FIELD',    'UF_CRM_7_1772708634');      // Branch code field
+
+$GLOBALS['CFG_LISTING_BRANCH_BY_DEPT'] = array(
+    22 => 'st1',
+    31 => 'st2',
+    26 => 'st3',
+    21 => 'st4',
+    32 => 'st5',
+    23 => 'po',
+    30 => 'main',
+    3  => 'main',
+);
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 7. ATTENDANCE SPA
@@ -409,7 +421,7 @@ $GLOBALS['CFG_POSITION_TARGET'] = array(
 define('CACHE_DIR',     __DIR__ . '/cache/');   // Cache folder (must be writable)
 define('CACHE_TTL',     300);                    // Seconds – 5 minutes default
 define('CACHE_ENABLED', true);                   // Set false to disable during dev
-define('CACHE_VERSION', '2026-04-07-last-transaction-any-stage');
+define('CACHE_VERSION', '2026-04-27-listing-branch-active-only');
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 13. FILTER META  (returned to frontend for populating dropdowns)

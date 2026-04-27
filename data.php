@@ -188,7 +188,7 @@ if ($role === 'agent') {
     // Supplementary metrics
     $avgGap       = avgGapBetweenDeals($agentId, $dateRange);
     $lastDealDays = daysSinceLastDeal(array($agentId));
-    $listingCount = countTotalListings(array($agentId));
+    $listingCount = countListingsForUsers(array($agentId));
     $attendance   = countAttendanceDays($agentId, $dateRange);
     $leadCount    = countActiveLeads(array($agentId), $dateRange);
     $reshuffled   = countReshuffledLeads(array($agentId), $dateRange);
@@ -315,7 +315,9 @@ if ($role === 'agent') {
     // Team-wide supplementary
     $leadCount    = empty($agentIds) ? 0 : countActiveLeads($agentIds, $dateRange);
     $reshuffled   = empty($agentIds) ? 0 : countReshuffledLeads($agentIds, $dateRange);
-    $listingCount = empty($agentIds) ? 0 : countTotalListings($agentIds);
+    $listingCount = $deptId > 0
+        ? countListingsForDepartments(array($deptId))
+        : (empty($agentIds) ? 0 : countListingsForUsers($agentIds));
     $noDeal60     = countNoDealIn60Days($agentIds);
     $leadRows     = empty($agentIds) ? array() : fetchLeadBreakdownRows($agentIds, $dateRange, $dealType);
 
@@ -441,7 +443,7 @@ if ($role === 'agent') {
     $monthlyTarget = getCompanyTarget();
 
     // Company-wide supplementary
-    $listings = empty($allAgentIds) ? array('sale' => 0, 'rent' => 0) : countActiveListings($allAgentIds);
+    $listings = countActiveListingsByBranches();
     $noDeal60 = countNoDealIn60Days($allAgentIds);
 
     // Charts
@@ -539,7 +541,7 @@ if ($role === 'agent') {
 
         $tagg      = aggregateDeals($teamDeals);
         $teamComm  = aggregateCommissionDeals($teamWonDeals, $teamCommittedDeals);
-        $teamList  = countTotalListings($teamIds);
+        $teamList  = countListingsForDepartments(array($tid));
         $teamLeads = countActiveLeads($teamIds, $dateRange);
         $lastDeal  = daysSinceLastDeal($teamIds);
 

@@ -492,6 +492,47 @@ function getUserDeptId($userId)
     return (int)($row['VALUE_INT'] ?? 0);
 }
 
+function getListingBranchCodeForDeptId($deptId)
+{
+    $deptId = (int)$deptId;
+    return $GLOBALS['CFG_LISTING_BRANCH_BY_DEPT'][$deptId] ?? '';
+}
+
+function getListingBranchCodesForDeptIds($deptIds)
+{
+    if (!is_array($deptIds)) {
+        $deptIds = array($deptIds);
+    }
+
+    $codes = array();
+    foreach ($deptIds as $deptId) {
+        $code = getListingBranchCodeForDeptId($deptId);
+        if ($code !== '') {
+            $codes[] = $code;
+        }
+    }
+
+    return array_values(array_unique($codes));
+}
+
+function getListingBranchCodesForUserIds($userIds)
+{
+    if (!is_array($userIds)) {
+        $userIds = array($userIds);
+    }
+
+    $codes = array();
+    foreach ($userIds as $userId) {
+        $deptId = getUserDeptId($userId);
+        $code = getListingBranchCodeForDeptId($deptId);
+        if ($code !== '') {
+            $codes[] = $code;
+        }
+    }
+
+    return array_values(array_unique($codes));
+}
+
 /**
  * Get all agent user IDs managed by a given manager (by department UF_HEAD).
  * Returns array of integer user IDs.
@@ -1038,22 +1079,27 @@ function countReshuffledLeads($agentIds, $dateRange)
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
- * Count active listings (for rent vs for sale) for a set of agents.
+ * Count active listings (for rent vs for sale) for a set of branches.
  * Returns array('sale' => int, 'rent' => int)
  *
- * @param  array $agentIds  Empty = all agents
+ * @param  array $branchCodes Empty = all configured branches
  * @return array
  */
-function countActiveListings($agentIds)
+function countActiveListingsByBranches($branchCodes = array())
 {
     $table       = SPA_LISTINGS_TABLE;
     $stage       = dbEsc(LISTING_STAGE_ACTIVE);
     $typeField   = LISTING_TYPE_FIELD;
     $saleValue   = dbInt(LISTING_TYPE_SALE_VALUE);
+    $branchField = LISTING_BRANCH_FIELD;
 
-    $agentFilter = '';
-    if (!empty($agentIds)) {
-        $agentFilter = 'AND l.ASSIGNED_BY_ID IN ' . inClauseInt($agentIds);
+    if (empty($branchCodes)) {
+        $branchCodes = getListingBranchCodesForDeptIds(array_keys($GLOBALS['CFG_LISTING_BRANCH_BY_DEPT'] ?? array()));
+    }
+
+    $branchFilter = '';
+    if (!empty($branchCodes)) {
+        $branchFilter = 'AND l.' . $branchField . ' IN ' . inClauseStr($branchCodes);
     }
 
     $rows = dbQuery("
@@ -1062,7 +1108,7 @@ function countActiveListings($agentIds)
             SUM(CASE WHEN l.{$typeField} != {$saleValue} OR l.{$typeField} IS NULL THEN 1 ELSE 0 END) AS rent_count
         FROM {$table} l
         WHERE l.STAGE_ID = '{$stage}'
-          {$agentFilter}
+          {$branchFilter}
     ");
 
     $row = !empty($rows) ? $rows[0] : array();
@@ -1073,23 +1119,38 @@ function countActiveListings($agentIds)
 }
 
 /**
- * Count total listings (all stages) for a set of agents — for agent/manager view.
+ * Count active listings for a set of branches.
  */
-function countTotalListings($agentIds)
+function countListingsByBranches($branchCodes = array())
 {
-    $table = SPA_LISTINGS_TABLE;
+    $counts = countActiveListingsByBranches($branchCodes);
+    return (int)$counts['sale'] + (int)$counts['rent'];
+}
 
-    $agentFilter = '';
-    if (!empty($agentIds)) {
-        $agentFilter = 'WHERE l.ASSIGNED_BY_ID IN ' . inClauseInt($agentIds);
+/**
+ * Count active listings for the branches represented by a set of users.
+ */
+function countListingsForUsers($userIds)
+{
+    $branchCodes = getListingBranchCodesForUserIds($userIds);
+    if (empty($branchCodes)) {
+        return 0;
     }
 
-    $row = dbQueryOne("
-        SELECT COUNT(*) AS cnt
-        FROM {$table} l
-          {$agentFilter}
-    ");
-    return (int)($row['cnt'] ?? 0);
+    return countListingsByBranches($branchCodes);
+}
+
+/**
+ * Count active listings for the branches represented by a set of departments.
+ */
+function countListingsForDepartments($deptIds)
+{
+    $branchCodes = getListingBranchCodesForDeptIds($deptIds);
+    if (empty($branchCodes)) {
+        return 0;
+    }
+
+    return countListingsByBranches($branchCodes);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1792,7 +1853,7 @@ function buildAgentPerformanceRow($userRow, $allDeals, $wonDeals, $committedDeal
 
     $leadCount       = countActiveLeads(array($uid), $dateRange);
     $reshuffledCount = countReshuffledLeads(array($uid), $dateRange);
-    $listingCount    = countTotalListings(array($uid));
+    $listingCount    = countListingsForUsers(array($uid));
     $lastDealDays    = daysSinceLastDeal(array($uid));
     $avgGap          = avgGapBetweenDeals($uid, $dateRange);
     $attendance      = countAttendanceDays($uid, $dateRange);
