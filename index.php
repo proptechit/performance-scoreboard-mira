@@ -205,6 +205,42 @@
                 </div>
             </div>
 
+            <div class="chart-grid-2 mb-24">
+                <div class="chart-card">
+                    <div class="chart-card-header">
+                        <div>
+                            <div class="chart-card-title">Leads by Stage</div>
+                            <div class="chart-card-subtitle">Current lead mix by stage</div>
+                        </div>
+                    </div>
+                    <div class="donut-wrapper" style="height:220px;">
+                        <canvas id="ceoLeadStageChart"></canvas>
+                        <div class="donut-center">
+                            <div class="donut-center-value" id="ceoLeadStageVal">–</div>
+                            <div class="donut-center-label">Leads</div>
+                        </div>
+                    </div>
+                    <div class="chart-legend" id="ceoLeadStageLegend"></div>
+                </div>
+
+                <div class="chart-card">
+                    <div class="chart-card-header">
+                        <div>
+                            <div class="chart-card-title">Leads by Source</div>
+                            <div class="chart-card-subtitle">Lead acquisition breakdown</div>
+                        </div>
+                    </div>
+                    <div class="donut-wrapper" style="height:220px;">
+                        <canvas id="ceoLeadSourceChart"></canvas>
+                        <div class="donut-center">
+                            <div class="donut-center-value" id="ceoLeadSourceVal">–</div>
+                            <div class="donut-center-label">Leads</div>
+                        </div>
+                    </div>
+                    <div class="chart-legend" id="ceoLeadSourceLegend"></div>
+                </div>
+            </div>
+
             <!-- Sales & Commission by Deal Type -->
             <div class="chart-card mb-24">
                 <div class="chart-card-header">

@@ -559,6 +559,20 @@ function renderCEO(data) {
     "donutTotalValue",
     s.sales_volume,
   );
+  renderBreakdownDonut(
+    data.leads_by_stage,
+    "ceoLeadStageChart",
+    "ceoLeadStageLegend",
+    "ceoLeadStageVal",
+    "Leads",
+  );
+  renderBreakdownDonut(
+    data.leads_by_source,
+    "ceoLeadSourceChart",
+    "ceoLeadSourceLegend",
+    "ceoLeadSourceVal",
+    "Leads",
+  );
   renderTargetActual(data.target_vs_actual);
   // renderDeveloperTable(data.top_developers);
   handleTableFilter(data);

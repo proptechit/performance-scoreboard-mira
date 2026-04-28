@@ -445,6 +445,7 @@ if ($role === 'agent') {
     // Company-wide supplementary
     $listings = countActiveListingsByBranches();
     $noDeal60 = countNoDealIn60Days($allAgentIds);
+    $leadRows = empty($allAgentIds) ? array() : fetchLeadBreakdownRows($allAgentIds, $dateRange, $dealType);
 
     // Charts
     $dealDist         = buildDealDistribution($allDeals);
@@ -452,6 +453,8 @@ if ($role === 'agent') {
     $topPropertyTypes = buildTopPropertyTypes($allDeals);
     $targetVsActual   = buildTargetVsActual($monthlyDeals, $monthlyTarget);
     $salesByDealType  = buildSalesByDealType($allDeals, $chartYear);
+    $leadsByStage     = buildLeadStageBreakdown($leadRows);
+    $leadsBySource    = buildLeadSourceBreakdown($leadRows);
 
     $commissionTrend = array();
     foreach ($monthlyDeals as $m) {
@@ -608,6 +611,8 @@ if ($role === 'agent') {
     $response['top_property_types'] = $topPropertyTypes;
     $response['target_vs_actual']   = $targetVsActual;
     $response['sales_by_deal_type'] = $salesByDealType;
+    $response['leads_by_stage']     = $leadsByStage;
+    $response['leads_by_source']    = $leadsBySource;
     $response['agent_performance']  = $agentPerformance;
     $response['team_performance']   = $teamPerformance;
 
