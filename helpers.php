@@ -739,6 +739,7 @@ function fetchAllDeals($agentIds, $dateRange, $dealType = 'All')
     $fMgr     = FIELD_MANAGER_ID;
     $fImportedCreate = FIELD_IMPORTED_CREATE_DATE;
     $effectiveCreateExpr = getEffectiveDealCreateDateExpr('d', 'uts');
+    $stages = inClauseStr($GLOBALS['CFG_ACTIVE_STAGES']);
 
     $agentFilter = '';
     if (!empty($agentIds)) {
@@ -772,6 +773,8 @@ function fetchAllDeals($agentIds, $dateRange, $dealType = 'All')
           AND DATE({$effectiveCreateExpr}) <= '{$to}'
           {$agentFilter}
           {$typeFilter}
+
+        AND d.STAGE_ID IN {$stages}
 
         ORDER BY {$effectiveCreateExpr} ASC
     ");
