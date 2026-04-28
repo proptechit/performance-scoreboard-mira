@@ -3,6 +3,7 @@ let currentData = null;
 let compareMetric = "sales";
 let charts = {};
 const tableSortState = {};
+let listingModalLastFocus = null;
 
 const CHART_COLORS = [
   "#3b82f6",
@@ -214,6 +215,7 @@ function getDaysBadgeMeta(days) {
 }
 
 function setActiveView(viewId) {
+  closeListingModal();
   ["view-ceo", "view-manager", "view-agent"].forEach((id) =>
     document.getElementById(id)?.classList.add("hidden"),
   );
@@ -353,6 +355,7 @@ async function loadDashboard() {
   const qs = Object.entries(params)
     .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
     .join("&");
+  closeListingModal();
   document.getElementById("loadingOverlay").classList.remove("hidden");
 
   try {
@@ -496,6 +499,7 @@ function renderCEO(data) {
       sub: "For Rent",
       icon: "🏡",
       badge: null,
+      action: "rent",
     },
     {
       label: "Active Listings",
@@ -503,13 +507,18 @@ function renderCEO(data) {
       sub: "For Sale",
       icon: "🏡",
       badge: null,
+      action: "sale",
     },
   ];
 
   document.getElementById("ceoKpiGrid").innerHTML = kpis
     .map(
       (k, i) => `
-    <div class="kpi-card ${k.highlight ? "highlight" : ""}" style="animation-delay:${0.04 + i * 0.03}s">
+    <div
+      class="kpi-card ${k.highlight ? "highlight" : ""} ${k.action ? "clickable" : ""}"
+      style="animation-delay:${0.04 + i * 0.03}s"
+      ${k.action ? `role="button" tabindex="0" onclick="openListingModal('${k.action}')" onkeydown="handleListingCardKeydown(event, '${k.action}')"` : ""}
+    >
       <div class="kpi-label">
         <span>${k.label}</span>
         <span style="font-size:16px;">${k.icon}</span>
@@ -589,6 +598,102 @@ function renderCEO(data) {
   );
   renderYearComparison(data.year_comparison);
 }
+
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (char) => {
+    switch (char) {
+      case "&":
+        return "&amp;";
+      case "<":
+        return "&lt;";
+      case ">":
+        return "&gt;";
+      case '"':
+        return "&quot;";
+      case "'":
+        return "&#39;";
+      default:
+        return char;
+    }
+  });
+}
+
+function handleListingCardKeydown(event, type) {
+  if (event.key === "Enter" || event.key === " ") {
+    event.preventDefault();
+    openListingModal(type);
+  }
+}
+
+function handleListingModalOverlay(event) {
+  if (event.target?.id === "listingModal") {
+    closeListingModal();
+  }
+}
+
+function closeListingModal() {
+  const modal = document.getElementById("listingModal");
+  if (!modal) return;
+  modal.classList.add("hidden");
+  document.body.style.overflow = "";
+  if (listingModalLastFocus && typeof listingModalLastFocus.focus === "function") {
+    listingModalLastFocus.focus();
+  }
+  listingModalLastFocus = null;
+}
+
+function openListingModal(type) {
+  const modal = document.getElementById("listingModal");
+  const title = document.getElementById("listingModalTitle");
+  const subtitle = document.getElementById("listingModalSubtitle");
+  const tbody = document.getElementById("listingModalTableBody");
+  if (!modal || !title || !subtitle || !tbody) return;
+
+  const normalizedType = type === "sale" ? "sale" : "rent";
+  const labels = {
+    sale: "Active Listings for Sale",
+    rent: "Active Listings for Rent",
+  };
+  const items = currentData?.listing_details?.[normalizedType] || [];
+
+  listingModalLastFocus = document.activeElement;
+  title.textContent = labels[normalizedType];
+  subtitle.textContent = `${fmtNum(items.length)} listing${items.length === 1 ? "" : "s"} currently active`;
+
+  if (!items.length) {
+    tbody.innerHTML = `<tr><td colspan="4" class="listing-modal-empty">No active listings found for this category.</td></tr>`;
+  } else {
+    tbody.innerHTML = items
+      .map((item) => {
+        const ref = escapeHtml(item.reference_number || "—");
+        const agent = escapeHtml(item.listing_agent || "—");
+        const owner = escapeHtml(item.listing_owner || "—");
+        const link = item.link
+          ? `<a class="listing-modal-link" href="${escapeHtml(item.link)}" target="_blank" rel="noopener noreferrer">Open</a>`
+          : "—";
+
+        return `
+          <tr>
+            <td>${ref}</td>
+            <td>${agent}</td>
+            <td>${owner}</td>
+            <td>${link}</td>
+          </tr>
+        `;
+      })
+      .join("");
+  }
+
+  modal.classList.remove("hidden");
+  document.body.style.overflow = "hidden";
+  modal.querySelector(".modal-close")?.focus();
+}
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    closeListingModal();
+  }
+});
 
 function renderCommissionTrend(trend) {
   destroyChart("commissionTrendChart");

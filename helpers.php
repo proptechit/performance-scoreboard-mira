@@ -1158,6 +1158,71 @@ function countListingsForDepartments($deptIds)
     return countListingsByBranches($branchCodes);
 }
 
+/**
+ * Fetch active listing details for a set of branches, grouped by sale/rent.
+ * Returns array('sale' => [...], 'rent' => [...])
+ *
+ * @param  array $branchCodes Empty = all configured branches
+ * @return array
+ */
+function fetchActiveListingDetailsByBranches($branchCodes = array())
+{
+    $table      = SPA_LISTINGS_TABLE;
+    $stage      = dbEsc(LISTING_STAGE_ACTIVE);
+    $typeField  = LISTING_TYPE_FIELD;
+    $saleValue  = dbInt(LISTING_TYPE_SALE_VALUE);
+    $branchField = LISTING_BRANCH_FIELD;
+    $refField   = LISTING_REF_FIELD;
+    $ownerField = LISTING_OWNER_FIELD;
+
+    if (empty($branchCodes)) {
+        $branchCodes = getListingBranchCodesForDeptIds(array_keys($GLOBALS['CFG_LISTING_BRANCH_BY_DEPT'] ?? array()));
+    }
+
+    $branchFilter = '';
+    if (!empty($branchCodes)) {
+        $branchFilter = 'AND l.' . $branchField . ' IN ' . inClauseStr($branchCodes);
+    }
+
+    $rows = dbQuery("
+        SELECT
+            l.ID,
+            l.{$typeField} AS listing_type,
+            l.{$refField} AS reference_number,
+            l.ASSIGNED_BY_ID,
+            CONCAT(COALESCE(agent.NAME, ''), ' ', COALESCE(agent.LAST_NAME, '')) AS assigned_name,
+            l.{$ownerField} AS owner_user_id,
+            CONCAT(COALESCE(owner.NAME, ''), ' ', COALESCE(owner.LAST_NAME, '')) AS owner_name
+        FROM {$table} l
+        LEFT JOIN b_user agent
+          ON agent.ID = l.ASSIGNED_BY_ID
+        LEFT JOIN b_user owner
+          ON owner.ID = l.{$ownerField}
+        WHERE l.STAGE_ID = '{$stage}'
+          {$branchFilter}
+        ORDER BY l.ID DESC
+    ");
+
+    $grouped = array(
+        'sale' => array(),
+        'rent' => array(),
+    );
+
+    foreach ($rows as $row) {
+        $typeKey = (int)($row['listing_type'] ?? 0) === LISTING_TYPE_SALE_VALUE ? 'sale' : 'rent';
+        $id = (int)($row['ID'] ?? 0);
+        $grouped[$typeKey][] = array(
+            'id' => $id,
+            'reference_number' => trim((string)($row['reference_number'] ?? '')),
+            'listing_agent' => trim((string)($row['assigned_name'] ?? '')),
+            'listing_owner' => trim((string)($row['owner_name'] ?? '')),
+            'link' => $id > 0 ? 'https://crm.mira-international.com/crm/type/1052/details/' . $id . '/' : '',
+        );
+    }
+
+    return $grouped;
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // 7. ATTENDANCE QUERIES  (SPA 1060)
 // ═══════════════════════════════════════════════════════════════════════════

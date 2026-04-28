@@ -196,6 +196,8 @@ define('LISTING_STAGE_ACTIVE',    'DT1052_11:SUCCESS');        // Published = ac
 define('LISTING_TYPE_SALE_VALUE', 493);                        // UF_CRM_5_1752569908 = 493 → For Sale
 define('LISTING_TYPE_FIELD',      'UF_CRM_5_1752569908');      // Listing type field
 define('LISTING_BRANCH_FIELD',    'UF_CRM_7_1772708634');      // Branch code field
+define('LISTING_REF_FIELD',       'UF_CRM_5_1752571265');      // Reference number field
+define('LISTING_OWNER_FIELD',     'UF_CRM_5_1766132923');      // Listing owner user field
 
 $GLOBALS['CFG_LISTING_BRANCH_BY_DEPT'] = array(
     22 => 'st1',

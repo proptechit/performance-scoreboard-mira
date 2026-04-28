@@ -599,6 +599,35 @@
 
     </div><!-- /main-content -->
 
+    <div id="listingModal" class="modal-overlay hidden" onclick="handleListingModalOverlay(event)">
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="listingModalTitle">
+            <div class="modal-header">
+                <div>
+                    <div class="modal-title" id="listingModalTitle">Listing Details</div>
+                    <div class="modal-subtitle" id="listingModalSubtitle">Active listings</div>
+                </div>
+                <button type="button" class="modal-close" onclick="closeListingModal()" aria-label="Close listing details">
+                    &times;
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="listing-modal-table-wrapper">
+                    <table class="data-table listing-modal-table">
+                        <thead>
+                            <tr>
+                                <th>Reference Number</th>
+                                <th>Listing Agent</th>
+                                <th>Listing Owner</th>
+                                <th>Link</th>
+                            </tr>
+                        </thead>
+                        <tbody id="listingModalTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- ────────────────────────────────────────────────────────────────────────── -->
     <script src="script.js"></script>
 </body>

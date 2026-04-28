@@ -444,6 +444,7 @@ if ($role === 'agent') {
 
     // Company-wide supplementary
     $listings = countActiveListingsByBranches();
+    $listingDetails = fetchActiveListingDetailsByBranches();
     $noDeal60 = countNoDealIn60Days($allAgentIds);
     $leadRows = empty($allAgentIds) ? array() : fetchLeadBreakdownRows($allAgentIds, $dateRange, $dealType);
 
@@ -613,6 +614,7 @@ if ($role === 'agent') {
     $response['sales_by_deal_type'] = $salesByDealType;
     $response['leads_by_stage']     = $leadsByStage;
     $response['leads_by_source']    = $leadsBySource;
+    $response['listing_details']    = $listingDetails;
     $response['agent_performance']  = $agentPerformance;
     $response['team_performance']   = $teamPerformance;
 
