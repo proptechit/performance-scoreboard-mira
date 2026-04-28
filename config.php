@@ -41,7 +41,7 @@ $GLOBALS['CFG_COMMITTED_STAGES'] = array(
     'C3:UC_DVPTY4', // Finance Final
 );
 
-// Active = all stages in pipeline 3 EXCEPT LOSE
+// Active = all stages in pipeline 3 EXCEPT Cancelled
 $GLOBALS['CFG_ACTIVE_STAGES'] = array(
     'C3:UC_831295', // Admin
     'C3:NEW',       // Manager Approval
@@ -50,6 +50,7 @@ $GLOBALS['CFG_ACTIVE_STAGES'] = array(
     'C3:EXECUTING', // Finance Level 1
     'C3:UC_DVPTY4', // Finance Final
     'C3:WON',       // Approved by All
+    'C3:LOSE',      // Not Approved
 );
 
 // Lead pipelines – "active" stages (exclude WON/LOSE equivalents)
