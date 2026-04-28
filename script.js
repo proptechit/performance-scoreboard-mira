@@ -837,6 +837,9 @@ function renderBreakdownDonut(items, canvasId, legendId, centerId, centerLabel) 
   }
 
   const total = filteredItems.reduce((sum, item) => sum + Number(item.count || 0), 0);
+  const chartColors = filteredItems.map(
+    (item, i) => item.color || CHART_COLORS[i % CHART_COLORS.length],
+  );
   if (centerEl) centerEl.textContent = fmtNum(total);
 
   charts[canvasId] = new Chart(ctx, {
@@ -846,9 +849,7 @@ function renderBreakdownDonut(items, canvasId, legendId, centerId, centerLabel) 
       datasets: [
         {
           data: filteredItems.map((item) => item.count),
-          backgroundColor: filteredItems.map(
-            (_, i) => CHART_COLORS[i % CHART_COLORS.length],
-          ),
+          backgroundColor: chartColors,
           borderWidth: 0,
           hoverOffset: 6,
         },
@@ -877,7 +878,7 @@ function renderBreakdownDonut(items, canvasId, legendId, centerId, centerLabel) 
         (item, i) => `
       <div class="legend-item">
         <div class="legend-dot-label">
-          <div class="legend-dot" style="background:${CHART_COLORS[i % CHART_COLORS.length]}"></div>
+          <div class="legend-dot" style="background:${chartColors[i]}"></div>
           <span class="legend-name">${item.name}</span>
         </div>
         <span class="legend-pct">${item.value.toFixed(1)}%</span>

@@ -955,17 +955,22 @@ function buildLeadStageBreakdown($rows)
         $meta       = $stageMeta[$pipelineId][$stageId] ?? array();
         $semantics  = $meta['semantics'] ?? null;
         $sort       = (int)($meta['sort'] ?? 9999);
+        $color      = trim((string)($meta['color'] ?? ''));
 
         if (!isset($grouped[$label])) {
             $grouped[$label] = array(
                 'count' => 0,
                 'semantics' => $semantics,
                 'sort' => $sort,
+                'color' => $color,
             );
         }
         $grouped[$label]['count'] += $count;
         if ($sort < (int)$grouped[$label]['sort']) {
             $grouped[$label]['sort'] = $sort;
+        }
+        if ($grouped[$label]['color'] === '' && $color !== '') {
+            $grouped[$label]['color'] = $color;
         }
         if ($grouped[$label]['semantics'] === null && $semantics !== null) {
             $grouped[$label]['semantics'] = $semantics;
@@ -1006,6 +1011,7 @@ function formatLeadBreakdownItems($grouped, $total, $preserveStageOrder = false)
             'name'      => $label,
             'count'     => $count,
             'value'     => $total > 0 ? round(($count / $total) * 100, 2) : 0,
+            'color'     => is_array($rawValue) ? trim((string)($rawValue['color'] ?? '')) : '',
             '_sort'     => is_array($rawValue) ? (int)($rawValue['sort'] ?? 9999) : 9999,
             '_semantic' => is_array($rawValue) ? ($rawValue['semantics'] ?? null) : null,
         );
