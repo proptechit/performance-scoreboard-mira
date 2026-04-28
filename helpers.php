@@ -791,6 +791,7 @@ function fetchTransactionPipelineDeals($agentIds = array())
     $fMgr    = FIELD_MANAGER_ID;
     $fImportedCreate = FIELD_IMPORTED_CREATE_DATE;
     $effectiveCreateExpr = getEffectiveDealCreateDateExpr('d', 'uts');
+    $stages = inClauseStr($GLOBALS['CFG_ACTIVE_STAGES']);
 
     $agentFilter = '';
     if (!empty($agentIds)) {
@@ -814,6 +815,7 @@ function fetchTransactionPipelineDeals($agentIds = array())
         LEFT JOIN b_uts_crm_deal uts
             ON uts.VALUE_ID = d.ID
         WHERE d.CATEGORY_ID = {$catId}
+          AND d.STAGE_ID IN ({$stages})
           {$agentFilter}
         ORDER BY {$effectiveCreateExpr} ASC
     ");
