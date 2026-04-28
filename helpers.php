@@ -942,24 +942,38 @@ function fetchLeadBreakdownRows($agentIds, $dateRange, $dealType = 'All')
 
 function buildLeadStageBreakdown($rows)
 {
-    $stageMap = $GLOBALS['CFG_LEAD_STAGE_MAP'];
-    $grouped  = array();
-    $total    = 0;
+    $stageMap  = $GLOBALS['CFG_LEAD_STAGE_MAP'];
+    $stageMeta = $GLOBALS['CFG_LEAD_STAGE_META'] ?? array();
+    $grouped   = array();
+    $total     = 0;
 
     foreach ($rows as $row) {
         $pipelineId = (int)($row['CATEGORY_ID'] ?? 0);
         $stageId    = (string)($row['STAGE_ID'] ?? '');
         $count      = (int)($row['cnt'] ?? 0);
         $label      = $stageMap[$pipelineId][$stageId] ?? $stageId ?: 'Unknown';
+        $meta       = $stageMeta[$pipelineId][$stageId] ?? array();
+        $semantics  = $meta['semantics'] ?? null;
+        $sort       = (int)($meta['sort'] ?? 9999);
 
         if (!isset($grouped[$label])) {
-            $grouped[$label] = 0;
+            $grouped[$label] = array(
+                'count' => 0,
+                'semantics' => $semantics,
+                'sort' => $sort,
+            );
         }
-        $grouped[$label] += $count;
+        $grouped[$label]['count'] += $count;
+        if ($sort < (int)$grouped[$label]['sort']) {
+            $grouped[$label]['sort'] = $sort;
+        }
+        if ($grouped[$label]['semantics'] === null && $semantics !== null) {
+            $grouped[$label]['semantics'] = $semantics;
+        }
         $total += $count;
     }
 
-    return formatLeadBreakdownItems($grouped, $total);
+    return formatLeadBreakdownItems($grouped, $total, true);
 }
 
 function buildLeadSourceBreakdown($rows)
@@ -983,20 +997,50 @@ function buildLeadSourceBreakdown($rows)
     return formatLeadBreakdownItems($grouped, $total);
 }
 
-function formatLeadBreakdownItems($grouped, $total)
+function formatLeadBreakdownItems($grouped, $total, $preserveStageOrder = false)
 {
     $items = array();
-    foreach ($grouped as $label => $count) {
+    foreach ($grouped as $label => $rawValue) {
+        $count = is_array($rawValue) ? (int)($rawValue['count'] ?? 0) : (int)$rawValue;
         $items[] = array(
-            'name'  => $label,
-            'count' => (int)$count,
-            'value' => $total > 0 ? round(((int)$count / $total) * 100, 2) : 0,
+            'name'      => $label,
+            'count'     => $count,
+            'value'     => $total > 0 ? round(($count / $total) * 100, 2) : 0,
+            '_sort'     => is_array($rawValue) ? (int)($rawValue['sort'] ?? 9999) : 9999,
+            '_semantic' => is_array($rawValue) ? ($rawValue['semantics'] ?? null) : null,
         );
     }
 
-    usort($items, function ($a, $b) {
-        return $b['count'] <=> $a['count'];
-    });
+    if ($preserveStageOrder) {
+        $semanticRank = array(
+            null => 0,
+            ''   => 0,
+            'S'  => 1,
+            'F'  => 2,
+        );
+
+        usort($items, function ($a, $b) use ($semanticRank) {
+            $aRank = $semanticRank[$a['_semantic'] ?? null] ?? 3;
+            $bRank = $semanticRank[$b['_semantic'] ?? null] ?? 3;
+
+            if ($aRank !== $bRank) {
+                return $aRank <=> $bRank;
+            }
+            if ($a['_sort'] !== $b['_sort']) {
+                return $a['_sort'] <=> $b['_sort'];
+            }
+            return $b['count'] <=> $a['count'];
+        });
+    } else {
+        usort($items, function ($a, $b) {
+            return $b['count'] <=> $a['count'];
+        });
+    }
+
+    foreach ($items as &$item) {
+        unset($item['_sort'], $item['_semantic']);
+    }
+    unset($item);
 
     return $items;
 }

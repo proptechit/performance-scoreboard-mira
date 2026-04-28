@@ -280,35 +280,34 @@ $GLOBALS['CFG_LEAD_STAGE_MAP'] = array(
         'C1:UC_PQEWDF'          => 'From Amo CRM',
 
         // Assignment / early stages
-        'C1:UC_Y44ID0'          => 'Assigned',
-        'C1:UC_GT3BE1'          => 'No Answer',
-        'C1:UC_C55DKF'          => 'Qualified',
+        'C1:UC_Y44ID0'          => 'Assigned (15 Min)',
+        'C1:UC_GT3BE1'          => 'No Answer (2 Days)',
 
         // Mid funnel
-        'C1:PREPAYMENT_INVOICE' => 'Option Sent',
-        'C1:UC_VU0VYQ'          => 'Meeting Scheduled',
+        'C1:PREPAYMENT_INVOICE' => 'Option Sent (2 Days)',
+        'C1:UC_VU0VYQ'          => 'Meetings Scheduled',
 
         // Lead temperature
-        'C1:EXECUTING'          => 'Cold',
-        'C1:FINAL_INVOICE'      => 'Warm',
-        'C1:UC_BHOWXH'          => 'Hot',
+        'C1:EXECUTING'          => 'Cold (15 Days)',
+        'C1:FINAL_INVOICE'      => 'Warm (10 Days)',
+        'C1:UC_BHOWXH'          => 'Hot (5 Days)',
 
         // Conversion
         'C1:UC_EO8A5H'          => 'EOI Submitted',
 
         // Final
-        'C1:WON'                => 'Won',
-        'C1:LOSE'               => 'Lost',
+        'C1:WON'                => 'Deal won',
+        'C1:LOSE'               => 'Junk',
 
         // Lost reasons (you were missing these)
         'C1:APOLOGY'            => 'Invalid Number',
-        'C1:UC_6CZF3Y'          => 'Real Estate Brokers',
+        'C1:UC_6CZF3Y'          => 'Realestate Brokers',
         'C1:UC_FGP2M3'          => 'Secondary',
         'C1:UC_NY1USR'          => 'Job Seekers',
         'C1:UC_AR04OX'          => 'Never Respond',
-        'C1:UC_P2JQLK'          => 'Other',
-        'C1:2'                  => 'Not Interested',
-        'C1:3'                  => 'Already Purchased',
+        'C1:UC_P2JQLK'          => 'Others',
+        'C1:2'                  => 'Not Intrested Anymore',
+        'C1:3'                  => 'Already purchased',
     ),
     PIPELINE_SECONDARY => array(
         // Initial
@@ -326,11 +325,47 @@ $GLOBALS['CFG_LEAD_STAGE_MAP'] = array(
         'C2:PREPAYMENT_INVOICE' => 'Cold',
 
         // Final
-        'C2:WON'                => 'Won',
-        'C2:LOSE'               => 'Lost',
+        'C2:WON'                => 'Deal won',
+        'C2:LOSE'               => 'Deal lost',
 
         // Missing (important)
         'C2:APOLOGY'            => 'Disqualified',
+    ),
+);
+
+$GLOBALS['CFG_LEAD_STAGE_META'] = array(
+    PIPELINE_OFFPLAN => array(
+        'C1:NEW'                => array('semantics' => null, 'sort' => 10),
+        'C1:UC_PQEWDF'          => array('semantics' => null, 'sort' => 11),
+        'C1:UC_Y44ID0'          => array('semantics' => null, 'sort' => 20),
+        'C1:UC_GT3BE1'          => array('semantics' => null, 'sort' => 30),
+        'C1:PREPAYMENT_INVOICE' => array('semantics' => null, 'sort' => 50),
+        'C1:UC_VU0VYQ'          => array('semantics' => null, 'sort' => 60),
+        'C1:EXECUTING'          => array('semantics' => null, 'sort' => 70),
+        'C1:FINAL_INVOICE'      => array('semantics' => null, 'sort' => 80),
+        'C1:UC_BHOWXH'          => array('semantics' => null, 'sort' => 90),
+        'C1:UC_EO8A5H'          => array('semantics' => null, 'sort' => 91),
+        'C1:WON'                => array('semantics' => 'S',  'sort' => 100),
+        'C1:LOSE'               => array('semantics' => 'F',  'sort' => 110),
+        'C1:APOLOGY'            => array('semantics' => 'F',  'sort' => 120),
+        'C1:UC_6CZF3Y'          => array('semantics' => 'F',  'sort' => 130),
+        'C1:UC_FGP2M3'          => array('semantics' => 'F',  'sort' => 140),
+        'C1:UC_NY1USR'          => array('semantics' => 'F',  'sort' => 150),
+        'C1:UC_AR04OX'          => array('semantics' => 'F',  'sort' => 160),
+        'C1:UC_P2JQLK'          => array('semantics' => 'F',  'sort' => 170),
+        'C1:2'                  => array('semantics' => 'F',  'sort' => 180),
+        'C1:3'                  => array('semantics' => 'F',  'sort' => 190),
+    ),
+    PIPELINE_SECONDARY => array(
+        'C2:NEW'                => array('semantics' => null, 'sort' => 10),
+        'C2:UC_2MP0F2'          => array('semantics' => null, 'sort' => 20),
+        'C2:UC_TDEII1'          => array('semantics' => null, 'sort' => 30),
+        'C2:PREPARATION'        => array('semantics' => null, 'sort' => 40),
+        'C2:EXECUTING'          => array('semantics' => null, 'sort' => 50),
+        'C2:PREPAYMENT_INVOICE' => array('semantics' => null, 'sort' => 60),
+        'C2:WON'                => array('semantics' => 'S',  'sort' => 70),
+        'C2:LOSE'               => array('semantics' => 'F',  'sort' => 80),
+        'C2:APOLOGY'            => array('semantics' => 'F',  'sort' => 90),
     ),
 );
 
@@ -340,13 +375,13 @@ $GLOBALS['CFG_LEAD_SOURCE_MAP'] = array(
     // Direct sources
     'WEB'           => 'Website',
     'CALL'          => 'Call',
-    'EMAIL'         => 'Email',
+    'EMAIL'         => 'E-Mail',
     'CALLBACK'      => 'Callback',
-    'WEBFORM'       => 'CRM Form',
+    'WEBFORM'       => 'CRM form',
 
     // Marketing / Ads
     'ADVERTISING'   => 'Advertising',
-    'RC_GENERATOR'  => 'Sales Boost',
+    'RC_GENERATOR'  => 'Sales boost',
 
     // Social Media
     'REPEAT_SALE'   => 'Facebook',
@@ -373,7 +408,7 @@ $GLOBALS['CFG_LEAD_SOURCE_MAP'] = array(
     // Offline / Other
     'PARTNER'       => 'Existing Client',
     'RECOMMENDATION' => 'By Recommendation',
-    'TRADE_SHOW'    => 'Exhibition',
+    'TRADE_SHOW'    => 'Show/Exhibition',
     'STORE'         => 'Online Store',
     'BOOKING'       => 'Booking',
     'OTHER'         => 'Other',
