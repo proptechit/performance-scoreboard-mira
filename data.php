@@ -180,7 +180,8 @@ if ($role === 'agent') {
     $wonDeals       = fetchWonDeals(array($agentId), $dateRange, $dealType);
     $committedDeals = fetchCommittedDeals(array($agentId), $dateRange, $dealType);
     $agg            = aggregateDeals($allDeals);
-    $pipelineAgg    = aggregateDeals(fetchTransactionPipelineDeals());
+    // Keep the headline "top" stats scoped to the selected agent.
+    $pipelineAgg    = aggregateDeals(fetchTransactionPipelineDeals(array($agentId)));
     $monthlyDeals   = groupDealsByMonth($allDeals, $chartYear);
     $commSplit      = aggregateCommissionDeals($wonDeals, $committedDeals);
     $monthlyTarget = getAgentTarget($agentId, $workPosition);
@@ -298,7 +299,8 @@ if ($role === 'agent') {
     $wonDeals       = empty($dealOwnerIds) ? array() : fetchWonDeals($dealOwnerIds, $dateRange, $dealType);
     $committedDeals = empty($dealOwnerIds) ? array() : fetchCommittedDeals($dealOwnerIds, $dateRange, $dealType);
     $agg            = aggregateDeals($allDeals);
-    $pipelineAgg    = aggregateDeals(fetchTransactionPipelineDeals());
+    // Keep the headline "top" stats scoped to the selected manager team.
+    $pipelineAgg    = aggregateDeals(fetchTransactionPipelineDeals($dealOwnerIds));
     $monthlyDeals   = groupDealsByMonth($allDeals, $chartYear);
     $commSplit      = empty($dealOwnerIds) ? array(
         'total' => 0,
@@ -429,7 +431,8 @@ if ($role === 'agent') {
     $wonDeals       = empty($allDealOwnerIds) ? array() : fetchWonDeals($allDealOwnerIds, $dateRange, $dealType);
     $committedDeals = empty($allDealOwnerIds) ? array() : fetchCommittedDeals($allDealOwnerIds, $dateRange, $dealType);
     $agg            = aggregateDeals($allDeals);
-    $pipelineAgg    = aggregateDeals(fetchTransactionPipelineDeals());
+    // CEO view intentionally remains company-wide.
+    $pipelineAgg    = aggregateDeals(fetchTransactionPipelineDeals($allDealOwnerIds));
     $monthlyDeals   = groupDealsByMonth($allDeals, $chartYear);
     $commSplit      = empty($allDealOwnerIds) ? array(
         'total' => 0,
