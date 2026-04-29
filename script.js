@@ -238,20 +238,27 @@ function renderDealReference(dealId) {
   return `<a class="deal-link" href="${getDealUrl(dealId)}" target="_blank" rel="noopener noreferrer">Deal #${dealId}</a>`;
 }
 
-function isCeoDrilldownView(data = currentData) {
-  return data?.current_user_role === "ceo" && data?.view !== "ceo";
+function getDrilldownBackLabel(data = currentData) {
+  if (data?.current_user_role === "ceo" && data?.view !== "ceo") {
+    return "Back to CEO View";
+  }
+  if (data?.current_user_role === "manager" && data?.view === "agent") {
+    return "Back to Team View";
+  }
+  return "";
 }
 
-function getCeoBackButtonHtml(data = currentData) {
-  if (!isCeoDrilldownView(data)) return "";
+function getDrilldownBackButtonHtml(data = currentData) {
+  const label = getDrilldownBackLabel(data);
+  if (!label) return "";
   return `
-    <button type="button" class="view-back-button" onclick="returnToCeoView()">
-      Back to CEO View
+    <button type="button" class="view-back-button" onclick="returnToPrimaryView()">
+      ${label}
     </button>
   `;
 }
 
-function returnToCeoView() {
+function returnToPrimaryView() {
   window.location.reload();
 }
 
@@ -1554,7 +1561,7 @@ function renderManager(data) {
   // Profile banner
   document.getElementById("managerProfileBanner").innerHTML = `
     <div class="profile-banner-wrap">
-      ${getCeoBackButtonHtml(data)}
+      ${getDrilldownBackButtonHtml(data)}
       <div class="profile-banner">
       <div class="profile-avatar">${initials(p.name)}</div>
       <div class="profile-info">
@@ -1805,7 +1812,7 @@ function renderAgent(data) {
   // Profile banner
   document.getElementById("agentProfileBanner").innerHTML = `
     <div class="profile-banner-wrap">
-      ${getCeoBackButtonHtml(data)}
+      ${getDrilldownBackButtonHtml(data)}
       <div class="profile-banner">
       <div class="profile-avatar">${initials(p.name)}</div>
       <div class="profile-info">
