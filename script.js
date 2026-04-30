@@ -1567,6 +1567,7 @@ function renderManager(data) {
       <div class="profile-info">
         <div class="profile-name">${p.name}</div>
         <div class="profile-meta">
+          ${p.team_name ? `<span class="profile-meta-item">Team: <strong>${p.team_name}</strong></span>` : ""}
           <span class="profile-meta-item">ID: <strong>${p.user_id}</strong></span>
           <span class="profile-meta-item">Joined: <strong>${p.joined}</strong></span>
         </div>

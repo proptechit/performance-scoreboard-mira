@@ -382,11 +382,11 @@ if ($role === 'agent') {
     $response['view']    = 'manager';
     $response['manager'] = array(
         'profile' => array(
-            'name'        => !empty($managerRow) ? fullName($managerRow) : ($teamRow['NAME'] ?? 'Team'),
+            'name'        => !empty($managerRow) ? fullName($managerRow) : (($teamRow['DISPLAY_NAME'] ?? '') ?: ($teamRow['NAME'] ?? 'Team')),
             'user_id'     => $managerRow['ID'] ?? 0,
             'designation' => $managerRow['WORK_POSITION'] ?? 'Team Manager',
             'joined'      => !empty($managerRow['DATE_REGISTER']) ? date('Y-m-d', strtotime($managerRow['DATE_REGISTER'])) : '',
-            'team_name'   => $teamRow['NAME'] ?? '',
+            'team_name'   => ($teamRow['DISPLAY_NAME'] ?? '') ?: ($teamRow['NAME'] ?? ''),
         ),
         'summary' => array(
             'active_agents'          => count($agentIds),
@@ -563,7 +563,7 @@ if ($role === 'agent') {
 
         $teamPerformance[] = array(
             'id'             => $tid,
-            'name'           => $team['NAME'],
+            'name'           => ($team['DISPLAY_NAME'] ?? '') ?: $team['NAME'],
             'manager_id'     => $teamManagerId,
             'deals'          => $tagg['deal_count'],
             'leads'          => $teamLeads,

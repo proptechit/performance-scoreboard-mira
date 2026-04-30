@@ -328,7 +328,7 @@ function getSalesTeams()
         return array();
     }
 
-    return dbQuery("
+    $rows = dbQuery("
         SELECT 
             s.ID,
             s.NAME,
@@ -341,6 +341,13 @@ function getSalesTeams()
           AND s.ID IN " . inClauseInt($teamIds) . "
         ORDER BY s.SORT ASC, s.NAME ASC
     ");
+
+    foreach ($rows as &$row) {
+        $row['DISPLAY_NAME'] = getSalesTeamDisplayName($row);
+    }
+    unset($row);
+
+    return $rows;
 }
 
 function getSalesTeamHeadIds($teams)
@@ -363,7 +370,7 @@ function getSalesTeamById($deptId)
         return array();
     }
 
-    return dbQueryOne("
+    $row = dbQueryOne("
         SELECT 
             s.ID,
             s.NAME,
@@ -376,6 +383,67 @@ function getSalesTeamById($deptId)
           AND s.ID = {$deptId}
         LIMIT 1
     ");
+
+    if (!empty($row)) {
+        $row['DISPLAY_NAME'] = getSalesTeamDisplayName($row);
+    }
+
+    return $row;
+}
+
+function getSalesTeamCode($teamRow)
+{
+    $deptId = (int)($teamRow['ID'] ?? 0);
+    $teamName = trim((string)($teamRow['NAME'] ?? ''));
+    $codesByDept = $GLOBALS['CFG_SALES_TEAM_CODE_BY_DEPT'] ?? array();
+
+    if ($deptId > 0 && !empty($codesByDept[$deptId])) {
+        return strtoupper(trim((string)$codesByDept[$deptId]));
+    }
+
+    if ($teamName !== '' && preg_match('/^Sales Team\s+(\d+)$/i', $teamName, $m)) {
+        return 'ST' . $m[1];
+    }
+
+    if ($teamName !== '' && preg_match('/^Private Office$/i', $teamName)) {
+        return 'PO';
+    }
+
+    $parts = preg_split('/[^A-Za-z0-9]+/', $teamName, -1, PREG_SPLIT_NO_EMPTY);
+    $code = '';
+    foreach ($parts as $part) {
+        $code .= strtoupper(substr($part, 0, 1));
+    }
+
+    return $code !== '' ? $code : strtoupper($teamName);
+}
+
+function getSalesTeamDisplayName($teamRow)
+{
+    static $headProfileCache = array();
+
+    $teamName = trim((string)($teamRow['NAME'] ?? ''));
+    $code = getSalesTeamCode($teamRow);
+    $headId = (int)($teamRow['UF_HEAD'] ?? 0);
+    $headFirstName = '';
+
+    if ($headId > 0) {
+        if (!isset($headProfileCache[$headId])) {
+            $headProfileCache[$headId] = getUserProfile($headId);
+        }
+
+        $headFirstName = strtoupper(trim((string)($headProfileCache[$headId]['NAME'] ?? '')));
+    }
+
+    if ($code !== '' && $headFirstName !== '') {
+        return $code . ' - ' . $headFirstName;
+    }
+
+    if ($code !== '') {
+        return $code;
+    }
+
+    return $teamName;
 }
 
 /**
