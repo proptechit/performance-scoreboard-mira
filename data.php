@@ -320,6 +320,12 @@ if ($role === 'agent') {
     $listingCount = $deptId > 0
         ? countListingsForDepartments(array($deptId))
         : (empty($agentIds) ? 0 : countListingsForUsers($agentIds));
+    $listingSummary = $deptId > 0
+        ? countActiveListingsForDepartments(array($deptId))
+        : (empty($agentIds) ? array('sale' => 0, 'rent' => 0) : countActiveListingsForUsers($agentIds));
+    $listingDetails = $deptId > 0
+        ? fetchActiveListingDetailsForDepartments(array($deptId))
+        : (empty($agentIds) ? array('sale' => array(), 'rent' => array()) : fetchActiveListingDetailsForUsers($agentIds));
     $noDeal60     = countNoDealIn60Days($agentIds);
     $leadRows     = empty($agentIds) ? array() : fetchLeadBreakdownRows($agentIds, $dateRange, $dealType);
 
@@ -388,6 +394,8 @@ if ($role === 'agent') {
             'deal_count'             => $agg['deal_count'],
             'lead_count'             => $leadCount,
             'listings_count'         => $listingCount,
+            'active_listings_rent'   => $listingSummary['rent'],
+            'active_listings_sale'   => $listingSummary['sale'],
             'sales_volume'           => $agg['sales_volume'],
             'avg_sales_per_deal'     => $agg['avg_sales_per_deal'],
             'avg_sales_per_month'    => (int)round($agg['sales_volume'] / 12),
@@ -408,6 +416,7 @@ if ($role === 'agent') {
         'leads_by_source'   => $leadsBySource,
     );
     $response['all_agents'] = $allAgentRows;
+    $response['listing_details'] = $listingDetails;
 
     // ───────────────────────────────────────────────────────────────────────────
     // CEO VIEW

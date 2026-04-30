@@ -1209,6 +1209,34 @@ function countListingsForDepartments($deptIds)
 }
 
 /**
+ * Count active listings split by sale/rent for the branches represented by a
+ * set of users.
+ */
+function countActiveListingsForUsers($userIds)
+{
+    $branchCodes = getListingBranchCodesForUserIds($userIds);
+    if (empty($branchCodes)) {
+        return array('sale' => 0, 'rent' => 0);
+    }
+
+    return countActiveListingsByBranches($branchCodes);
+}
+
+/**
+ * Count active listings split by sale/rent for the branches represented by a
+ * set of departments.
+ */
+function countActiveListingsForDepartments($deptIds)
+{
+    $branchCodes = getListingBranchCodesForDeptIds($deptIds);
+    if (empty($branchCodes)) {
+        return array('sale' => 0, 'rent' => 0);
+    }
+
+    return countActiveListingsByBranches($branchCodes);
+}
+
+/**
  * Fetch active listing details for a set of branches, grouped by sale/rent.
  * Returns array('sale' => [...], 'rent' => [...])
  *
@@ -1271,6 +1299,33 @@ function fetchActiveListingDetailsByBranches($branchCodes = array())
     }
 
     return $grouped;
+}
+
+/**
+ * Fetch active listing details for the branches represented by a set of users.
+ */
+function fetchActiveListingDetailsForUsers($userIds)
+{
+    $branchCodes = getListingBranchCodesForUserIds($userIds);
+    if (empty($branchCodes)) {
+        return array('sale' => array(), 'rent' => array());
+    }
+
+    return fetchActiveListingDetailsByBranches($branchCodes);
+}
+
+/**
+ * Fetch active listing details for the branches represented by a set of
+ * departments.
+ */
+function fetchActiveListingDetailsForDepartments($deptIds)
+{
+    $branchCodes = getListingBranchCodesForDeptIds($deptIds);
+    if (empty($branchCodes)) {
+        return array('sale' => array(), 'rent' => array());
+    }
+
+    return fetchActiveListingDetailsByBranches($branchCodes);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

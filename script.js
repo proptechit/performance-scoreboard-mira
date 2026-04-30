@@ -1600,9 +1600,18 @@ function renderManager(data) {
       icon: "📊",
     },
     {
-      label: "Listings Count",
-      value: fmtNum(s.listings_count),
+      label: "Active Listings",
+      value: fmtNum(s.active_listings_rent),
+      sub: "For Rent",
       icon: "🏡",
+      action: "rent",
+    },
+    {
+      label: "Active Listings",
+      value: fmtNum(s.active_listings_sale),
+      sub: "For Sale",
+      icon: "🏡",
+      action: "sale",
     },
     {
       label: "Sales Volume",
@@ -1636,7 +1645,11 @@ function renderManager(data) {
   document.getElementById("managerKpiGrid").innerHTML = kpis
     .map(
       (k, i) => `
-      <div class="kpi-card ${k.highlight ? "highlight" : ""}" style="animation-delay:${0.04 + i * 0.03}s">
+      <div
+        class="kpi-card ${k.highlight ? "highlight" : ""} ${k.action ? "clickable" : ""}"
+        style="animation-delay:${0.04 + i * 0.03}s"
+        ${k.action ? `role="button" tabindex="0" onclick="openListingModal('${k.action}')" onkeydown="handleListingCardKeydown(event, '${k.action}')"` : ""}
+      >
       <div class="kpi-label"><span>${k.label}</span><span style="font-size:16px;">${k.icon}</span></div>
       <div class="kpi-value">${k.value}</div>
       ${k.subHtml || k.sub ? `<div class="kpi-sub">${k.subHtml || k.sub}</div>` : ""}
