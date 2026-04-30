@@ -190,6 +190,8 @@ if ($role === 'agent') {
     $avgGap       = avgGapBetweenDeals($agentId, $dateRange);
     $lastDealDays = daysSinceLastDeal(array($agentId));
     $listingCount = countListingsForUsers(array($agentId));
+    $listingSummary = countActiveListingsForUsers(array($agentId));
+    $listingDetails = fetchActiveListingDetailsForUsers(array($agentId));
     $attendance   = countAttendanceDays($agentId, $dateRange);
     $leadCount    = countActiveLeads(array($agentId), $dateRange);
     $reshuffled   = countReshuffledLeads(array($agentId), $dateRange);
@@ -226,6 +228,8 @@ if ($role === 'agent') {
             'lead_count'             => $leadCount,
             'reshuffled_leads'       => $reshuffled,
             'listings'               => $listingCount,
+            'active_listings_rent'   => $listingSummary['rent'],
+            'active_listings_sale'   => $listingSummary['sale'],
             'attendance'             => $attendance,
             'avg_revenue'            => $agg['avg_sales_per_deal'],
             'avg_selling_price'      => $agg['avg_sales_per_deal'],
@@ -247,6 +251,7 @@ if ($role === 'agent') {
         'leads_by_stage'     => $leadsByStage,
         'leads_by_source'    => $leadsBySource,
     );
+    $response['listing_details'] = $listingDetails;
 
     // ───────────────────────────────────────────────────────────────────────────
     // MANAGER VIEW

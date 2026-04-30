@@ -1867,6 +1867,20 @@ function renderAgent(data) {
       icon: "📋",
     },
     {
+      label: "Active Listings",
+      value: fmtNum(s.active_listings_rent),
+      sub: "For Rent",
+      icon: "🏡",
+      action: "rent",
+    },
+    {
+      label: "Active Listings",
+      value: fmtNum(s.active_listings_sale),
+      sub: "For Sale",
+      icon: "🏡",
+      action: "sale",
+    },
+    {
       label: "Avg Revenue / Transaction",
       value: "AED " + fmtCurrency(s.avg_revenue, true),
       sub: "Net per transaction",
@@ -1908,7 +1922,11 @@ function renderAgent(data) {
   document.getElementById("agentKpiGrid").innerHTML = kpis
     .map(
       (k, i) => `
-      <div class="kpi-card ${k.highlight ? "highlight" : ""}" style="animation-delay:${0.04 + i * 0.03}s">
+      <div
+        class="kpi-card ${k.highlight ? "highlight" : ""} ${k.action ? "clickable" : ""}"
+        style="animation-delay:${0.04 + i * 0.03}s"
+        ${k.action ? `role="button" tabindex="0" onclick="openListingModal('${k.action}')" onkeydown="handleListingCardKeydown(event, '${k.action}')"` : ""}
+      >
       <div class="kpi-label"><span>${k.label}</span><span style="font-size:15px;">${k.icon}</span></div>
       <div class="kpi-value">${k.value}</div>
       <div class="kpi-sub">${k.subHtml || k.sub || ""}</div>

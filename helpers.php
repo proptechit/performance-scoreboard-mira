@@ -343,6 +343,7 @@ function getSalesTeams()
     ");
 
     foreach ($rows as &$row) {
+        $row['UF_HEAD'] = resolveSalesTeamHeadId($row);
         $row['DISPLAY_NAME'] = getSalesTeamDisplayName($row);
     }
     unset($row);
@@ -385,10 +386,23 @@ function getSalesTeamById($deptId)
     ");
 
     if (!empty($row)) {
+        $row['UF_HEAD'] = resolveSalesTeamHeadId($row);
         $row['DISPLAY_NAME'] = getSalesTeamDisplayName($row);
     }
 
     return $row;
+}
+
+function resolveSalesTeamHeadId($teamRow)
+{
+    $headId = (int)($teamRow['UF_HEAD'] ?? 0);
+    if ($headId > 0) {
+        return $headId;
+    }
+
+    $deptId = (int)($teamRow['ID'] ?? 0);
+    $headsByDept = $GLOBALS['CFG_SALES_TEAM_HEAD_BY_DEPT'] ?? array();
+    return (int)($headsByDept[$deptId] ?? 0);
 }
 
 function getSalesTeamCode($teamRow)
@@ -424,7 +438,7 @@ function getSalesTeamDisplayName($teamRow)
 
     $teamName = trim((string)($teamRow['NAME'] ?? ''));
     $code = getSalesTeamCode($teamRow);
-    $headId = (int)($teamRow['UF_HEAD'] ?? 0);
+    $headId = resolveSalesTeamHeadId($teamRow);
     $headFirstName = '';
 
     if ($headId > 0) {

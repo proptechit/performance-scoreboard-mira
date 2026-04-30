@@ -245,6 +245,15 @@ $GLOBALS['CFG_SALES_TEAM_CODE_BY_DEPT'] = array(
     30 => 'TG',
 );
 
+$GLOBALS['CFG_SALES_TEAM_HEAD_BY_DEPT'] = array(
+    22 => 25,
+    31 => 12,
+    26 => 134,
+    21 => 20,
+    32 => 157,
+    23 => 123,
+);
+
 // ═══════════════════════════════════════════════════════════════════════════
 // 9. ROLE DEFINITIONS
 //    Map Bitrix user IDs to roles.
@@ -480,7 +489,7 @@ $GLOBALS['CFG_POSITION_TARGET'] = array(
 define('CACHE_DIR',     __DIR__ . '/cache/');   // Cache folder (must be writable)
 define('CACHE_TTL',     300);                    // Seconds – 5 minutes default
 define('CACHE_ENABLED', true);                   // Set false to disable during dev
-define('CACHE_VERSION', '2026-05-01-sales-team-display-names');
+define('CACHE_VERSION', '2026-05-01-team-head-and-agent-listing-split');
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 13. FILTER META  (returned to frontend for populating dropdowns)
