@@ -1168,6 +1168,7 @@ function renderAgentTable(agents) {
 
   const sortedAgents = sortCollection(filteredAgents, "agentTable", {
     name: { type: "string", get: (a) => a.name },
+    reshuffled_leads: { type: "number", get: (a) => a.reshuffled_leads },
     deals: { type: "number", get: (a) => a.deals },
     sales: { type: "number", get: (a) => a.sales },
     commission: { type: "number", get: (a) => a.commission },
@@ -1180,7 +1181,7 @@ function renderAgentTable(agents) {
   if (!sortedAgents.length) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="8" class="table-empty-state">No agents match your search.</td>
+        <td colspan="9" class="table-empty-state">No agents match your search.</td>
       </tr>
     `;
     return;
@@ -1201,6 +1202,7 @@ function renderAgentTable(agents) {
           </div>
         </div>
       </td>
+      <td>${a.reshuffled_leads}</td>
       <td style="font-weight:600;">${a.deals}</td>
       <td>AED ${fmtCurrency(a.sales)}</td>
       <td>AED ${fmtCurrency(a.commission)}</td>
