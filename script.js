@@ -327,7 +327,7 @@ function fillSelect(id, arr, allLabel) {
   el.innerHTML =
     (allLabel ? `<option value="All">${allLabel}</option>` : "") +
     arr.map((v) => `<option value="${v}">${v}</option>`).join("");
-  if (arr.includes(cur) || cur === "All") el.value = cur;
+  if (arr.map(String).includes(String(cur)) || cur === "All") el.value = cur;
 }
 
 function resetFilters() {
