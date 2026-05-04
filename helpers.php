@@ -622,29 +622,32 @@ function getListingBranchCodesForUserIds($userIds)
 function getAgentIdsByManager($managerId)
 {
     $mid = dbInt($managerId);
-    $allowedDeptIds = getSalesReportDepartmentIds(true);
     $nonAgentIds = getNonAgentUserIds();
     $excludeNonAgents = !empty($nonAgentIds)
         ? 'AND u.ID NOT IN ' . inClauseInt($nonAgentIds)
         : '';
 
+    // Find all departments this manager heads using fallback-aware logic
+    $managerDepts = array();
+    $salesTeams = getSalesTeams();
+    foreach ($salesTeams as $team) {
+        if ((int)$team['UF_HEAD'] === $mid) {
+            $managerDepts[] = (int)$team['ID'];
+        }
+    }
+
+    if (empty($managerDepts)) {
+        return array();
+    }
+
     $rows = dbQuery("
         SELECT DISTINCT u.ID
         FROM b_user u
-
         JOIN b_utm_user ud
             ON ud.VALUE_ID = u.ID
            AND ud.FIELD_ID = 40
-
-        JOIN b_iblock_section s 
-            ON s.ID = ud.VALUE_INT
-
-        LEFT JOIN b_uts_iblock_3_section uts 
-            ON uts.VALUE_ID = s.ID
-
-        WHERE uts.UF_HEAD = {$mid}
-          AND u.ACTIVE = 'Y'
-          AND ud.VALUE_INT IN " . inClauseInt($allowedDeptIds) . "
+        WHERE u.ACTIVE = 'Y'
+          AND ud.VALUE_INT IN " . inClauseInt($managerDepts) . "
           {$excludeNonAgents}
     ");
 
