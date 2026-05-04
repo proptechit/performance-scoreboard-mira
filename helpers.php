@@ -1179,7 +1179,7 @@ function countActiveLeads($agentIds, $dateRange)
  */
 function countReshuffledLeads($agentIds, $dateRange)
 {
-    $pipelines = array(PIPELINE_OFFPLAN, PIPELINE_SECONDARY);
+    $pipelines = array(PIPELINE_OFFPLAN);
     $in        = inClauseInt($pipelines);
     $from      = dbEsc($dateRange['from']);
     $to        = dbEsc($dateRange['to']);
@@ -1190,7 +1190,7 @@ function countReshuffledLeads($agentIds, $dateRange)
         $agentFilter = 'AND d.ASSIGNED_BY_ID IN ' . inClauseInt($agentIds);
     }
 
-    $excludeStages = array('C1:WON', 'C1:LOSE', 'C2:WON', 'C2:LOSE');
+    $excludeStages = array('C1:WON', 'C1:LOSE');
     $excludeIn     = inClauseStr($excludeStages);
 
     $row = dbQueryOne("
