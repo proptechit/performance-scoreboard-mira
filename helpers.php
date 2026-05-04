@@ -1602,23 +1602,23 @@ function daysSinceLastDeal($agentIds)
 function avgGapBetweenDeals($agentId, $dateRange)
 {
     $catId    = dbInt(PIPELINE_TRANSACTION);
-    $stageWon = dbEsc(STAGE_WON);
+    $stages   = inClauseStr($GLOBALS['CFG_ACTIVE_STAGES']);
     $uid      = dbInt($agentId);
     $from     = dbEsc($dateRange['from']);
     $to       = dbEsc($dateRange['to']);
-    $effectiveCloseExpr = getEffectiveDealCloseDateExpr('d', 'uts');
+    $effectiveCreateExpr = getEffectiveDealCreateDateExpr('d', 'uts');
 
     $rows = dbQuery("
-        SELECT DATE({$effectiveCloseExpr}) AS close_date
+        SELECT DATE({$effectiveCreateExpr}) AS booking_date
         FROM b_crm_deal d
         LEFT JOIN b_uts_crm_deal uts
             ON uts.VALUE_ID = d.ID
         WHERE d.CATEGORY_ID   = {$catId}
-          AND d.STAGE_ID      = '{$stageWon}'
+          AND d.STAGE_ID     IN {$stages}
           AND d.ASSIGNED_BY_ID = {$uid}
-          AND DATE({$effectiveCloseExpr}) >= '{$from}'
-          AND DATE({$effectiveCloseExpr}) <= '{$to}'
-        ORDER BY {$effectiveCloseExpr} ASC
+          AND DATE({$effectiveCreateExpr}) >= '{$from}'
+          AND DATE({$effectiveCreateExpr}) <= '{$to}'
+        ORDER BY {$effectiveCreateExpr} ASC
     ");
 
     if (count($rows) < 2) {
@@ -1627,7 +1627,7 @@ function avgGapBetweenDeals($agentId, $dateRange)
 
     $gaps  = array();
     $dates = array_values(array_filter(array_map(function ($r) {
-        return parseReportDate($r['close_date'] ?? '');
+        return parseReportDate($r['booking_date'] ?? '');
     }, $rows)));
 
     if (count($dates) < 2) {
