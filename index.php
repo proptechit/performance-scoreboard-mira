@@ -305,6 +305,7 @@
                                 <th data-table-id="agentTable" data-sort-key="top_deal" data-sort-type="number">Top Transaction</th>
                                 <th data-table-id="agentTable" data-sort-key="avg_gap" data-sort-type="number">Avg Gap</th>
                                 <th data-table-id="agentTable" data-sort-key="last_deal_days" data-sort-type="number">Last Transaction</th>
+                                <th data-table-id="agentTable" data-sort-key="attendance" data-sort-type="number">Attendence</th>
                             </tr>
                         </thead>
                         <tbody id="agentTableBody"></tbody>

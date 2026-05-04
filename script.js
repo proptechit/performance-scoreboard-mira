@@ -1174,12 +1174,13 @@ function renderAgentTable(agents) {
     top_deal: { type: "number", get: (a) => a.top_deal },
     avg_gap: { type: "number", get: (a) => a.avg_gap },
     last_deal_days: { type: "number", get: (a) => a.last_deal_days },
+    attendance: { type: "number", get: (a) => a.attendance },
   });
 
   if (!sortedAgents.length) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="7" class="table-empty-state">No agents match your search.</td>
+        <td colspan="8" class="table-empty-state">No agents match your search.</td>
       </tr>
     `;
     return;
@@ -1188,6 +1189,7 @@ function renderAgentTable(agents) {
   tbody.innerHTML = sortedAgents
     .map((a) => {
       const { daysClass, daysLabel } = getDaysBadgeMeta(a.last_deal_days);
+      const ac = a.attendance <= 14 ? "crit" : a.attendance <= 30 ? "warn" : "ok";
       return `
     <tr onclick="drillToAgent(${a.id})">
       <td>
@@ -1205,6 +1207,7 @@ function renderAgentTable(agents) {
       <td>AED ${fmtCurrency(a.top_deal, true)}</td>
       <td>${a.avg_gap} days</td>
       <td><span class="days-badge ${daysClass}">${daysLabel}</span></td>
+      <td><span class="days-badge ${ac}">${a.attendance} / ${a.attendance_total || 30} days</span></td>
     </tr>
     `;
     })
@@ -1310,7 +1313,7 @@ function renderManagerAgentTable(agents) {
         <td>AED ${fmtCurrency(a.commission)}</td>
         <td>AED ${fmtCurrency(a.top_deal, true)}</td>
         <td><span class="days-badge ${dc}">${a.last_deal_days}d ago</span></td>
-        <td><span class="days-badge ${ac}">${a.attendance} days</span></td>
+        <td><span class="days-badge ${ac}">${a.attendance} / ${a.attendance_total || 30} days</span></td>
       </tr>`;
     })
     .join("");

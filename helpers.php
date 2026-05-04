@@ -2115,6 +2115,14 @@ function buildAgentPerformanceRow($userRow, $allDeals, $wonDeals, $committedDeal
     $avgGap          = avgGapBetweenDeals($uid, $dateRange);
     $attendance      = countAttendanceDays($uid, $dateRange);
 
+    try {
+        $start = new \DateTime($dateRange['from']);
+        $end = new \DateTime($dateRange['to']);
+        $attendanceTotal = $end->diff($start)->days + 1;
+    } catch (\Exception $e) {
+        $attendanceTotal = 30;
+    }
+
     return array(
         'id'               => $uid,
         'name'             => fullName($userRow),
@@ -2132,6 +2140,7 @@ function buildAgentPerformanceRow($userRow, $allDeals, $wonDeals, $committedDeal
         'avg_gap'          => $avgGap,
         'last_deal_days'   => $lastDealDays,
         'attendance'       => $attendance,
+        'attendance_total' => $attendanceTotal,
     );
 }
 
