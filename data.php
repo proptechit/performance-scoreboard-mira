@@ -58,18 +58,26 @@ $rawDeptId    = isset($_GET['dept_id'])    ? (int)$_GET['dept_id']      : 0;
 $rawYear1     = isset($_GET['year1'])      ? (int)$_GET['year1']        : 2024;
 $rawYear2     = isset($_GET['year2'])      ? (int)$_GET['year2']        : 2025;
 
-if (isset($_GET['debug_dates'])) {
+if (isset($_GET['debug_conditions'])) {
     $catId = PIPELINE_TRANSACTION;
     $stages = inClauseStr($GLOBALS['CFG_ACTIVE_STAGES']);
     $expr = getEffectiveDealCreateDateExpr('d', 'uts');
     
+    // Hardcode from/to for 2026 All Months
+    $from = '2026-01-01';
+    $to = '2026-12-31';
+
     $sql = "
         SELECT 
             d.ID, 
-            d.DATE_CREATE,
-            uts.UF_CRM_1769420802242,
-            {$expr} as EFFECTIVE_DATE,
-            DATE({$expr}) as PARSED_DATE
+            d.CATEGORY_ID,
+            d.STAGE_ID,
+            d.ASSIGNED_BY_ID,
+            DATE({$expr}) as PARSED_DATE,
+            (d.CATEGORY_ID = {$catId}) as COND_CAT,
+            (d.STAGE_ID IN {$stages}) as COND_STAGE,
+            (DATE({$expr}) >= '{$from}') as COND_DATE_FROM,
+            (DATE({$expr}) <= '{$to}') as COND_DATE_TO
         FROM b_crm_deal d
         LEFT JOIN b_uts_crm_deal uts ON uts.VALUE_ID = d.ID
         WHERE d.ID IN (16501, 16571)
