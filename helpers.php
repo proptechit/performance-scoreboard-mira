@@ -725,9 +725,11 @@ function getEffectiveDealCreateDateExpr($dealAlias = 'd', $utsAlias = 'uts')
     $importedCreateField = FIELD_IMPORTED_CREATE_DATE;
     $importedCreateExpr = "CAST({$utsAlias}.{$importedCreateField} AS CHAR)";
     
-    // Safely parse DD/MM/YYYY formatted strings in MySQL so DATE() doesn't return NULL
+    // Safely parse various string formats in MySQL so DATE() doesn't return NULL
     $parsedImported = "CASE 
         WHEN {$importedCreateExpr} LIKE '%/%/%' THEN STR_TO_DATE({$importedCreateExpr}, '%d/%m/%Y')
+        WHEN {$importedCreateExpr} LIKE '%.%.%' THEN STR_TO_DATE({$importedCreateExpr}, '%d.%m.%Y')
+        WHEN {$importedCreateExpr} LIKE '%-%-%' AND LENGTH({$importedCreateExpr}) <= 10 AND {$importedCreateExpr} NOT LIKE '20%' THEN STR_TO_DATE({$importedCreateExpr}, '%d-%m-%Y')
         ELSE {$importedCreateExpr}
     END";
 
