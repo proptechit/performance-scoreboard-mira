@@ -724,10 +724,17 @@ function getEffectiveDealCreateDateExpr($dealAlias = 'd', $utsAlias = 'uts')
 {
     $importedCreateField = FIELD_IMPORTED_CREATE_DATE;
     $importedCreateExpr = "CAST({$utsAlias}.{$importedCreateField} AS CHAR)";
+    
+    // Safely parse DD/MM/YYYY formatted strings in MySQL so DATE() doesn't return NULL
+    $parsedImported = "CASE 
+        WHEN {$importedCreateExpr} LIKE '%/%/%' THEN STR_TO_DATE({$importedCreateExpr}, '%d/%m/%Y')
+        ELSE {$importedCreateExpr}
+    END";
+
     return "CASE
         WHEN {$utsAlias}.{$importedCreateField} IS NULL THEN {$dealAlias}.DATE_CREATE
         WHEN {$importedCreateExpr} IN ('', '0000-00-00') THEN {$dealAlias}.DATE_CREATE
-        ELSE {$importedCreateExpr}
+        ELSE {$parsedImported}
     END";
 }
 
@@ -854,6 +861,7 @@ function fetchAllDeals($agentIds, $dateRange, $dealType = 'All')
             ON uts.VALUE_ID = d.ID
 
         WHERE d.CATEGORY_ID = {$catId}
+          AND d.STAGE_ID IN {$stages}
           AND DATE({$effectiveCreateExpr}) >= '{$from}'
           AND DATE({$effectiveCreateExpr}) <= '{$to}'
           {$agentFilter}
