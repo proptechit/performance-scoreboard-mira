@@ -239,11 +239,18 @@ function renderDealReference(dealId) {
 }
 
 function getDrilldownBackLabel(data = currentData) {
-  if (data?.current_user_role === "ceo" && data?.view !== "ceo") {
-    return "Back to CEO View";
+  if (data?.current_user_role === "ceo") {
+    if (data?.view === "manager") {
+      return "Back to CEO View";
+    }
+    if (data?.view === "agent") {
+      return "Back to Team View";
+    }
   }
-  if (data?.current_user_role === "manager" && data?.view === "agent") {
-    return "Back to Team View";
+  if (data?.current_user_role === "manager") {
+    if (data?.view === "agent") {
+      return "Back to Team View";
+    }
   }
   return "";
 }
@@ -252,10 +259,28 @@ function getDrilldownBackButtonHtml(data = currentData) {
   const label = getDrilldownBackLabel(data);
   if (!label) return "";
   return `
-    <button type="button" class="view-back-button" onclick="returnToPrimaryView()">
+    <button type="button" class="view-back-button" onclick="handleBackNavigation()">
       ${label}
     </button>
   `;
+}
+
+function handleBackNavigation() {
+  const role = currentData?.current_user_role;
+  const view = currentData?.view;
+
+  if (role === "ceo") {
+    if (view === "agent") {
+      const deptId = currentData?.agent?.profile?.dept_id;
+      if (deptId) {
+        drillToTeam(deptId);
+        return;
+      }
+    }
+    returnToPrimaryView();
+  } else if (role === "manager") {
+    returnToPrimaryView();
+  }
 }
 
 function returnToPrimaryView() {

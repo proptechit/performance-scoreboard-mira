@@ -218,6 +218,7 @@ if ($role === 'agent') {
             'designation' => $workPosition,
             'joined'      => !empty($userRow['DATE_REGISTER']) ? date('Y-m-d', strtotime($userRow['DATE_REGISTER'])) : '',
             'manager'     => $managerName,
+            'dept_id'     => getUserDeptId($agentId),
             'current'     => true,
         ),
         'summary' => array(
