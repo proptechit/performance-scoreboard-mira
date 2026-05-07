@@ -1268,16 +1268,28 @@ function countListingsByBranches($branchCodes = array())
 }
 
 /**
- * Count active listings for the branches represented by a set of users.
+ * Count active listings for a set of users.
  */
 function countListingsForUsers($userIds)
 {
-    $branchCodes = getListingBranchCodesForUserIds($userIds);
-    if (empty($branchCodes)) {
+    if (empty($userIds)) {
         return 0;
     }
+    if (!is_array($userIds)) {
+        $userIds = array($userIds);
+    }
+    $table      = SPA_LISTINGS_TABLE;
+    $stage      = dbEsc(LISTING_STAGE_ACTIVE);
+    $inUsers    = inClauseInt($userIds);
+    $ownerField = LISTING_OWNER_FIELD;
 
-    return countListingsByBranches($branchCodes);
+    $row = dbQueryOne("
+        SELECT COUNT(*) AS cnt
+        FROM {$table} l
+        WHERE l.STAGE_ID = '{$stage}'
+          AND (l.ASSIGNED_BY_ID IN {$inUsers} OR l.{$ownerField} IN {$inUsers})
+    ");
+    return (int)($row['cnt'] ?? 0);
 }
 
 /**
@@ -1294,17 +1306,37 @@ function countListingsForDepartments($deptIds)
 }
 
 /**
- * Count active listings split by sale/rent for the branches represented by a
- * set of users.
+ * Count active listings split by sale/rent for a set of users.
  */
 function countActiveListingsForUsers($userIds)
 {
-    $branchCodes = getListingBranchCodesForUserIds($userIds);
-    if (empty($branchCodes)) {
+    if (empty($userIds)) {
         return array('sale' => 0, 'rent' => 0);
     }
+    if (!is_array($userIds)) {
+        $userIds = array($userIds);
+    }
+    $table      = SPA_LISTINGS_TABLE;
+    $stage      = dbEsc(LISTING_STAGE_ACTIVE);
+    $typeField  = LISTING_TYPE_FIELD;
+    $saleValue  = dbInt(LISTING_TYPE_SALE_VALUE);
+    $ownerField = LISTING_OWNER_FIELD;
+    $inUsers    = inClauseInt($userIds);
 
-    return countActiveListingsByBranches($branchCodes);
+    $rows = dbQuery("
+        SELECT
+            SUM(CASE WHEN l.{$typeField} = {$saleValue} THEN 1 ELSE 0 END) AS sale_count,
+            SUM(CASE WHEN l.{$typeField} != {$saleValue} OR l.{$typeField} IS NULL THEN 1 ELSE 0 END) AS rent_count
+        FROM {$table} l
+        WHERE l.STAGE_ID = '{$stage}'
+          AND (l.ASSIGNED_BY_ID IN {$inUsers} OR l.{$ownerField} IN {$inUsers})
+    ");
+
+    $row = !empty($rows) ? $rows[0] : array();
+    return array(
+        'sale' => (int)($row['sale_count'] ?? 0),
+        'rent' => (int)($row['rent_count'] ?? 0),
+    );
 }
 
 /**
@@ -1387,16 +1419,61 @@ function fetchActiveListingDetailsByBranches($branchCodes = array())
 }
 
 /**
- * Fetch active listing details for the branches represented by a set of users.
+ * Fetch active listing details for a set of users.
  */
 function fetchActiveListingDetailsForUsers($userIds)
 {
-    $branchCodes = getListingBranchCodesForUserIds($userIds);
-    if (empty($branchCodes)) {
+    if (empty($userIds)) {
         return array('sale' => array(), 'rent' => array());
     }
+    if (!is_array($userIds)) {
+        $userIds = array($userIds);
+    }
+    $table      = SPA_LISTINGS_TABLE;
+    $stage      = dbEsc(LISTING_STAGE_ACTIVE);
+    $typeField  = LISTING_TYPE_FIELD;
+    $saleValue  = dbInt(LISTING_TYPE_SALE_VALUE);
+    $refField   = LISTING_REF_FIELD;
+    $ownerField = LISTING_OWNER_FIELD;
+    $inUsers    = inClauseInt($userIds);
 
-    return fetchActiveListingDetailsByBranches($branchCodes);
+    $rows = dbQuery("
+        SELECT
+            l.ID,
+            l.{$typeField} AS listing_type,
+            l.{$refField} AS reference_number,
+            l.ASSIGNED_BY_ID,
+            CONCAT(COALESCE(agent.NAME, ''), ' ', COALESCE(agent.LAST_NAME, '')) AS assigned_name,
+            l.{$ownerField} AS owner_user_id,
+            CONCAT(COALESCE(owner.NAME, ''), ' ', COALESCE(owner.LAST_NAME, '')) AS owner_name
+        FROM {$table} l
+        LEFT JOIN b_user agent
+          ON agent.ID = l.ASSIGNED_BY_ID
+        LEFT JOIN b_user owner
+          ON owner.ID = l.{$ownerField}
+        WHERE l.STAGE_ID = '{$stage}'
+          AND (l.ASSIGNED_BY_ID IN {$inUsers} OR l.{$ownerField} IN {$inUsers})
+        ORDER BY l.ID DESC
+    ");
+
+    $grouped = array(
+        'sale' => array(),
+        'rent' => array(),
+    );
+
+    foreach ($rows as $row) {
+        $typeKey = (int)($row['listing_type'] ?? 0) === LISTING_TYPE_SALE_VALUE ? 'sale' : 'rent';
+        $id = (int)($row['ID'] ?? 0);
+        $grouped[$typeKey][] = array(
+            'id' => $id,
+            'reference_number' => trim((string)($row['reference_number'] ?? '')),
+            'listing_agent' => trim((string)($row['assigned_name'] ?? '')),
+            'listing_owner' => trim((string)($row['owner_name'] ?? '')),
+            'link' => $id > 0 ? 'https://crm.mira-international.com/crm/type/1052/details/' . $id . '/' : '',
+        );
+    }
+
+    return $grouped;
 }
 
 /**
