@@ -562,6 +562,7 @@ if ($role === 'agent') {
         $teamList  = countListingsForDepartments(array($tid));
         $teamLeads = countActiveLeads($teamIds, $dateRange);
         $lastDeal  = daysSinceLastDeal($teamIds);
+        $teamAvgGap = avgGapBetweenDealsForTeam($teamIds, $dateRange);
 
         $teamPerformance[] = array(
             'id'             => $tid,
@@ -573,7 +574,7 @@ if ($role === 'agent') {
             'sales'          => $tagg['sales_volume'],
             'commission'     => $teamComm['total'],
             'top_deal'       => $tagg['top_deal'],
-            'avg_gap'        => 0,
+            'avg_gap'        => $teamAvgGap,
             'last_deal_days' => $lastDeal,
         );
     }

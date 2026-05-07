@@ -1644,6 +1644,76 @@ function avgGapBetweenDeals($agentId, $dateRange)
 }
 
 /**
+ * Calculate average gap (days) between consecutive won deals for each agent in a team,
+ * and return the average of those averages.
+ */
+function avgGapBetweenDealsForTeam($agentIds, $dateRange)
+{
+    if (empty($agentIds)) {
+        return 0;
+    }
+    $catId    = dbInt(PIPELINE_TRANSACTION);
+    $stages   = inClauseStr($GLOBALS['CFG_ACTIVE_STAGES']);
+    $inAgents = inClauseInt($agentIds);
+    $from     = dbEsc($dateRange['from']);
+    $to       = dbEsc($dateRange['to']);
+    $effectiveCreateExpr = getEffectiveDealCreateDateExpr('d', 'uts');
+
+    $rows = dbQuery("
+        SELECT d.ASSIGNED_BY_ID, DATE({$effectiveCreateExpr}) AS booking_date
+        FROM b_crm_deal d
+        LEFT JOIN b_uts_crm_deal uts
+            ON uts.VALUE_ID = d.ID
+        WHERE d.CATEGORY_ID   = {$catId}
+          AND d.STAGE_ID     IN {$stages}
+          AND d.ASSIGNED_BY_ID IN {$inAgents}
+          AND DATE({$effectiveCreateExpr}) >= '{$from}'
+          AND DATE({$effectiveCreateExpr}) <= '{$to}'
+        ORDER BY d.ASSIGNED_BY_ID ASC, {$effectiveCreateExpr} ASC
+    ");
+
+    if (empty($rows)) {
+        return 0;
+    }
+
+    // Group booking dates by agent
+    $datesByAgent = array();
+    foreach ($rows as $row) {
+        $aid = (int)$row['ASSIGNED_BY_ID'];
+        if (!isset($datesByAgent[$aid])) {
+            $datesByAgent[$aid] = array();
+        }
+        $datesByAgent[$aid][] = $row['booking_date'];
+    }
+
+    $allAgentGaps = array();
+    foreach ($datesByAgent as $aid => $bookingDates) {
+        if (count($bookingDates) < 2) {
+            continue;
+        }
+        $dates = array_values(array_filter(array_map(function ($dateStr) {
+            return parseReportDate($dateStr ?? '');
+        }, $bookingDates)));
+
+        if (count($dates) < 2) {
+            continue;
+        }
+
+        $gaps = array();
+        for ($i = 1; $i < count($dates); $i++) {
+            $gaps[] = (int)$dates[$i - 1]->diff($dates[$i])->days;
+        }
+        $allAgentGaps[] = array_sum($gaps) / count($gaps);
+    }
+
+    if (empty($allAgentGaps)) {
+        return 0;
+    }
+
+    return (int)round(array_sum($allAgentGaps) / count($allAgentGaps));
+}
+
+/**
  * Count agents with no transaction-pipeline deal in last 60 days.
  *
  * @param  array $agentIds  All agent user IDs to check
