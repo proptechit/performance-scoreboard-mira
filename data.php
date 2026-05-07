@@ -58,7 +58,7 @@ $rawDeptId    = isset($_GET['dept_id'])    ? (int)$_GET['dept_id']      : 0;
 $rawYear1     = isset($_GET['year1'])      ? (int)$_GET['year1']        : 2024;
 $rawYear2     = isset($_GET['year2'])      ? (int)$_GET['year2']        : 2025;
 
-if (isset($_GET['debug_agents'])) {
+if (isset($_GET['debug_fetch_exact'])) {
     $salesTeams  = getSalesTeams();
     $allDeptIds  = array_map(function ($t) { return (int)$t['ID']; }, $salesTeams);
     $allAgents   = empty($allDeptIds) ? array() : getAgentsByDept($allDeptIds);
@@ -66,13 +66,19 @@ if (isset($_GET['debug_agents'])) {
     $allManagerIds = getSalesTeamHeadIds($salesTeams);
     $allDealOwnerIds = array_values(array_unique(array_merge($allAgentIds, $allManagerIds)));
 
-    $foundEmin = in_array(102, $allDealOwnerIds);
-    $foundAlbert = in_array(88, $allDealOwnerIds);
+    $range = ['from' => '2026-01-01', 'to' => '2026-12-31'];
+    $deals = fetchAllDeals($allDealOwnerIds, $range, 'All');
+    
+    $found = array();
+    foreach ($deals as $d) {
+        if ($d['ID'] == 16501 || $d['ID'] == 16571) {
+            $found[] = $d;
+        }
+    }
     
     echo json_encode([
-        'total_deal_owners_tracked' => count($allDealOwnerIds),
-        'is_emin_tracked_102' => $foundEmin,
-        'is_albert_tracked_88' => $foundAlbert
+        'total_fetched_with_agent_filter' => count($deals),
+        'missing_deals_found' => $found
     ]);
     exit;
 }
