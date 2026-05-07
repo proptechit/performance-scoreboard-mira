@@ -1178,7 +1178,8 @@ function countActiveLeads($agentIds, $dateRange)
 }
 
 /**
- * Count reshuffled leads (assignment count field > 0) for a set of agents.
+ * Count reshuffled leads (deals genuinely reassigned, REASSIGN_COUNT > 1) 
+ * to a set of agents within the date range, based on the event log.
  */
 function countReshuffledLeads($agentIds, $dateRange)
 {
@@ -1186,29 +1187,56 @@ function countReshuffledLeads($agentIds, $dateRange)
     $in        = inClauseInt($pipelines);
     $from      = dbEsc($dateRange['from']);
     $to        = dbEsc($dateRange['to']);
-    $fAssign   = FIELD_REASSIGNMENT_CNT;
 
-    $agentFilter = '';
+    // Build name list for matching EVENT_TEXT
+    $agentNamesSql = '';
     if (!empty($agentIds)) {
-        $agentFilter = 'AND d.ASSIGNED_BY_ID IN ' . inClauseInt($agentIds);
+        $inAgents = inClauseInt($agentIds);
+        $rsUsers = dbQuery("SELECT ID, NAME, LAST_NAME FROM b_user WHERE ID IN {$inAgents}");
+        $nameList = array();
+        foreach ($rsUsers as $row) {
+            $fullName = strtoupper(preg_replace('/\s+/', ' ', trim(($row['NAME'] ?? '') . ' ' . ($row['LAST_NAME'] ?? ''))));
+            if (!empty($fullName)) {
+                $nameList[] = "'" . dbEsc($fullName) . "'";
+            }
+        }
+        if (!empty($nameList)) {
+            $agentNamesSql = implode(',', $nameList);
+        } else {
+            return 0; // Agents provided but no valid names found
+        }
     }
 
-    $excludeStages = array('C1:WON', 'C1:LOSE');
-    $excludeIn     = inClauseStr($excludeStages);
+    $nameFilter = '';
+    if (!empty($agentNamesSql)) {
+        $nameFilter = "AND (
+            UPPER(REPLACE(e.EVENT_TEXT_1, '  ', ' ')) IN ({$agentNamesSql}) OR 
+            UPPER(REPLACE(e.EVENT_TEXT_2, '  ', ' ')) IN ({$agentNamesSql})
+        )";
+    }
 
     $row = dbQueryOne("
-        SELECT COUNT(*) AS cnt
-        FROM b_crm_deal d
-
-        LEFT JOIN b_uts_crm_deal uts
-            ON uts.VALUE_ID = d.ID
-
-        WHERE d.CATEGORY_ID IN {$in}
-          AND d.STAGE_ID NOT IN {$excludeIn}
-          AND (uts.{$fAssign} IS NOT NULL AND uts.{$fAssign} > 0)
-          AND DATE(d.DATE_CREATE) >= '{$from}'
-          AND DATE(d.DATE_CREATE) <= '{$to}'
-          {$agentFilter}
+        SELECT COUNT(DISTINCT r.ENTITY_ID) AS cnt
+        FROM b_crm_event_relations r
+        INNER JOIN b_crm_event e ON e.ID = r.EVENT_ID
+        INNER JOIN b_crm_deal d
+                ON d.ID          = r.ENTITY_ID
+               AND d.CATEGORY_ID IN {$in}
+               AND d.SOURCE_ID != '11'
+        INNER JOIN b_uts_crm_deal uts ON uts.VALUE_ID = d.ID
+        WHERE r.ENTITY_TYPE       = 'DEAL'
+          AND r.ENTITY_FIELD      = 'ASSIGNED_BY_ID'
+          AND DATE(e.DATE_CREATE) >= '{$from}'
+          AND DATE(e.DATE_CREATE) <= '{$to}'
+          AND (uts.UF_CRM_1774601088414 IS NULL OR uts.UF_CRM_1774601088414 != 1)
+          {$nameFilter}
+          AND (
+              SELECT COUNT(*)
+              FROM b_crm_event_relations r2
+              WHERE r2.ENTITY_ID    = r.ENTITY_ID
+                AND r2.ENTITY_TYPE  = 'DEAL'
+                AND r2.ENTITY_FIELD = 'ASSIGNED_BY_ID'
+          ) > 1
     ");
 
     return (int)($row['cnt'] ?? 0);
