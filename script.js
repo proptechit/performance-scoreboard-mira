@@ -5,6 +5,10 @@ let charts = {};
 const tableSortState = {};
 let listingModalLastFocus = null;
 
+let currentViewRole = null;
+let currentViewDeptId = null;
+let currentViewAgentId = null;
+
 const CHART_COLORS = [
   "#3b82f6",
   "#c9a84c",
@@ -368,7 +372,7 @@ function applyFilters() {
 }
 
 function getFilterParams() {
-  return {
+  const params = {
     year: document.getElementById("f_year")?.value || "All",
     quarter: document.getElementById("f_quarter")?.value || "All",
     month: document.getElementById("f_month")?.value || "All",
@@ -377,6 +381,12 @@ function getFilterParams() {
     year1: document.getElementById("yc_year1")?.value || 2025,
     year2: document.getElementById("yc_year2")?.value || 2026,
   };
+
+  if (currentViewRole) params.role = currentViewRole;
+  if (currentViewDeptId) params.dept_id = currentViewDeptId;
+  if (currentViewAgentId) params.agent_id = currentViewAgentId;
+
+  return params;
 }
 
 var GLOBAL_DATA;
@@ -394,6 +404,19 @@ async function loadDashboard() {
     const res = await fetch(`data.php?${qs}`);
     const data = await res.json();
     currentData = data;
+
+    // Track active view state
+    currentViewRole = data.view;
+    if (data.view === "manager") {
+      currentViewDeptId = data.manager?.profile?.dept_id || null;
+      currentViewAgentId = null;
+    } else if (data.view === "agent") {
+      currentViewAgentId = data.agent?.profile?.user_id || null;
+      currentViewDeptId = null;
+    } else {
+      currentViewDeptId = null;
+      currentViewAgentId = null;
+    }
 
     // Populate filters
     if (data.filters) {
@@ -1383,6 +1406,9 @@ function drillToAgent(agentId) {
         return;
       }
       currentData = data;
+      currentViewRole = "agent";
+      currentViewAgentId = agentId;
+      currentViewDeptId = null;
       setActiveView("agent");
       renderAgent(data);
       updateRoleBadge(data.agent?.profile?.name || "Agent", "A");
@@ -1402,6 +1428,9 @@ function drillToTeam(deptId) {
         return;
       }
       currentData = data;
+      currentViewRole = "manager";
+      currentViewDeptId = deptId;
+      currentViewAgentId = null;
       setActiveView("manager");
       renderManager(data);
       updateRoleBadge(data.manager?.profile?.name || "Manager", "M");
@@ -1895,6 +1924,18 @@ function renderAgent(data) {
       value: fmtNum(s.deal_count),
       sub: "Total closed transactions",
       icon: "📋",
+    },
+    {
+      label: "Active Leads",
+      value: fmtNum(s.lead_count),
+      sub: "Active lead pipeline",
+      icon: "🎯",
+    },
+    {
+      label: "Reshuffled Leads",
+      value: fmtNum(s.reshuffled_leads),
+      sub: "Leads reshuffled away",
+      icon: "🔄",
     },
     {
       label: "Active Listings",

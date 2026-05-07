@@ -1219,10 +1219,7 @@ function countReshuffledLeads($agentIds, $dateRange)
 
     $nameFilter = '';
     if (!empty($agentNamesSql)) {
-        $nameFilter = "AND (
-            UPPER(REPLACE(e.EVENT_TEXT_1, '  ', ' ')) IN ({$agentNamesSql}) OR 
-            UPPER(REPLACE(e.EVENT_TEXT_2, '  ', ' ')) IN ({$agentNamesSql})
-        )";
+        $nameFilter = "AND UPPER(REPLACE(e.EVENT_TEXT_1, '  ', ' ')) IN ({$agentNamesSql})";
     }
 
     $row = dbQueryOne("

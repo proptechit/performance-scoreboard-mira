@@ -773,10 +773,16 @@ body {
   justify-content: center;
 }
 
+.donut-wrapper canvas {
+  position: relative;
+  z-index: 2;
+}
+
 .donut-center {
   position: absolute;
   text-align: center;
   pointer-events: none;
+  z-index: 1;
 }
 
 .donut-center-value {
