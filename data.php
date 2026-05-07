@@ -58,31 +58,6 @@ $rawDeptId    = isset($_GET['dept_id'])    ? (int)$_GET['dept_id']      : 0;
 $rawYear1     = isset($_GET['year1'])      ? (int)$_GET['year1']        : 2024;
 $rawYear2     = isset($_GET['year2'])      ? (int)$_GET['year2']        : 2025;
 
-if (isset($_GET['debug_fetch_exact'])) {
-    $salesTeams  = getSalesTeams();
-    $allDeptIds  = array_map(function ($t) { return (int)$t['ID']; }, $salesTeams);
-    $allAgents   = empty($allDeptIds) ? array() : getAgentsByDept($allDeptIds);
-    $allAgentIds = array_map(function ($a) { return (int)$a['ID']; }, $allAgents);
-    $allManagerIds = getSalesTeamHeadIds($salesTeams);
-    $allDealOwnerIds = array_values(array_unique(array_merge($allAgentIds, $allManagerIds)));
-
-    $range = ['from' => '2026-01-01', 'to' => '2026-12-31'];
-    $deals = fetchAllDeals($allDealOwnerIds, $range, 'All');
-    
-    $found = array();
-    foreach ($deals as $d) {
-        if ($d['ID'] == 16501 || $d['ID'] == 16571) {
-            $found[] = $d;
-        }
-    }
-    
-    echo json_encode([
-        'total_fetched_with_agent_filter' => count($deals),
-        'missing_deals_found' => $found
-    ]);
-    exit;
-}
-
 // Validate role (whitelist)
 $allowedRoles = array('ceo', 'manager', 'agent');
 $currentUserRole = getUserRole($currentUserId);
