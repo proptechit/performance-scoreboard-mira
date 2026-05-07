@@ -58,10 +58,24 @@ $rawDeptId    = isset($_GET['dept_id'])    ? (int)$_GET['dept_id']      : 0;
 $rawYear1     = isset($_GET['year1'])      ? (int)$_GET['year1']        : 2024;
 $rawYear2     = isset($_GET['year2'])      ? (int)$_GET['year2']        : 2025;
 
-if (isset($_GET['debug_deal_id'])) {
-    $did = (int)$_GET['debug_deal_id'];
-    $res = dbQuery("SELECT d.DATE_CREATE, d.CLOSEDATE, uts.* FROM b_crm_deal d LEFT JOIN b_uts_crm_deal uts ON uts.VALUE_ID = d.ID WHERE d.ID = {$did}");
-    echo json_encode($res[0] ?? ['error' => 'Deal not found']);
+if (isset($_GET['debug_dates'])) {
+    $catId = PIPELINE_TRANSACTION;
+    $stages = inClauseStr($GLOBALS['CFG_ACTIVE_STAGES']);
+    $expr = getEffectiveDealCreateDateExpr('d', 'uts');
+    
+    $sql = "
+        SELECT 
+            d.ID, 
+            d.DATE_CREATE,
+            uts.UF_CRM_1769420802242,
+            {$expr} as EFFECTIVE_DATE,
+            DATE({$expr}) as PARSED_DATE
+        FROM b_crm_deal d
+        LEFT JOIN b_uts_crm_deal uts ON uts.VALUE_ID = d.ID
+        WHERE d.ID IN (16501, 16571)
+    ";
+    $res = dbQuery($sql);
+    echo json_encode($res);
     exit;
 }
 
