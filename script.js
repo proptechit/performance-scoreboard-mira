@@ -181,6 +181,9 @@ function rerenderSortedTable(tableId) {
     case "agentTable":
       renderAgentTable(currentData?.agent_performance);
       break;
+    case "agentPrivateOfficeTable":
+      renderAgentPrivateOfficeTable(currentData?.agent_performance);
+      break;
     case "teamTable":
       renderTeamTable(currentData?.team_performance);
       break;
@@ -642,6 +645,7 @@ function renderCEO(data) {
   handleTableFilter(data);
   renderSalesByDealTypeTable(data.sales_by_deal_type);
   renderAgentTable(data.agent_performance);
+  renderAgentPrivateOfficeTable(data.agent_performance);
   renderTeamTable(data.team_performance);
 
   // Year comparison
@@ -1266,6 +1270,86 @@ function renderAgentTable(agents) {
 
 function handleAgentSearch() {
   renderAgentTable(currentData?.agent_performance || []);
+}
+
+function renderAgentPrivateOfficeTable(agents) {
+  const tbody = document.getElementById("agentPrivateOfficeTableBody");
+  if (!tbody || !agents) return;
+
+  // Filter only Private Office agents (case-insensitive & trimmed)
+  const poAgents = agents.filter(
+    (a) => (a.designation || "").trim().toLowerCase() === "private office",
+  );
+
+  const searchQuery = (
+    document.getElementById("agentPrivateOfficeSearchInput")?.value || ""
+  ).trim().toLowerCase();
+
+  const filteredAgents = searchQuery
+    ? poAgents.filter((a) =>
+        `${a.name || ""} ${a.designation || ""}`
+          .toLowerCase()
+          .includes(searchQuery),
+      )
+    : poAgents;
+
+  document.getElementById("agentPrivateOfficeCountBadge").textContent =
+    filteredAgents.length === poAgents.length
+      ? `${poAgents.length} agents`
+      : `${filteredAgents.length} of ${poAgents.length} agents`;
+
+  const sortedAgents = sortCollection(filteredAgents, "agentPrivateOfficeTable", {
+    name: { type: "string", get: (a) => a.name },
+    reshuffled_leads: { type: "number", get: (a) => a.reshuffled_leads },
+    deals: { type: "number", get: (a) => a.deals },
+    sales: { type: "number", get: (a) => a.sales },
+    commission: { type: "number", get: (a) => a.commission },
+    top_deal: { type: "number", get: (a) => a.top_deal },
+    avg_gap: { type: "number", get: (a) => a.avg_gap },
+    last_deal_days: { type: "number", get: (a) => a.last_deal_days },
+    attendance: { type: "number", get: (a) => a.attendance },
+  });
+
+  if (!sortedAgents.length) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="9" class="table-empty-state">No agents match your search.</td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = sortedAgents
+    .map((a) => {
+      const { daysClass, daysLabel } = getDaysBadgeMeta(a.last_deal_days);
+      const ac = a.attendance <= 14 ? "crit" : a.attendance <= 30 ? "warn" : "ok";
+      return `
+    <tr onclick="drillToAgent(${a.id})">
+      <td>
+        <div class="agent-name-cell">
+          <div class="agent-mini-avatar">${initials(a.name)}</div>
+          <div>
+            <div style="font-weight:600;">${a.name}</div>
+            <div style="font-size:10px;color:var(--grey-400);">${a.designation}</div>
+          </div>
+        </div>
+      </td>
+      <td>${a.reshuffled_leads}</td>
+      <td style="font-weight:600;">${a.deals}</td>
+      <td>AED ${fmtCurrency(a.sales)}</td>
+      <td>AED ${fmtCurrency(a.commission)}</td>
+      <td>AED ${fmtCurrency(a.top_deal, true)}</td>
+      <td>${a.avg_gap} days</td>
+      <td><span class="days-badge ${daysClass}">${daysLabel}</span></td>
+      <td><span class="days-badge ${ac}">${a.attendance} / ${a.attendance_total || 30} days</span></td>
+    </tr>
+    `;
+    })
+    .join("");
+}
+
+function handleAgentPrivateOfficeSearch() {
+  renderAgentPrivateOfficeTable(currentData?.agent_performance || []);
 }
 
 function renderTeamTable(teams) {

@@ -314,6 +314,45 @@
                 </div>
             </div>
 
+            <!-- Agent Performance Overview (Private Office) Table -->
+            <div class="chart-card mb-24">
+                <div class="chart-card-header">
+                    <div>
+                        <div class="chart-card-title">Agent Performance Overview (Private Office)</div>
+                        <div class="chart-card-subtitle">Click on an agent for detailed view</div>
+                    </div>
+                    <div class="agent-overview-controls">
+                        <input
+                            type="search"
+                            id="agentPrivateOfficeSearchInput"
+                            class="table-search-input"
+                            placeholder="Search agent"
+                            oninput="handleAgentPrivateOfficeSearch()"
+                        >
+                        <span id="agentPrivateOfficeCountBadge" style="font-size:11px;color:var(--grey-400);font-weight:500;"></span>
+                        <span style="width:8px;height:8px;border-radius:50%;background:var(--red);display:inline-block;"></span>
+                    </div>
+                </div>
+                <div class="agent-table-wrapper">
+                    <table class="agent-table">
+                        <thead>
+                            <tr>
+                                <th data-table-id="agentPrivateOfficeTable" data-sort-key="name" data-sort-type="string">Agent</th>
+                                <th data-table-id="agentPrivateOfficeTable" data-sort-key="reshuffled_leads" data-sort-type="number">Reshuffled</th>
+                                <th data-table-id="agentPrivateOfficeTable" data-sort-key="deals" data-sort-type="number">Transactions</th>
+                                <th data-table-id="agentPrivateOfficeTable" data-sort-key="sales" data-sort-type="number">Sales Volume (AED)</th>
+                                <th data-table-id="agentPrivateOfficeTable" data-sort-key="commission" data-sort-type="number">Commission</th>
+                                <th data-table-id="agentPrivateOfficeTable" data-sort-key="top_deal" data-sort-type="number">Top Transaction</th>
+                                <th data-table-id="agentPrivateOfficeTable" data-sort-key="avg_gap" data-sort-type="number">Avg Gap</th>
+                                <th data-table-id="agentPrivateOfficeTable" data-sort-key="last_deal_days" data-sort-type="number">Last Transaction</th>
+                                <th data-table-id="agentPrivateOfficeTable" data-sort-key="attendance" data-sort-type="number">Attendence</th>
+                            </tr>
+                        </thead>
+                        <tbody id="agentPrivateOfficeTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
             <!-- Team Performance Table -->
             <div class="chart-card mb-24">
                 <div class="chart-card-header">
