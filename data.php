@@ -523,6 +523,9 @@ if ($role === 'agent') {
     $teamPerformance = array();
     foreach ($salesTeams as $team) {
         $tid        = (int)$team['ID'];
+        if ($tid === 23) {
+            continue;
+        }
         $teamAgents = getAgentsByDept(array($tid));
         $teamIds    = array_map(function ($a) {
             return (int)$a['ID'];

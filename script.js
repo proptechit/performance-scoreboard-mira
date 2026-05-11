@@ -1301,6 +1301,7 @@ function renderAgentPrivateOfficeTable(agents) {
   const sortedAgents = sortCollection(filteredAgents, "agentPrivateOfficeTable", {
     name: { type: "string", get: (a) => a.name },
     reshuffled_leads: { type: "number", get: (a) => a.reshuffled_leads },
+    leads: { type: "number", get: (a) => a.leads },
     deals: { type: "number", get: (a) => a.deals },
     sales: { type: "number", get: (a) => a.sales },
     commission: { type: "number", get: (a) => a.commission },
@@ -1313,13 +1314,33 @@ function renderAgentPrivateOfficeTable(agents) {
   if (!sortedAgents.length) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="9" class="table-empty-state">No agents match your search.</td>
+        <td colspan="10" class="table-empty-state">No agents match your search.</td>
       </tr>
     `;
     return;
   }
 
-  tbody.innerHTML = sortedAgents
+  // Calculate totals
+  const totalReshuffled = sortedAgents.reduce((sum, a) => sum + (a.reshuffled_leads || 0), 0);
+  const totalLeads      = sortedAgents.reduce((sum, a) => sum + (a.leads || 0), 0);
+  const totalDeals      = sortedAgents.reduce((sum, a) => sum + (a.deals || 0), 0);
+  const totalSales      = sortedAgents.reduce((sum, a) => sum + (a.sales || 0), 0);
+  const totalCommission = sortedAgents.reduce((sum, a) => sum + (a.commission || 0), 0);
+  const topDeal         = sortedAgents.reduce((max, a) => Math.max(max, a.top_deal || 0), 0);
+  
+  const validGaps       = sortedAgents.map(a => a.avg_gap).filter(g => g > 0);
+  const avgGap          = validGaps.length > 0 ? Math.round(validGaps.reduce((sum, g) => sum + g, 0) / validGaps.length) : 0;
+  
+  const minLastDealDays = sortedAgents.reduce((min, a) => {
+    if (a.last_deal_days === null || a.last_deal_days === undefined) return min;
+    return min === null ? a.last_deal_days : Math.min(min, a.last_deal_days);
+  }, null);
+
+  const { daysClass: totDaysClass, daysLabel: totDaysLabel } = minLastDealDays !== null
+    ? getDaysBadgeMeta(minLastDealDays)
+    : { daysClass: "crit", daysLabel: "–" };
+
+  let rowsHtml = sortedAgents
     .map((a) => {
       const { daysClass, daysLabel } = getDaysBadgeMeta(a.last_deal_days);
       const ac = a.attendance <= 14 ? "crit" : a.attendance <= 30 ? "warn" : "ok";
@@ -1335,6 +1356,7 @@ function renderAgentPrivateOfficeTable(agents) {
         </div>
       </td>
       <td>${a.reshuffled_leads}</td>
+      <td>${a.leads}</td>
       <td style="font-weight:600;">${a.deals}</td>
       <td>AED ${fmtCurrency(a.sales)}</td>
       <td>AED ${fmtCurrency(a.commission)}</td>
@@ -1346,6 +1368,24 @@ function renderAgentPrivateOfficeTable(agents) {
     `;
     })
     .join("");
+
+  // Append totals row
+  rowsHtml += `
+    <tr style="background:var(--navy);color:var(--white);font-weight:700;pointer-events:none;">
+      <td style="color:#fff;padding:12px 14px;text-align:left;">Total</td>
+      <td style="color:#fff;padding:12px 14px;text-align:right;">${totalReshuffled}</td>
+      <td style="color:#fff;padding:12px 14px;text-align:right;">${totalLeads}</td>
+      <td style="color:#fff;padding:12px 14px;text-align:right;">${totalDeals}</td>
+      <td style="color:var(--gold-light);padding:12px 14px;text-align:right;">AED ${fmtCurrency(totalSales)}</td>
+      <td style="color:var(--gold-light);padding:12px 14px;text-align:right;">AED ${fmtCurrency(totalCommission)}</td>
+      <td style="color:#fff;padding:12px 14px;text-align:right;">AED ${fmtCurrency(topDeal, true)}</td>
+      <td style="color:#fff;padding:12px 14px;text-align:right;">${avgGap} days</td>
+      <td style="padding:12px 14px;text-align:right;"><span class="days-badge ${totDaysClass}">${totDaysLabel}</span></td>
+      <td style="color:#fff;padding:12px 14px;text-align:right;">–</td>
+    </tr>
+  `;
+
+  tbody.innerHTML = rowsHtml;
 }
 
 function handleAgentPrivateOfficeSearch() {

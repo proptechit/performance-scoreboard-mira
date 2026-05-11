@@ -339,6 +339,7 @@
                             <tr>
                                 <th data-table-id="agentPrivateOfficeTable" data-sort-key="name" data-sort-type="string">Agent</th>
                                 <th data-table-id="agentPrivateOfficeTable" data-sort-key="reshuffled_leads" data-sort-type="number">Reshuffled</th>
+                                <th data-table-id="agentPrivateOfficeTable" data-sort-key="leads" data-sort-type="number">Leads</th>
                                 <th data-table-id="agentPrivateOfficeTable" data-sort-key="deals" data-sort-type="number">Transactions</th>
                                 <th data-table-id="agentPrivateOfficeTable" data-sort-key="sales" data-sort-type="number">Sales Volume (AED)</th>
                                 <th data-table-id="agentPrivateOfficeTable" data-sort-key="commission" data-sort-type="number">Commission</th>
