@@ -268,6 +268,7 @@ $GLOBALS['CFG_CEO_USER_IDS'] = array(
     5,     // Kristina Boeva
     7,     // Abinas Subair
     123,    // Aldo De Jager
+    168, // TAMARA GETIGEZHEVA
 );
 
 $GLOBALS['CFG_MANAGER_USER_IDS'] = array(
