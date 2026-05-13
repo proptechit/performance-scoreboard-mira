@@ -1252,12 +1252,13 @@ function renderAgentTable(agents) {
 
   // Slicing for pagination
   const totalItems = sortedAgents.length;
-  const totalPages = Math.ceil(totalItems / agentPageSize) || 1;
+  const size = agentPageSize === "All" ? totalItems : agentPageSize;
+  const totalPages = Math.ceil(totalItems / size) || 1;
   if (agentPage > totalPages) {
     agentPage = totalPages;
   }
-  const startIndex = (agentPage - 1) * agentPageSize;
-  const endIndex = startIndex + agentPageSize;
+  const startIndex = (agentPage - 1) * size;
+  const endIndex = startIndex + size;
   const paginatedAgents = sortedAgents.slice(startIndex, endIndex);
 
   tbody.innerHTML = paginatedAgents
@@ -1309,8 +1310,7 @@ function changeAgentPage(page) {
 }
 
 function changeAgentPageSize(size) {
-  const total = (currentData?.agent_performance || []).length;
-  agentPageSize = size === "All" ? total : parseInt(size);
+  agentPageSize = size === "All" ? "All" : parseInt(size);
   agentPage = 1;
   renderAgentTable(currentData?.agent_performance || []);
 }
@@ -1387,12 +1387,13 @@ function renderAgentPrivateOfficeTable(agents) {
 
   // Slicing for pagination
   const totalItems = sortedAgents.length;
-  const totalPages = Math.ceil(totalItems / agentPrivateOfficePageSize) || 1;
+  const size = agentPrivateOfficePageSize === "All" ? totalItems : agentPrivateOfficePageSize;
+  const totalPages = Math.ceil(totalItems / size) || 1;
   if (agentPrivateOfficePage > totalPages) {
     agentPrivateOfficePage = totalPages;
   }
-  const startIndex = (agentPrivateOfficePage - 1) * agentPrivateOfficePageSize;
-  const endIndex = startIndex + agentPrivateOfficePageSize;
+  const startIndex = (agentPrivateOfficePage - 1) * size;
+  const endIndex = startIndex + size;
   const paginatedAgents = sortedAgents.slice(startIndex, endIndex);
 
   let rowsHtml = paginatedAgents
@@ -1463,10 +1464,7 @@ function changeAgentPrivateOfficePage(page) {
 }
 
 function changeAgentPrivateOfficePageSize(size) {
-  const poAgentsCount = (currentData?.agent_performance || []).filter(
-    (a) => (a.designation || "").trim().toLowerCase() === "private office"
-  ).length;
-  agentPrivateOfficePageSize = size === "All" ? poAgentsCount : parseInt(size);
+  agentPrivateOfficePageSize = size === "All" ? "All" : parseInt(size);
   agentPrivateOfficePage = 1;
   renderAgentPrivateOfficeTable(currentData?.agent_performance || []);
 }
@@ -2415,9 +2413,10 @@ function renderPagination(containerId, currentPage, totalItems, pageSize, onPage
     return;
   }
 
-  const totalPages = Math.ceil(totalItems / pageSize);
-  const startItem = (currentPage - 1) * pageSize + 1;
-  const endItem = Math.min(currentPage * pageSize, totalItems);
+  const size = pageSize === "All" ? totalItems : pageSize;
+  const totalPages = Math.ceil(totalItems / size) || 1;
+  const startItem = (currentPage - 1) * size + 1;
+  const endItem = Math.min(currentPage * size, totalItems);
 
   let pages = [];
   const delta = 1; 
@@ -2449,9 +2448,6 @@ function renderPagination(containerId, currentPage, totalItems, pageSize, onPage
   const prevDisabled = currentPage === 1 ? "disabled" : "";
   const nextDisabled = currentPage === totalPages ? "disabled" : "";
 
-  // Check if All option should be selected
-  const isAllSelected = pageSize >= totalItems ? "selected" : "";
-
   container.innerHTML = `
     <div class="table-pagination">
       <div class="pagination-info">
@@ -2462,12 +2458,12 @@ function renderPagination(containerId, currentPage, totalItems, pageSize, onPage
         <div class="pagination-size-selector">
           <span class="pagination-size-label">Rows per page:</span>
           <select class="pagination-select" onchange="${onPageSizeChange}(this.value)">
-            <option value="10" ${pageSize === 10 && !isAllSelected ? "selected" : ""}>10</option>
-            <option value="15" ${pageSize === 15 && !isAllSelected ? "selected" : ""}>15</option>
-            <option value="25" ${pageSize === 25 && !isAllSelected ? "selected" : ""}>25</option>
-            <option value="50" ${pageSize === 50 && !isAllSelected ? "selected" : ""}>50</option>
-            <option value="100" ${pageSize === 100 && !isAllSelected ? "selected" : ""}>100</option>
-            <option value="All" ${isAllSelected ? "selected" : ""}>All</option>
+            <option value="10" ${pageSize === 10 ? "selected" : ""}>10</option>
+            <option value="15" ${pageSize === 15 ? "selected" : ""}>15</option>
+            <option value="25" ${pageSize === 25 ? "selected" : ""}>25</option>
+            <option value="50" ${pageSize === 50 ? "selected" : ""}>50</option>
+            <option value="100" ${pageSize === 100 ? "selected" : ""}>100</option>
+            <option value="All" ${pageSize === "All" ? "selected" : ""}>All</option>
           </select>
         </div>
 
