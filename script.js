@@ -222,6 +222,9 @@ function toggleTableSort(tableId, sortKey) {
 }
 
 function getDaysBadgeMeta(days) {
+  if (days === 999 || days === "999" || days === null || days === undefined) {
+    return { daysClass: "none", daysLabel: "–" };
+  }
   const daysClass = days <= 14 ? "ok" : days <= 30 ? "warn" : "crit";
   const daysLabel = days <= 30 ? `${days}d ago` : `${days}d ⚠`;
   return { daysClass, daysLabel };
@@ -1551,7 +1554,7 @@ function renderManagerAgentTable(agents) {
 
   tbody.innerHTML = sortedAgents
     .map((a) => {
-      const dc = getDaysBadgeMeta(a.last_deal_days).daysClass;
+      const { daysClass, daysLabel } = getDaysBadgeMeta(a.last_deal_days);
       const ac =
         a.attendance <= 14 ? "crit" : a.attendance <= 30 ? "warn" : "ok";
       return `<tr onclick="drillToAgent(${a.id})">
@@ -1563,7 +1566,7 @@ function renderManagerAgentTable(agents) {
         <td>AED ${fmtCurrency(a.sales)}</td>
         <td>AED ${fmtCurrency(a.commission)}</td>
         <td>AED ${fmtCurrency(a.top_deal, true)}</td>
-        <td><span class="days-badge ${dc}">${a.last_deal_days}d ago</span></td>
+        <td><span class="days-badge ${daysClass}">${daysLabel}</span></td>
         <td><span class="days-badge ${ac}">${a.attendance} / ${a.attendance_total || 30} days</span></td>
       </tr>`;
     })
@@ -2095,7 +2098,7 @@ function renderAgent(data) {
           <span class="profile-meta-item">Manager: <strong>${p.manager}</strong></span>
           <span class="profile-meta-item">ID: <strong>${p.user_id}</strong></span>
           <span class="profile-meta-item">Joined: <strong>${p.joined}</strong></span>
-          <span class="profile-meta-item">Days Since Last Closed Transaction: <strong style="color:${s.days_since_last > 30 ? "var(--red)" : "var(--green)"};">${s.days_since_last}</strong></span>
+          <span class="profile-meta-item">Days Since Last Closed Transaction: <strong style="color:${s.days_since_last === 999 ? "var(--grey-400)" : (s.days_since_last > 30 ? "var(--red)" : "var(--green)")};">${s.days_since_last === 999 ? "–" : s.days_since_last}</strong></span>
         </div>
       </div>
       <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;">
@@ -2184,10 +2187,10 @@ function renderAgent(data) {
     },
     {
       label: "Days Since Last Transaction Closed",
-      value: s.days_since_last + " days",
-      sub: s.days_since_last > 30 ? "⚠ Follow up" : "✓ Active",
+      value: s.days_since_last === 999 ? "–" : s.days_since_last + " days",
+      sub: s.days_since_last === 999 ? "No deals" : (s.days_since_last > 30 ? "⚠ Follow up" : "✓ Active"),
       icon: "🗓️",
-      highlight: s.days_since_last > 30,
+      highlight: s.days_since_last !== 999 && s.days_since_last > 30,
     },
   ];
 
