@@ -9,6 +9,12 @@ let currentViewRole = null;
 let currentViewDeptId = null;
 let currentViewAgentId = null;
 
+// Pagination state
+let agentPage = 1;
+let agentPageSize = 15;
+let agentPrivateOfficePage = 1;
+let agentPrivateOfficePageSize = 15;
+
 const CHART_COLORS = [
   "#3b82f6",
   "#c9a84c",
@@ -375,14 +381,15 @@ function applyFilters() {
 }
 
 function getFilterParams() {
+  const currentYear = new Date().getFullYear();
   const params = {
     year: document.getElementById("f_year")?.value || "All",
     quarter: document.getElementById("f_quarter")?.value || "All",
     month: document.getElementById("f_month")?.value || "All",
     deal_type: document.getElementById("f_deal_type")?.value || "All",
     agent_id: document.getElementById("f_agent")?.value || "all",
-    year1: document.getElementById("yc_year1")?.value || 2025,
-    year2: document.getElementById("yc_year2")?.value || 2026,
+    year1: document.getElementById("yc_year1")?.value || (currentYear - 1),
+    year2: document.getElementById("yc_year2")?.value || currentYear,
   };
 
   if (currentViewRole) params.role = currentViewRole;
@@ -396,6 +403,8 @@ var GLOBAL_DATA;
 
 // ── DATA FETCH ─────────────────────────────────────────────────────────────
 async function loadDashboard() {
+  agentPage = 1;
+  agentPrivateOfficePage = 1;
   const params = getFilterParams();
   const qs = Object.entries(params)
     .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
@@ -1236,10 +1245,22 @@ function renderAgentTable(agents) {
         <td colspan="9" class="table-empty-state">No agents match your search.</td>
       </tr>
     `;
+    const pagContainer = document.getElementById("agentTablePagination");
+    if (pagContainer) pagContainer.innerHTML = "";
     return;
   }
 
-  tbody.innerHTML = sortedAgents
+  // Slicing for pagination
+  const totalItems = sortedAgents.length;
+  const totalPages = Math.ceil(totalItems / agentPageSize) || 1;
+  if (agentPage > totalPages) {
+    agentPage = totalPages;
+  }
+  const startIndex = (agentPage - 1) * agentPageSize;
+  const endIndex = startIndex + agentPageSize;
+  const paginatedAgents = sortedAgents.slice(startIndex, endIndex);
+
+  tbody.innerHTML = paginatedAgents
     .map((a) => {
       const { daysClass, daysLabel } = getDaysBadgeMeta(a.last_deal_days);
       const ac = a.attendance <= 14 ? "crit" : a.attendance <= 30 ? "warn" : "ok";
@@ -1266,9 +1287,31 @@ function renderAgentTable(agents) {
     `;
     })
     .join("");
+
+  renderPagination(
+    "agentTablePagination",
+    agentPage,
+    totalItems,
+    agentPageSize,
+    "changeAgentPage",
+    "changeAgentPageSize"
+  );
 }
 
 function handleAgentSearch() {
+  agentPage = 1;
+  renderAgentTable(currentData?.agent_performance || []);
+}
+
+function changeAgentPage(page) {
+  agentPage = page;
+  renderAgentTable(currentData?.agent_performance || []);
+}
+
+function changeAgentPageSize(size) {
+  const total = (currentData?.agent_performance || []).length;
+  agentPageSize = size === "All" ? total : parseInt(size);
+  agentPage = 1;
   renderAgentTable(currentData?.agent_performance || []);
 }
 
@@ -1317,6 +1360,8 @@ function renderAgentPrivateOfficeTable(agents) {
         <td colspan="10" class="table-empty-state">No agents match your search.</td>
       </tr>
     `;
+    const pagContainer = document.getElementById("agentPrivateOfficeTablePagination");
+    if (pagContainer) pagContainer.innerHTML = "";
     return;
   }
 
@@ -1340,7 +1385,17 @@ function renderAgentPrivateOfficeTable(agents) {
     ? getDaysBadgeMeta(minLastDealDays)
     : { daysClass: "crit", daysLabel: "–" };
 
-  let rowsHtml = sortedAgents
+  // Slicing for pagination
+  const totalItems = sortedAgents.length;
+  const totalPages = Math.ceil(totalItems / agentPrivateOfficePageSize) || 1;
+  if (agentPrivateOfficePage > totalPages) {
+    agentPrivateOfficePage = totalPages;
+  }
+  const startIndex = (agentPrivateOfficePage - 1) * agentPrivateOfficePageSize;
+  const endIndex = startIndex + agentPrivateOfficePageSize;
+  const paginatedAgents = sortedAgents.slice(startIndex, endIndex);
+
+  let rowsHtml = paginatedAgents
     .map((a) => {
       const { daysClass, daysLabel } = getDaysBadgeMeta(a.last_deal_days);
       const ac = a.attendance <= 14 ? "crit" : a.attendance <= 30 ? "warn" : "ok";
@@ -1386,9 +1441,33 @@ function renderAgentPrivateOfficeTable(agents) {
   `;
 
   tbody.innerHTML = rowsHtml;
+
+  renderPagination(
+    "agentPrivateOfficeTablePagination",
+    agentPrivateOfficePage,
+    totalItems,
+    agentPrivateOfficePageSize,
+    "changeAgentPrivateOfficePage",
+    "changeAgentPrivateOfficePageSize"
+  );
 }
 
 function handleAgentPrivateOfficeSearch() {
+  agentPrivateOfficePage = 1;
+  renderAgentPrivateOfficeTable(currentData?.agent_performance || []);
+}
+
+function changeAgentPrivateOfficePage(page) {
+  agentPrivateOfficePage = page;
+  renderAgentPrivateOfficeTable(currentData?.agent_performance || []);
+}
+
+function changeAgentPrivateOfficePageSize(size) {
+  const poAgentsCount = (currentData?.agent_performance || []).filter(
+    (a) => (a.designation || "").trim().toLowerCase() === "private office"
+  ).length;
+  agentPrivateOfficePageSize = size === "All" ? poAgentsCount : parseInt(size);
+  agentPrivateOfficePage = 1;
   renderAgentPrivateOfficeTable(currentData?.agent_performance || []);
 }
 
@@ -2325,3 +2404,91 @@ document.addEventListener("DOMContentLoaded", () => {
   enhanceSortableHeaders();
   loadDashboard();
 });
+
+// ── PAGINATION UTILITY ──────────────────────────────────────────────────────
+function renderPagination(containerId, currentPage, totalItems, pageSize, onPageChange, onPageSizeChange) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  if (totalItems <= 0) {
+    container.innerHTML = "";
+    return;
+  }
+
+  const totalPages = Math.ceil(totalItems / pageSize);
+  const startItem = (currentPage - 1) * pageSize + 1;
+  const endItem = Math.min(currentPage * pageSize, totalItems);
+
+  let pages = [];
+  const delta = 1; 
+  const left = currentPage - delta;
+  const right = currentPage + delta + 1;
+  
+  for (let i = 1; i <= totalPages; i++) {
+    if (i === 1 || i === totalPages || (i >= left && i < right)) {
+      pages.push(i);
+    } else if (pages[pages.length - 1] !== "...") {
+      pages.push("...");
+    }
+  }
+
+  let pagesHtml = pages
+    .map((p) => {
+      if (p === "...") {
+        return `<span class="pagination-ellipsis">...</span>`;
+      }
+      const isActive = p === currentPage ? "active" : "";
+      return `
+        <button type="button" class="btn-page-num ${isActive}" onclick="${onPageChange}(${p})">
+          ${p}
+        </button>
+      `;
+    })
+    .join("");
+
+  const prevDisabled = currentPage === 1 ? "disabled" : "";
+  const nextDisabled = currentPage === totalPages ? "disabled" : "";
+
+  // Check if All option should be selected
+  const isAllSelected = pageSize >= totalItems ? "selected" : "";
+
+  container.innerHTML = `
+    <div class="table-pagination">
+      <div class="pagination-info">
+        Showing <strong>${startItem}</strong> to <strong>${endItem}</strong> of <strong>${totalItems}</strong> agents
+      </div>
+      
+      <div class="pagination-actions">
+        <div class="pagination-size-selector">
+          <span class="pagination-size-label">Rows per page:</span>
+          <select class="pagination-select" onchange="${onPageSizeChange}(this.value)">
+            <option value="10" ${pageSize === 10 && !isAllSelected ? "selected" : ""}>10</option>
+            <option value="15" ${pageSize === 15 && !isAllSelected ? "selected" : ""}>15</option>
+            <option value="25" ${pageSize === 25 && !isAllSelected ? "selected" : ""}>25</option>
+            <option value="50" ${pageSize === 50 && !isAllSelected ? "selected" : ""}>50</option>
+            <option value="100" ${pageSize === 100 && !isAllSelected ? "selected" : ""}>100</option>
+            <option value="All" ${isAllSelected ? "selected" : ""}>All</option>
+          </select>
+        </div>
+
+        <div class="pagination-buttons">
+          <button type="button" class="btn-page-nav" ${prevDisabled} onclick="${onPageChange}(1)" title="First Page">
+            &laquo;
+          </button>
+          <button type="button" class="btn-page-nav" ${prevDisabled} onclick="${onPageChange}(${currentPage - 1})" title="Previous Page">
+            &lsaquo;
+          </button>
+          <div class="pagination-pages-list">
+            ${pagesHtml}
+          </div>
+          <button type="button" class="btn-page-nav" ${nextDisabled} onclick="${onPageChange}(${currentPage + 1})" title="Next Page">
+            &rsaquo;
+          </button>
+          <button type="button" class="btn-page-nav" ${nextDisabled} onclick="${onPageChange}(${totalPages})" title="Last Page">
+            &raquo;
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+}

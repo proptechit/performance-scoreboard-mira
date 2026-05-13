@@ -47,7 +47,7 @@ $currentUserId = (int)$USER->GetID();
 // 1. PARSE & VALIDATE PARAMS
 // ═══════════════════════════════════════════════════════════════════════════
 
-$rawYear      = isset($_GET['year'])       ? trim($_GET['year'])        : 'All';
+$rawYear      = isset($_GET['year'])       ? trim($_GET['year'])        : date('Y');
 $rawQuarter   = isset($_GET['quarter'])    ? trim($_GET['quarter'])     : 'All';
 $rawMonth     = isset($_GET['month'])      ? trim($_GET['month'])       : 'All';
 $rawDealType  = isset($_GET['deal_type'])  ? trim($_GET['deal_type'])   : 'All';
@@ -55,8 +55,8 @@ $rawRole      = isset($_GET['role'])       ? trim($_GET['role'])        : '';
 $rawAgentId   = isset($_GET['agent_id'])   ? (int)$_GET['agent_id']     : $currentUserId;
 $rawManagerId = isset($_GET['manager_id']) ? (int)$_GET['manager_id']   : $currentUserId;
 $rawDeptId    = isset($_GET['dept_id'])    ? (int)$_GET['dept_id']      : 0;
-$rawYear1     = isset($_GET['year1'])      ? (int)$_GET['year1']        : 2024;
-$rawYear2     = isset($_GET['year2'])      ? (int)$_GET['year2']        : 2025;
+$rawYear1     = isset($_GET['year1'])      ? (int)$_GET['year1']        : (int)date('Y') - 1;
+$rawYear2     = isset($_GET['year2'])      ? (int)$_GET['year2']        : (int)date('Y');
 
 // Validate role (whitelist)
 $allowedRoles = array('ceo', 'manager', 'agent');
@@ -72,7 +72,7 @@ if ($currentUserRole === 'ceo') {
 
 // Validate year
 $validYears = $GLOBALS['CFG_FILTER_META']['years'];
-$year       = ($rawYear === 'All' || in_array((int)$rawYear, $validYears, true)) ? $rawYear : 'All';
+$year       = ($rawYear === 'All' || in_array((int)$rawYear, $validYears, true)) ? $rawYear : date('Y');
 
 // Validate quarter
 $validQtrs = $GLOBALS['CFG_FILTER_META']['quarters'];
@@ -87,8 +87,8 @@ $validTypes = $GLOBALS['CFG_FILTER_META']['deal_types'];
 $dealType   = in_array($rawDealType, $validTypes, true) ? $rawDealType : 'All';
 
 // Year comparison params
-$year1 = in_array($rawYear1, $validYears, true) ? $rawYear1 : 2024;
-$year2 = in_array($rawYear2, $validYears, true) ? $rawYear2 : 2025;
+$year1 = in_array($rawYear1, $validYears, true) ? $rawYear1 : (int)date('Y') - 1;
+$year2 = in_array($rawYear2, $validYears, true) ? $rawYear2 : (int)date('Y');
 
 // Assign IDs based on role
 $agentId   = ($role === 'agent' && $rawAgentId > 0) ? $rawAgentId : $currentUserId;

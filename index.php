@@ -40,6 +40,13 @@
             <span class="filter-label">Year</span>
             <select class="filter-select" id="f_year">
                 <option value="All">All Years</option>
+                <?php
+                $currentYear = (int)date('Y');
+                for ($y = $currentYear; $y >= 2023; $y--) {
+                    $selected = ($y === $currentYear) ? 'selected' : '';
+                    echo "<option value=\"$y\" $selected>$y</option>\n";
+                }
+                ?>
             </select>
         </div>
 
@@ -312,6 +319,7 @@
                         <tbody id="agentTableBody"></tbody>
                     </table>
                 </div>
+                <div id="agentTablePagination" class="table-pagination-container"></div>
             </div>
 
             <!-- Agent Performance Overview (Private Office) Table -->
@@ -352,6 +360,7 @@
                         <tbody id="agentPrivateOfficeTableBody"></tbody>
                     </table>
                 </div>
+                <div id="agentPrivateOfficeTablePagination" class="table-pagination-container"></div>
             </div>
 
             <!-- Team Performance Table -->
