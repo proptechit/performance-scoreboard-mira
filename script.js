@@ -1284,7 +1284,7 @@ function renderAgentTable(agents) {
       <td>AED ${fmtCurrency(a.sales)}</td>
       <td>AED ${fmtCurrency(a.commission)}</td>
       <td>AED ${fmtCurrency(a.top_deal, true)}</td>
-      <td>${a.avg_gap} days</td>
+      <td>${a.avg_gap === 999 ? '–' : a.avg_gap + ' days'}</td>
       <td><span class="days-badge ${daysClass}">${daysLabel}</span></td>
       <td><span class="days-badge ${ac}">${a.attendance} / ${a.attendance_total || 30} days</span></td>
     </tr>
@@ -1420,7 +1420,7 @@ function renderAgentPrivateOfficeTable(agents) {
       <td>AED ${fmtCurrency(a.sales)}</td>
       <td>AED ${fmtCurrency(a.commission)}</td>
       <td>AED ${fmtCurrency(a.top_deal, true)}</td>
-      <td>${a.avg_gap} days</td>
+      <td>${a.avg_gap === 999 ? '–' : a.avg_gap + ' days'}</td>
       <td><span class="days-badge ${daysClass}">${daysLabel}</span></td>
       <td><span class="days-badge ${ac}">${a.attendance} / ${a.attendance_total || 30} days</span></td>
     </tr>
@@ -1509,7 +1509,7 @@ function renderTeamTable(teams) {
       <td>AED ${fmtCurrency(a.sales)}</td>
       <td>AED ${fmtCurrency(a.commission)}</td>
       <td>AED ${fmtCurrency(a.top_deal, true)}</td>
-      <td>${a.avg_gap} days</td>
+      <td>${a.avg_gap === 999 ? '–' : a.avg_gap + ' days'}</td>
       <td><span class="days-badge ${daysClass}">${daysLabel}</span></td>
     </tr>
     `;
@@ -2169,7 +2169,7 @@ function renderAgent(data) {
     },
     {
       label: "Avg Gap (Days)",
-      value: s.avg_gap_days + " days",
+      value: s.avg_gap_days === 999 ? "–" : s.avg_gap_days + " days",
       sub: "Between transactions",
       icon: "⏱️",
     },

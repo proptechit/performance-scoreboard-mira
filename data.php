@@ -216,7 +216,7 @@ if ($role === 'agent') {
             'name'        => fullName($userRow),
             'user_id'     => $userRow['ID'],
             'designation' => $workPosition,
-            'joined'      => !empty($userRow['DATE_REGISTER']) ? date('Y-m-d', strtotime($userRow['DATE_REGISTER'])) : '',
+            'joined'      => !empty($userRow['UF_USR_1778656838068']) ? date('Y-m-d', strtotime($userRow['UF_USR_1778656838068'])) : (!empty($userRow['DATE_REGISTER']) ? date('Y-m-d', strtotime($userRow['DATE_REGISTER'])) : ''),
             'manager'     => $managerName,
             'dept_id'     => getUserDeptId($agentId),
             'current'     => true,
@@ -389,7 +389,7 @@ if ($role === 'agent') {
             'name'        => !empty($managerRow) ? fullName($managerRow) : (($teamRow['DISPLAY_NAME'] ?? '') ?: ($teamRow['NAME'] ?? 'Team')),
             'user_id'     => $managerRow['ID'] ?? 0,
             'designation' => $managerRow['WORK_POSITION'] ?? 'Team Manager',
-            'joined'      => !empty($managerRow['DATE_REGISTER']) ? date('Y-m-d', strtotime($managerRow['DATE_REGISTER'])) : '',
+            'joined'      => !empty($managerRow['UF_USR_1778656838068']) ? date('Y-m-d', strtotime($managerRow['UF_USR_1778656838068'])) : (!empty($managerRow['DATE_REGISTER']) ? date('Y-m-d', strtotime($managerRow['DATE_REGISTER'])) : ''),
             'team_name'   => ($teamRow['DISPLAY_NAME'] ?? '') ?: ($teamRow['NAME'] ?? ''),
         ),
         'summary' => array(

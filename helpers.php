@@ -491,12 +491,16 @@ function getAgentsByDept($deptIds)
             u.LAST_NAME,
             u.WORK_POSITION,
             u.DATE_REGISTER,
-            u.PERSONAL_PHOTO
+            u.PERSONAL_PHOTO,
+            uts_u.UF_USR_1778656838068
         FROM b_user u
 
         JOIN b_utm_user ud
             ON ud.VALUE_ID = u.ID
            AND ud.FIELD_ID = 40   -- UF_DEPARTMENT
+           
+        LEFT JOIN b_uts_user uts_u
+            ON uts_u.VALUE_ID = u.ID
 
         WHERE u.ACTIVE = 'Y'
           AND ud.VALUE_INT IN {$in}
@@ -520,8 +524,11 @@ function getUserProfile($userId)
             u.LAST_NAME,
             u.WORK_POSITION,
             u.DATE_REGISTER,
-            u.EMAIL
+            u.EMAIL,
+            uts_u.UF_USR_1778656838068
         FROM b_user u
+        LEFT JOIN b_uts_user uts_u
+            ON uts_u.VALUE_ID = u.ID
         WHERE u.ID = {$uid}
         LIMIT 1
     ");
