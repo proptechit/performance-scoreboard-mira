@@ -263,8 +263,9 @@ function isAllowedAgentPosition($workPosition)
 function getNonAgentUserIds()
 {
     return array_values(array_unique(array_merge(
-        $GLOBALS['CFG_CEO_USER_IDS'],
-        $GLOBALS['CFG_MANAGER_USER_IDS']
+        $GLOBALS['CFG_CEO_USER_IDS'] ?? [],
+        $GLOBALS['CFG_MANAGER_USER_IDS'] ?? [],
+        $GLOBALS['CFG_EXCLUDED_USER_IDS'] ?? []
     )));
 }
 

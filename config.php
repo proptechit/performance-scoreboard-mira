@@ -288,6 +288,15 @@ $GLOBALS['CFG_ALLOWED_AGENT_POSITIONS'] = array(
     'Sales Manager'
 );
 
+$GLOBALS['CFG_EXCLUDED_USER_IDS'] = array(
+    28,  // Daphne Varghese
+    29,  // Ma. Betty De Leon
+    30,  // Cindy Nacario
+    31,  // Jezra Agao
+    156, // Jaymee Javin
+    167, // Marimar Ordaniel
+);
+
 // ═══════════════════════════════════════════════════════════════════════════
 // 10A. LEAD STAGE / SOURCE MAPPINGS
 //      Dummy mappings for manager/agent lead charts.
