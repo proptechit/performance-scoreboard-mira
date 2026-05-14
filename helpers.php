@@ -674,6 +674,28 @@ function fullName($row)
     return trim($row['NAME'] . ' ' . $row['LAST_NAME']);
 }
 
+function formatUserJoiningDate($row)
+{
+    $custom = $row['UF_USR_1778656838068'] ?? '';
+    $reg = $row['DATE_REGISTER'] ?? '';
+    $raw = !empty($custom) ? $custom : $reg;
+    if (empty($raw)) {
+        return '';
+    }
+
+    $dt = parseReportDate($raw);
+    if ($dt) {
+        return $dt->format('Y-m-d');
+    }
+
+    $ts = strtotime($raw);
+    if ($ts !== false && $ts > 0) {
+        return date('Y-m-d', $ts);
+    }
+
+    return '';
+}
+
 function parseReportDate($dateStr)
 {
     if (empty($dateStr)) {
@@ -695,6 +717,11 @@ function parseReportDate($dateStr)
         $formats = array(
             'Y-m-d H:i:s',
             'Y-m-d',
+        );
+    } elseif (strpos($dateStr, '.') !== false) {
+        $formats = array(
+            'd.m.Y H:i:s',
+            'd.m.Y',
         );
     }
 
