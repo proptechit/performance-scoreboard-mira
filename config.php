@@ -267,8 +267,9 @@ $GLOBALS['CFG_CEO_USER_IDS'] = array(
     1,     // Mira International (Admin)
     5,     // Kristina Boeva
     7,     // Abinas Subair
-    123,    // Aldo De Jager
-    168, // TAMARA GETIGEZHEVA
+    123,   // Aldo De Jager
+    168,   // TAMARA GETIGEZHEVA
+    259,   // Nazira Raimkulova
 );
 
 $GLOBALS['CFG_MANAGER_USER_IDS'] = array(
