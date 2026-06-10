@@ -300,7 +300,8 @@ function filterAllowedSalesDepartmentIds($deptIds, $includeRoot = true)
 
 function isUserInAllowedSalesDepartments($userId)
 {
-    if ((int)$userId === 168) {
+    $uid = (int)$userId;
+    if ($uid === 168 || $uid === 156) {
         return true;
     }
     $uid = dbInt($userId);

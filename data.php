@@ -434,18 +434,21 @@ if ($role === 'agent') {
     }, $salesTeams);
     $allAgents   = empty($allDeptIds) ? array() : getAgentsByDept($allDeptIds);
 
-    // Explicitly include user ID 168 since she has some deals but doesn't belong to any sales department
-    $found168 = false;
-    foreach ($allAgents as $a) {
-        if ((int)$a['ID'] === 168) {
-            $found168 = true;
-            break;
+    // Explicitly include user ID 168 and 156 since they have some deals or need access but don't belong to any sales department
+    $specialUserIds = array(168, 156);
+    foreach ($specialUserIds as $specialId) {
+        $found = false;
+        foreach ($allAgents as $a) {
+            if ((int)$a['ID'] === $specialId) {
+                $found = true;
+                break;
+            }
         }
-    }
-    if (!$found168) {
-        $user168Profile = getUserProfile(168);
-        if (!empty($user168Profile)) {
-            $allAgents[] = $user168Profile;
+        if (!$found) {
+            $userProfile = getUserProfile($specialId);
+            if (!empty($userProfile)) {
+                $allAgents[] = $userProfile;
+            }
         }
     }
 

@@ -294,7 +294,6 @@ $GLOBALS['CFG_EXCLUDED_USER_IDS'] = array(
     29,  // Ma. Betty De Leon
     30,  // Cindy Nacario
     31,  // Jezra Agao
-    156, // Jaymee Javin
     167, // Marimar Ordaniel
 );
 
