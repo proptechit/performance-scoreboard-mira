@@ -273,6 +273,13 @@ if ($role === 'agent') {
         exit;
     }
 
+    if ($deptId <= 0 && $managerId > 0) {
+        $resolvedDeptId = getUserDeptId($managerId);
+        if ($resolvedDeptId > 0) {
+            $teamRow = getSalesTeamById($resolvedDeptId);
+        }
+    }
+
     // All agents in this manager's department(s)
     $agentRows = array();
     if ($deptId > 0) {

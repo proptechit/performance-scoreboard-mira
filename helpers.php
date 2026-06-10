@@ -572,6 +572,9 @@ function getManagerForAgent($userId)
 function getUserDeptId($userId)
 {
     $uid = dbInt($userId);
+    if ($uid === 156) {
+        return 26; // ST3 branch
+    }
     $allowedDeptIds = getSalesReportDepartmentIds(true);
 
     $row = dbQueryOne("
@@ -641,6 +644,9 @@ function getAgentIdsByManager($managerId)
 
     // Find all departments this manager heads using fallback-aware logic
     $managerDepts = array();
+    if ($mid === 156) {
+        $managerDepts[] = 26; // ST3 branch
+    }
     $salesTeams = getSalesTeams();
     foreach ($salesTeams as $team) {
         if ((int)$team['UF_HEAD'] === $mid) {

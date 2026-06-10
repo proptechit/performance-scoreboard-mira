@@ -276,6 +276,7 @@ $GLOBALS['CFG_MANAGER_USER_IDS'] = array(
     25,   // STANISLAV MALTSEV (ST1)
     12,   // JULIA KRAVCHENKO (ST2)
     134,  // Moh'D Barakat (ST3)
+    156,  // Jaymee Javin (ST3)
     20,   // REZUAN SHOKUEV (ST4)
     157,  // Alex Jordan Devenport (ST5)
     123,  // Aldo De Jager (Private Office)
