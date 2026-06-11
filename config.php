@@ -270,13 +270,13 @@ $GLOBALS['CFG_CEO_USER_IDS'] = array(
     123,   // Aldo De Jager
     168,   // TAMARA GETIGEZHEVA
     259,   // Nazira Raimkulova
+    156,   // Jaymee Javin
 );
 
 $GLOBALS['CFG_MANAGER_USER_IDS'] = array(
     25,   // STANISLAV MALTSEV (ST1)
     12,   // JULIA KRAVCHENKO (ST2)
     134,  // Moh'D Barakat (ST3)
-    156,  // Jaymee Javin (ST3)
     20,   // REZUAN SHOKUEV (ST4)
     157,  // Alex Jordan Devenport (ST5)
     123,  // Aldo De Jager (Private Office)
@@ -500,7 +500,7 @@ $GLOBALS['CFG_POSITION_TARGET'] = array(
 define('CACHE_DIR',     __DIR__ . '/cache/');   // Cache folder (must be writable)
 define('CACHE_TTL',     300);                    // Seconds – 5 minutes default
 define('CACHE_ENABLED', true);                   // Set false to disable during dev
-define('CACHE_VERSION', '2026-05-11-po-refinement-v1');
+define('CACHE_VERSION', '2026-06-11-ceo-jaymee-v1');
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 13. FILTER META  (returned to frontend for populating dropdowns)
