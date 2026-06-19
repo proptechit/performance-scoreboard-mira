@@ -769,7 +769,7 @@ function getEffectiveDealCreateDateExpr($dealAlias = 'd', $utsAlias = 'uts')
 {
     $importedCreateField = FIELD_IMPORTED_CREATE_DATE;
     $importedCreateExpr = "CAST({$utsAlias}.{$importedCreateField} AS CHAR)";
-    
+
     // Safely parse various string formats in MySQL so DATE() doesn't return NULL
     $parsedImported = "CASE 
         WHEN {$importedCreateExpr} LIKE '%/%/%' THEN STR_TO_DATE({$importedCreateExpr}, '%d/%m/%Y')
@@ -1233,8 +1233,23 @@ function countActiveLeads($agentIds, $dateRange)
 }
 
 /**
- * Count reshuffled leads (deals genuinely reassigned, REASSIGN_COUNT > 1) 
- * to a set of agents within the date range, based on the event log.
+ * Count automated reshuffles: leads taken AWAY from an agent by the
+ * automated lead-distribution system (CREATED_BY_ID = 1), within the
+ * date range.
+ *
+ * b_crm_event logs an ASSIGNED_BY_ID change as two text fields:
+ *   EVENT_TEXT_1 = previous responsible person (name)
+ *   EVENT_TEXT_2 = new responsible person (name)
+ *
+ * A "reshuffle" for agent X = an event where EVENT_TEXT_1 matches X's
+ * name (lead was taken off them) AND the event was created by the
+ * automated system (CREATED_BY_ID = 1), NOT a manual reassignment by a
+ * manager/CEO. Counted per event (not collapsed per deal), since each
+ * automated reshuffle is a distinct action by the distribution bot.
+ *
+ * @param  array  $agentIds
+ * @param  array  $dateRange
+ * @return int
  */
 function countReshuffledLeads($agentIds, $dateRange)
 {
@@ -1243,32 +1258,28 @@ function countReshuffledLeads($agentIds, $dateRange)
     $from      = dbEsc($dateRange['from']);
     $to        = dbEsc($dateRange['to']);
 
-    // Build name list for matching EVENT_TEXT
-    $agentNamesSql = '';
-    if (!empty($agentIds)) {
-        $inAgents = inClauseInt($agentIds);
-        $rsUsers = dbQuery("SELECT ID, NAME, LAST_NAME FROM b_user WHERE ID IN {$inAgents}");
-        $nameList = array();
-        foreach ($rsUsers as $row) {
-            $fullName = strtoupper(preg_replace('/\s+/', ' ', trim(($row['NAME'] ?? '') . ' ' . ($row['LAST_NAME'] ?? ''))));
-            if (!empty($fullName)) {
-                $nameList[] = "'" . dbEsc($fullName) . "'";
-            }
-        }
-        if (!empty($nameList)) {
-            $agentNamesSql = implode(',', $nameList);
-        } else {
-            return 0; // Agents provided but no valid names found
-        }
+    if (empty($agentIds)) {
+        return 0;
     }
 
-    $nameFilter = '';
-    if (!empty($agentNamesSql)) {
-        $nameFilter = "AND UPPER(REPLACE(e.EVENT_TEXT_1, '  ', ' ')) IN ({$agentNamesSql})";
+    // Build name list for matching EVENT_TEXT_1 (the PREVIOUS owner —
+    // i.e. who the lead was taken away from).
+    $inAgents = inClauseInt($agentIds);
+    $rsUsers  = dbQuery("SELECT ID, NAME, LAST_NAME FROM b_user WHERE ID IN {$inAgents}");
+    $nameList = array();
+    foreach ($rsUsers as $row) {
+        $fullName = strtoupper(preg_replace('/\s+/', ' ', trim(($row['NAME'] ?? '') . ' ' . ($row['LAST_NAME'] ?? ''))));
+        if (!empty($fullName)) {
+            $nameList[] = "'" . dbEsc($fullName) . "'";
+        }
     }
+    if (empty($nameList)) {
+        return 0; // Agents provided but no valid names found
+    }
+    $agentNamesSql = implode(',', $nameList);
 
     $row = dbQueryOne("
-        SELECT COUNT(DISTINCT r.ENTITY_ID) AS cnt
+        SELECT COUNT(*) AS cnt
         FROM b_crm_event_relations r
         INNER JOIN b_crm_event e ON e.ID = r.EVENT_ID
         INNER JOIN b_crm_deal d
@@ -1278,17 +1289,11 @@ function countReshuffledLeads($agentIds, $dateRange)
         INNER JOIN b_uts_crm_deal uts ON uts.VALUE_ID = d.ID
         WHERE r.ENTITY_TYPE       = 'DEAL'
           AND r.ENTITY_FIELD      = 'ASSIGNED_BY_ID'
+          AND e.CREATED_BY_ID     = 1
           AND DATE(e.DATE_CREATE) >= '{$from}'
           AND DATE(e.DATE_CREATE) <= '{$to}'
           AND (uts.UF_CRM_1774601088414 IS NULL OR uts.UF_CRM_1774601088414 != 1)
-          {$nameFilter}
-          AND (
-              SELECT COUNT(*)
-              FROM b_crm_event_relations r2
-              WHERE r2.ENTITY_ID    = r.ENTITY_ID
-                AND r2.ENTITY_TYPE  = 'DEAL'
-                AND r2.ENTITY_FIELD = 'ASSIGNED_BY_ID'
-          ) > 1
+          AND UPPER(REPLACE(e.EVENT_TEXT_1, '  ', ' ')) IN ({$agentNamesSql})
     ");
 
     return (int)($row['cnt'] ?? 0);
