@@ -1262,23 +1262,9 @@ function countReshuffledLeads($agentIds, $dateRange)
         return 0;
     }
 
-    // Build name list for matching EVENT_TEXT_1 (the PREVIOUS owner —
-    // i.e. who the lead was taken away from).
     $inAgents = inClauseInt($agentIds);
-    $rsUsers  = dbQuery("SELECT ID, NAME, LAST_NAME FROM b_user WHERE ID IN {$inAgents}");
-    $nameList = array();
-    foreach ($rsUsers as $row) {
-        $fullName = strtoupper(preg_replace('/\s+/', ' ', trim(($row['NAME'] ?? '') . ' ' . ($row['LAST_NAME'] ?? ''))));
-        if (!empty($fullName)) {
-            $nameList[] = "'" . dbEsc($fullName) . "'";
-        }
-    }
-    if (empty($nameList)) {
-        return 0; // Agents provided but no valid names found
-    }
-    $agentNamesSql = implode(',', $nameList);
-
     $excludeStages = inClauseStr($GLOBALS['CFG_LEAD_JUNK_STAGES_OFFPLAN']);
+    $excludeStageStrings = inClauseStr($GLOBALS['CFG_LEAD_JUNK_STAGE_STRINGS_OFFPLAN']);
 
     $row = dbQueryOne("
         SELECT COUNT(*) AS cnt
@@ -1288,15 +1274,33 @@ function countReshuffledLeads($agentIds, $dateRange)
                 ON d.ID          = r.ENTITY_ID
                AND d.CATEGORY_ID IN {$in}
                AND d.SOURCE_ID != '11'
-               AND d.STAGE_ID NOT IN {$excludeStages}
         INNER JOIN b_uts_crm_deal uts ON uts.VALUE_ID = d.ID
+        INNER JOIN b_user u_prev
+                ON u_prev.ID IN {$inAgents}
+               AND UPPER(REPLACE(CONCAT(COALESCE(u_prev.NAME, ''), ' ', COALESCE(u_prev.LAST_NAME, '')), '  ', ' ')) = UPPER(REPLACE(e.EVENT_TEXT_1, '  ', ' '))
         WHERE r.ENTITY_TYPE       = 'DEAL'
           AND r.ENTITY_FIELD      = 'ASSIGNED_BY_ID'
           AND e.CREATED_BY_ID     = 1
           AND DATE(e.DATE_CREATE) >= '{$from}'
           AND DATE(e.DATE_CREATE) <= '{$to}'
           AND (uts.UF_CRM_1774601088414 IS NULL OR uts.UF_CRM_1774601088414 != 1)
-          AND UPPER(REPLACE(e.EVENT_TEXT_1, '  ', ' ')) IN ({$agentNamesSql})
+          AND (
+              d.STAGE_ID NOT IN {$excludeStages}
+              OR COALESCE(
+                  (
+                      SELECT e_sub.CREATED_BY_ID
+                      FROM b_crm_event_relations r_sub
+                      INNER JOIN b_crm_event e_sub ON e_sub.ID = r_sub.EVENT_ID
+                      WHERE r_sub.ENTITY_TYPE = 'DEAL'
+                        AND r_sub.ENTITY_ID = d.ID
+                        AND r_sub.ENTITY_FIELD = 'STAGE_ID'
+                        AND (e_sub.EVENT_TEXT_2 IN {$excludeStageStrings} OR e_sub.EVENT_TEXT_1 IN {$excludeStageStrings})
+                      ORDER BY e_sub.DATE_CREATE DESC, e_sub.ID DESC
+                      LIMIT 1
+                  ),
+                  0
+              ) != u_prev.ID
+          )
     ");
 
     return (int)($row['cnt'] ?? 0);
