@@ -1203,21 +1203,27 @@ function formatLeadBreakdownItems($grouped, $total, $preserveStageOrder = false)
  * @param  array  $dateRange
  * @return int
  */
-function countActiveLeads($agentIds, $dateRange)
+function countActiveLeads($agentIds, $dateRange, $pipeline = null)
 {
-    $pipelines = array(PIPELINE_OFFPLAN, PIPELINE_SECONDARY);
+    if ($pipeline === PIPELINE_OFFPLAN) {
+        $pipelines = array(PIPELINE_OFFPLAN);
+        $excludeStages = array('C1:WON', 'C1:LOSE');
+    } elseif ($pipeline === PIPELINE_SECONDARY) {
+        $pipelines = array(PIPELINE_SECONDARY);
+        $excludeStages = array('C2:WON', 'C2:LOSE');
+    } else {
+        $pipelines = array(PIPELINE_OFFPLAN, PIPELINE_SECONDARY);
+        $excludeStages = array('C1:WON', 'C1:LOSE', 'C2:WON', 'C2:LOSE');
+    }
     $in        = inClauseInt($pipelines);
     $from      = dbEsc($dateRange['from']);
     $to        = dbEsc($dateRange['to']);
-    $stageWon  = dbEsc('C' . PIPELINE_OFFPLAN . ':WON');  // rough; refined below
 
     $agentFilter = '';
     if (!empty($agentIds)) {
         $agentFilter = 'AND d.ASSIGNED_BY_ID IN ' . inClauseInt($agentIds);
     }
 
-    // Exclude terminal stages across both pipelines
-    $excludeStages = array('C1:WON', 'C1:LOSE', 'C2:WON', 'C2:LOSE');
     $excludeIn     = inClauseStr($excludeStages);
 
     $row = dbQueryOne("
@@ -2338,7 +2344,8 @@ function buildAgentPerformanceRow($userRow, $allDeals, $wonDeals, $committedDeal
     $agg = aggregateDeals($allDeals);
     $commissionAgg = aggregateCommissionDeals($wonDeals, $committedDeals);
 
-    $leadCount       = countActiveLeads(array($uid), $dateRange);
+    $leadCountOffplan   = countActiveLeads(array($uid), $dateRange, PIPELINE_OFFPLAN);
+    $leadCountSecondary = countActiveLeads(array($uid), $dateRange, PIPELINE_SECONDARY);
     $reshuffledCount = countReshuffledLeads(array($uid), $dateRange);
     $listingCount    = countListingsForUsers(array($uid));
     $lastDealDays    = daysSinceLastDeal(array($uid));
@@ -2357,7 +2364,8 @@ function buildAgentPerformanceRow($userRow, $allDeals, $wonDeals, $committedDeal
         'id'               => $uid,
         'name'             => fullName($userRow),
         'designation'      => $userRow['WORK_POSITION'] ?? '',
-        'leads'            => $leadCount,
+        'leads_offplan'    => $leadCountOffplan,
+        'leads_secondary'  => $leadCountSecondary,
         'reshuffled_leads' => $reshuffledCount,
         'listings'         => $listingCount,
         'deals'            => $agg['deal_count'],

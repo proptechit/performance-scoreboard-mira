@@ -1347,7 +1347,8 @@ function renderAgentPrivateOfficeTable(agents) {
   const sortedAgents = sortCollection(filteredAgents, "agentPrivateOfficeTable", {
     name: { type: "string", get: (a) => a.name },
     reshuffled_leads: { type: "number", get: (a) => a.reshuffled_leads },
-    leads: { type: "number", get: (a) => a.leads },
+    leads_offplan: { type: "number", get: (a) => a.leads_offplan },
+    leads_secondary: { type: "number", get: (a) => a.leads_secondary },
     deals: { type: "number", get: (a) => a.deals },
     sales: { type: "number", get: (a) => a.sales },
     commission: { type: "number", get: (a) => a.commission },
@@ -1370,7 +1371,8 @@ function renderAgentPrivateOfficeTable(agents) {
 
   // Calculate totals
   const totalReshuffled = sortedAgents.reduce((sum, a) => sum + (a.reshuffled_leads || 0), 0);
-  const totalLeads      = sortedAgents.reduce((sum, a) => sum + (a.leads || 0), 0);
+  const totalLeadsOffplan = sortedAgents.reduce((sum, a) => sum + (a.leads_offplan || 0), 0);
+  const totalLeadsSecondary = sortedAgents.reduce((sum, a) => sum + (a.leads_secondary || 0), 0);
   const totalDeals      = sortedAgents.reduce((sum, a) => sum + (a.deals || 0), 0);
   const totalSales      = sortedAgents.reduce((sum, a) => sum + (a.sales || 0), 0);
   const totalCommission = sortedAgents.reduce((sum, a) => sum + (a.commission || 0), 0);
@@ -1415,7 +1417,8 @@ function renderAgentPrivateOfficeTable(agents) {
         </div>
       </td>
       <td>${a.reshuffled_leads}</td>
-      <td>${a.leads}</td>
+      <td>${a.leads_offplan}</td>
+      <td>${a.leads_secondary}</td>
       <td style="font-weight:600;">${a.deals}</td>
       <td>AED ${fmtCurrency(a.sales)}</td>
       <td>AED ${fmtCurrency(a.commission)}</td>
@@ -1433,7 +1436,8 @@ function renderAgentPrivateOfficeTable(agents) {
     <tr style="background:var(--navy);color:var(--white);font-weight:700;pointer-events:none;">
       <td style="color:#fff;padding:12px 14px;text-align:left;">Total</td>
       <td style="color:#fff;padding:12px 14px;text-align:right;">${totalReshuffled}</td>
-      <td style="color:#fff;padding:12px 14px;text-align:right;">${totalLeads}</td>
+      <td style="color:#fff;padding:12px 14px;text-align:right;">${totalLeadsOffplan}</td>
+      <td style="color:#fff;padding:12px 14px;text-align:right;">${totalLeadsSecondary}</td>
       <td style="color:#fff;padding:12px 14px;text-align:right;">${totalDeals}</td>
       <td style="color:var(--gold-light);padding:12px 14px;text-align:right;">AED ${fmtCurrency(totalSales)}</td>
       <td style="color:var(--gold-light);padding:12px 14px;text-align:right;">AED ${fmtCurrency(totalCommission)}</td>
@@ -1481,7 +1485,8 @@ function renderTeamTable(teams) {
   const sortedTeams = sortCollection(teams, "teamTable", {
     name: { type: "string", get: (a) => a.name },
     deals: { type: "number", get: (a) => a.deals },
-    leads: { type: "number", get: (a) => a.leads },
+    leads_offplan: { type: "number", get: (a) => a.leads_offplan },
+    leads_secondary: { type: "number", get: (a) => a.leads_secondary },
     listings: { type: "number", get: (a) => a.listings },
     sales: { type: "number", get: (a) => a.sales },
     commission: { type: "number", get: (a) => a.commission },
@@ -1504,7 +1509,8 @@ function renderTeamTable(teams) {
         </div>
       </td>
       <td style="font-weight:600;">${a.deals}</td>
-      <td style="font-weight:600;">${a.leads}</td>
+      <td style="font-weight:600;">${a.leads_offplan}</td>
+      <td style="font-weight:600;">${a.leads_secondary}</td>
       <td style="font-weight:600;">${a.listings}</td>
       <td>AED ${fmtCurrency(a.sales)}</td>
       <td>AED ${fmtCurrency(a.commission)}</td>
@@ -1541,7 +1547,8 @@ function renderManagerAgentTable(agents) {
 
   const sortedAgents = sortCollection(agents, "managerAgentTable", {
     name: { type: "string", get: (a) => a.name },
-    leads: { type: "number", get: (a) => a.leads },
+    leads_offplan: { type: "number", get: (a) => a.leads_offplan },
+    leads_secondary: { type: "number", get: (a) => a.leads_secondary },
     reshuffled_leads: { type: "number", get: (a) => a.reshuffled_leads },
     deals: { type: "number", get: (a) => a.deals },
     listings: { type: "number", get: (a) => a.listings },
@@ -1559,7 +1566,8 @@ function renderManagerAgentTable(agents) {
         a.attendance <= 14 ? "crit" : a.attendance <= 30 ? "warn" : "ok";
       return `<tr onclick="drillToAgent(${a.id})">
         <td><div class="agent-name-cell"><div class="agent-mini-avatar">${initials(a.name)}</div><div><div style="font-weight:600">${a.name}</div><div style="font-size:10px;color:var(--grey-400)">${a.designation}</div></div></div></td>
-        <td>${a.leads}</td>
+        <td>${a.leads_offplan}</td>
+        <td>${a.leads_secondary}</td>
         <td>${a.reshuffled_leads}</td>
         <td>${a.deals}</td>
         <td>${a.listings}</td>
@@ -1854,8 +1862,13 @@ function renderManager(data) {
       highlight: true,
     },
     {
-      label: "Lead Count",
-      value: fmtNum(s.lead_count),
+      label: "Offplan Leads Number",
+      value: fmtNum(s.lead_count_offplan),
+      icon: "📋",
+    },
+    {
+      label: "Secondary Leads No.",
+      value: fmtNum(s.lead_count_secondary),
       icon: "📋",
     },
     {
@@ -2130,9 +2143,15 @@ function renderAgent(data) {
       icon: "📋",
     },
     {
-      label: "Active Leads",
-      value: fmtNum(s.lead_count),
-      sub: "Active lead pipeline",
+      label: "Offplan Leads Number",
+      value: fmtNum(s.lead_count_offplan),
+      sub: "Offplan active pipeline",
+      icon: "🎯",
+    },
+    {
+      label: "Secondary Leads No.",
+      value: fmtNum(s.lead_count_secondary),
+      sub: "Secondary active pipeline",
       icon: "🎯",
     },
     {
