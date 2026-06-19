@@ -77,6 +77,19 @@ $GLOBALS['CFG_LEAD_ACTIVE_STAGES_SECONDARY'] = array(
     'C2:PREPAYMENT_INVOICE', // Cold
 );
 
+// Lead pipelines – "junk/lost" stages (to be excluded from reshuffled leads count)
+$GLOBALS['CFG_LEAD_JUNK_STAGES_OFFPLAN'] = array(
+    'C1:LOSE',               // Junk
+    'C1:APOLOGY',            // Invalid Number
+    'C1:UC_6CZF3Y',          // Realestate Brokers
+    'C1:UC_FGP2M3',          // Secondary
+    'C1:UC_NY1USR',          // Job Seekers
+    'C1:UC_AR04OX',          // Never Respond
+    'C1:UC_P2JQLK',          // Others
+    'C1:2',                  // Not Interested Anymore
+    'C1:3',                  // Already purchased
+);
+
 // ═══════════════════════════════════════════════════════════════════════════
 // 3. CUSTOM FIELD NAMES  (b_crm_deal table columns)
 // ═══════════════════════════════════════════════════════════════════════════
@@ -500,7 +513,7 @@ $GLOBALS['CFG_POSITION_TARGET'] = array(
 define('CACHE_DIR',     __DIR__ . '/cache/');   // Cache folder (must be writable)
 define('CACHE_TTL',     300);                    // Seconds – 5 minutes default
 define('CACHE_ENABLED', true);                   // Set false to disable during dev
-define('CACHE_VERSION', '2026-06-11-ceo-jaymee-v1');
+define('CACHE_VERSION', '2026-06-19-reshuffle-junk-v1');
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 13. FILTER META  (returned to frontend for populating dropdowns)

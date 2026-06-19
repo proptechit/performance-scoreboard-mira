@@ -1278,6 +1278,8 @@ function countReshuffledLeads($agentIds, $dateRange)
     }
     $agentNamesSql = implode(',', $nameList);
 
+    $excludeStages = inClauseStr($GLOBALS['CFG_LEAD_JUNK_STAGES_OFFPLAN']);
+
     $row = dbQueryOne("
         SELECT COUNT(*) AS cnt
         FROM b_crm_event_relations r
@@ -1286,6 +1288,7 @@ function countReshuffledLeads($agentIds, $dateRange)
                 ON d.ID          = r.ENTITY_ID
                AND d.CATEGORY_ID IN {$in}
                AND d.SOURCE_ID != '11'
+               AND d.STAGE_ID NOT IN {$excludeStages}
         INNER JOIN b_uts_crm_deal uts ON uts.VALUE_ID = d.ID
         WHERE r.ENTITY_TYPE       = 'DEAL'
           AND r.ENTITY_FIELD      = 'ASSIGNED_BY_ID'
