@@ -2131,6 +2131,18 @@ function renderAgent(data) {
       icon: "💼",
     },
     {
+      label: "Committed Commission",
+      value: "AED " + fmtCurrency(s.committed_commission, true),
+      sub: fmtCurrency(s.committed_commission),
+      icon: "🤝",
+    },
+    {
+      label: "Operational Commission",
+      value: "AED " + fmtCurrency(s.operational_commission, true),
+      sub: fmtCurrency(s.operational_commission),
+      icon: "⚙️",
+    },
+    {
       label: "Sales Volume",
       value: "AED " + fmtCurrency(s.sales_volume, true),
       sub: fmtCurrency(s.sales_volume),
@@ -2413,6 +2425,22 @@ function renderAgent(data) {
         },
       },
     });
+  }
+
+  // Comm split
+  const agentCommSplitEl = document.getElementById("agentCommSplit");
+  if (agentCommSplitEl) {
+    const committedPct = s.commissions > 0 ? ((s.committed_commission / s.commissions) * 100).toFixed(1) : "0.0";
+    const operationalPct = s.commissions > 0 ? ((s.operational_commission / s.commissions) * 100).toFixed(1) : "0.0";
+    agentCommSplitEl.innerHTML = `
+      <div class="split-row"><span class="split-label">Total</span><span class="split-value">AED ${fmtCurrency(s.commissions)}</span></div>
+      <div class="split-row"><span class="split-label">Committed</span>
+        <span class="split-value">AED ${fmtCurrency(s.committed_commission)} <span class="split-pct green">(${committedPct}%)</span></span>
+      </div>
+      <div class="split-row"><span class="split-label">Operational</span>
+        <span class="split-value">AED ${fmtCurrency(s.operational_commission)} <span class="split-pct red">(${operationalPct}%)</span></span>
+      </div>
+    `;
   }
 
   // Developer table

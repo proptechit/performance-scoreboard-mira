@@ -1887,9 +1887,56 @@ function countNoDealIn60Days($agentIds)
     if (empty($agentIds)) {
         return 0;
     }
+
+    // Fetch joining dates for these agents to filter out new joiners (<= 60 days)
+    $inAgents = inClauseInt($agentIds);
+    $userRows = dbQuery("
+        SELECT u.ID, u.DATE_REGISTER, uts_u.UF_USR_1778656838068
+        FROM b_user u
+        LEFT JOIN b_uts_user uts_u ON uts_u.VALUE_ID = u.ID
+        WHERE u.ID IN {$inAgents}
+    ");
+
+    $cutoff60 = new \DateTime('-60 days');
+    $cutoff60->setTime(0, 0, 0);
+
+    $eligibleAgentIds = array();
+    foreach ($userRows as $row) {
+        $joiningDateStr = formatUserJoiningDate($row);
+        if (empty($joiningDateStr)) {
+            // Default to eligible if no join date is set
+            $eligibleAgentIds[] = (int)$row['ID'];
+            continue;
+        }
+
+        $joiningDate = null;
+        $dt = parseReportDate($joiningDateStr);
+        if ($dt) {
+            $joiningDate = $dt;
+        } else {
+            $ts = strtotime($joiningDateStr);
+            if ($ts !== false && $ts > 0) {
+                $joiningDate = new \DateTime(date('Y-m-d', $ts));
+            }
+        }
+
+        if ($joiningDate) {
+            $joiningDate->setTime(0, 0, 0);
+            if ($joiningDate < $cutoff60) {
+                $eligibleAgentIds[] = (int)$row['ID'];
+            }
+        } else {
+            $eligibleAgentIds[] = (int)$row['ID'];
+        }
+    }
+
+    if (empty($eligibleAgentIds)) {
+        return 0;
+    }
+
     $catId    = dbInt(PIPELINE_TRANSACTION);
     $cutoff   = dbEsc(date('Y-m-d', strtotime('-60 days')));
-    $inAgents = inClauseInt($agentIds);
+    $inEligibleAgents = inClauseInt($eligibleAgentIds);
     $effectiveCreateExpr = getEffectiveDealCreateDateExpr('d', 'uts');
     $effectiveCloseExpr = getEffectiveDealCloseDateExpr('d', 'uts');
 
@@ -1900,7 +1947,7 @@ function countNoDealIn60Days($agentIds)
         LEFT JOIN b_uts_crm_deal uts
             ON uts.VALUE_ID = d.ID
         WHERE d.CATEGORY_ID    = {$catId}
-          AND d.ASSIGNED_BY_ID IN {$inAgents}
+          AND d.ASSIGNED_BY_ID IN {$inEligibleAgents}
           AND (
                 DATE({$effectiveCloseExpr}) >= '{$cutoff}'
              OR DATE({$effectiveCreateExpr}) >= '{$cutoff}'
@@ -1908,7 +1955,7 @@ function countNoDealIn60Days($agentIds)
     ");
 
     $activeAgents = count($rows);
-    return max(0, count($agentIds) - $activeAgents);
+    return max(0, count($eligibleAgentIds) - $activeAgents);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

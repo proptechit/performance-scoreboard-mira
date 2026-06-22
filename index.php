@@ -622,8 +622,8 @@
             </div>
 
             <!-- Top Developers for Agent -->
-            <div class="chart-grid-2 mb-24">
-                <div class="chart-card">
+            <div class="chart-grid-3 mb-24">
+                <div class="chart-card" style="grid-column: 1/2;">
                     <div class="chart-card-header">
                         <div class="chart-card-title">Sales &amp; Commission by Developer</div>
                     </div>
@@ -639,13 +639,22 @@
                         <tbody id="agentDevTableBody"></tbody>
                     </table>
                 </div>
-                <div class="chart-card">
+                <div class="chart-card" style="grid-column: 2/3;">
                     <div class="chart-card-header">
                         <div class="chart-card-title">Commission Trend</div>
                     </div>
                     <div class="chart-container" style="height:220px;">
                         <canvas id="agentCommChart"></canvas>
                     </div>
+                </div>
+                <div class="chart-card" style="grid-column: 3/4;">
+                    <div class="chart-card-header">
+                        <div>
+                            <div class="chart-card-title">Commission Split</div>
+                            <div class="chart-card-subtitle">Committed vs Operational</div>
+                        </div>
+                    </div>
+                    <div id="agentCommSplit"></div>
                 </div>
             </div>
 
