@@ -305,6 +305,14 @@ function isUserInAllowedSalesDepartments($userId)
         return true;
     }
     $uid = dbInt($userId);
+
+    // If user's WORK_POSITION is "Private Office", they belong to PO team (dept 23)
+    // which is one of the allowed sales departments.
+    $userRow = dbQueryOne("SELECT WORK_POSITION FROM b_user WHERE ID = {$uid} LIMIT 1");
+    if ($userRow && trim(strtolower($userRow['WORK_POSITION'] ?? '')) === 'private office') {
+        return true;
+    }
+
     $allowedDeptIds = getSalesReportDepartmentIds(true);
     if (empty($allowedDeptIds)) {
         return false;
@@ -497,7 +505,7 @@ function getAgentsByDept($deptIds)
             uts_u.UF_USR_1778656838068
         FROM b_user u
 
-        JOIN b_utm_user ud
+        LEFT JOIN b_utm_user ud
             ON ud.VALUE_ID = u.ID
            AND ud.FIELD_ID = 40   -- UF_DEPARTMENT
            
@@ -505,7 +513,7 @@ function getAgentsByDept($deptIds)
             ON uts_u.VALUE_ID = u.ID
 
         WHERE u.ACTIVE = 'Y'
-          AND ud.VALUE_INT IN {$in}
+          AND (CASE WHEN TRIM(LOWER(u.WORK_POSITION)) = 'private office' THEN 23 ELSE ud.VALUE_INT END) IN {$in}
           {$excludeNonAgents}
 
         ORDER BY u.LAST_NAME ASC, u.NAME ASC
@@ -543,6 +551,22 @@ function getManagerForAgent($userId)
 {
     $uid = dbInt($userId);
 
+    // If user's WORK_POSITION is "Private Office", their manager is the head of department 23 (Aldo De Jager)
+    $userRow = dbQueryOne("SELECT WORK_POSITION FROM b_user WHERE ID = {$uid} LIMIT 1");
+    if ($userRow && trim(strtolower($userRow['WORK_POSITION'] ?? '')) === 'private office') {
+        $poHeadRow = dbQueryOne("
+            SELECT m.NAME, m.LAST_NAME
+            FROM b_uts_iblock_3_section uts
+            JOIN b_user m ON m.ID = uts.UF_HEAD
+            WHERE uts.VALUE_ID = 23
+            LIMIT 1
+        ");
+        if ($poHeadRow) {
+            return trim($poHeadRow['NAME'] . ' ' . $poHeadRow['LAST_NAME']);
+        }
+        return '';
+    }
+
     $row = dbQueryOne("
         SELECT CONCAT(m.NAME, ' ', m.LAST_NAME) AS FULL_NAME
         FROM b_utm_user ud
@@ -575,6 +599,13 @@ function getUserDeptId($userId)
     if ($uid === 156) {
         return 26; // ST3 branch
     }
+
+    // Check if the user is in Private Office via WORK_POSITION
+    $userRow = dbQueryOne("SELECT WORK_POSITION FROM b_user WHERE ID = {$uid} LIMIT 1");
+    if ($userRow && trim(strtolower($userRow['WORK_POSITION'] ?? '')) === 'private office') {
+        return 23; // Private Office department ID
+    }
+
     $allowedDeptIds = getSalesReportDepartmentIds(true);
 
     $row = dbQueryOne("
@@ -661,11 +692,11 @@ function getAgentIdsByManager($managerId)
     $rows = dbQuery("
         SELECT DISTINCT u.ID
         FROM b_user u
-        JOIN b_utm_user ud
+        LEFT JOIN b_utm_user ud
             ON ud.VALUE_ID = u.ID
            AND ud.FIELD_ID = 40
         WHERE u.ACTIVE = 'Y'
-          AND ud.VALUE_INT IN " . inClauseInt($managerDepts) . "
+          AND (CASE WHEN TRIM(LOWER(u.WORK_POSITION)) = 'private office' THEN 23 ELSE ud.VALUE_INT END) IN " . inClauseInt($managerDepts) . "
           {$excludeNonAgents}
     ");
 
@@ -2323,12 +2354,12 @@ function countAllActiveAgents()
         SELECT COUNT(DISTINCT u.ID) AS cnt
         FROM b_user u
 
-        JOIN b_utm_user ud
+        LEFT JOIN b_utm_user ud
             ON ud.VALUE_ID = u.ID
            AND ud.FIELD_ID = 40
 
         JOIN b_iblock_section s 
-            ON s.ID = ud.VALUE_INT
+            ON s.ID = (CASE WHEN TRIM(LOWER(u.WORK_POSITION)) = 'private office' THEN 23 ELSE ud.VALUE_INT END)
 
         WHERE u.ACTIVE = 'Y'
           AND s.IBLOCK_ID = 3

@@ -1213,22 +1213,28 @@ function renderSalesByDealTypeTable(salesData) {
 function renderAgentTable(agents) {
   const tbody = document.getElementById("agentTableBody");
   if (!tbody || !agents) return;
+
+  // Filter out Private Office agents
+  const regularAgents = agents.filter(
+    (a) => (a.designation || "").trim().toLowerCase() !== "private office",
+  );
+
   const searchQuery = (
     document.getElementById("agentSearchInput")?.value || ""
   ).trim().toLowerCase();
 
   const filteredAgents = searchQuery
-    ? agents.filter((a) =>
+    ? regularAgents.filter((a) =>
         `${a.name || ""} ${a.designation || ""}`
           .toLowerCase()
           .includes(searchQuery),
       )
-    : agents;
+    : regularAgents;
 
   document.getElementById("agentCountBadge").textContent =
-    filteredAgents.length === agents.length
-      ? `${agents.length} agents`
-      : `${filteredAgents.length} of ${agents.length} agents`;
+    filteredAgents.length === regularAgents.length
+      ? `${regularAgents.length} agents`
+      : `${filteredAgents.length} of ${regularAgents.length} agents`;
 
   const sortedAgents = sortCollection(filteredAgents, "agentTable", {
     name: { type: "string", get: (a) => a.name },
