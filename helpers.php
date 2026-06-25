@@ -620,6 +620,23 @@ function getUserDeptId($userId)
     return (int)($row['VALUE_INT'] ?? 0);
 }
 
+function getUserOriginalDeptId($userId)
+{
+    $uid = dbInt($userId);
+    $allowedDeptIds = getSalesReportDepartmentIds(true);
+
+    $row = dbQueryOne("
+        SELECT VALUE_INT
+        FROM b_utm_user
+        WHERE VALUE_ID = {$uid}
+          AND FIELD_ID = 40
+          AND VALUE_INT IN " . inClauseInt($allowedDeptIds) . "
+        LIMIT 1
+    ");
+
+    return (int)($row['VALUE_INT'] ?? 0);
+}
+
 function getListingBranchCodeForDeptId($deptId)
 {
     $deptId = (int)$deptId;
@@ -2438,10 +2455,26 @@ function buildAgentPerformanceRow($userRow, $allDeals, $wonDeals, $committedDeal
         $attendanceTotal = 30;
     }
 
+    $designation = $userRow['WORK_POSITION'] ?? '';
+    if (trim(strtolower($designation)) === 'private office') {
+        static $teamCache = array();
+        $origDeptId = getUserOriginalDeptId($uid);
+        if ($origDeptId > 0) {
+            if (!isset($teamCache[$origDeptId])) {
+                $teamRow = getSalesTeamById($origDeptId);
+                $teamCache[$origDeptId] = !empty($teamRow) ? getSalesTeamCode($teamRow) : '';
+            }
+            $code = $teamCache[$origDeptId];
+            if ($code !== '') {
+                $designation .= ' (' . $code . ')';
+            }
+        }
+    }
+
     return array(
         'id'               => $uid,
         'name'             => fullName($userRow),
-        'designation'      => $userRow['WORK_POSITION'] ?? '',
+        'designation'      => $designation,
         'leads_offplan'    => $leadCountOffplan,
         'leads_secondary'  => $leadCountSecondary,
         'reshuffled_leads' => $reshuffledCount,
