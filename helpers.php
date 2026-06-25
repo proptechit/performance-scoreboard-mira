@@ -1272,7 +1272,7 @@ function countReshuffledLeads($agentIds, $dateRange)
     $excludeStages = inClauseStr($GLOBALS['CFG_LEAD_JUNK_STAGES_OFFPLAN']);
 
     $row = dbQueryOne("
-        SELECT COUNT(*) AS cnt
+        SELECT COUNT(DISTINCT d.ID) AS cnt
         FROM b_crm_event_relations r
         INNER JOIN b_crm_event e ON e.ID = r.EVENT_ID
         INNER JOIN b_crm_deal d
@@ -1280,21 +1280,21 @@ function countReshuffledLeads($agentIds, $dateRange)
                AND d.CATEGORY_ID IN {$in}
                AND d.SOURCE_ID != '11'
         INNER JOIN b_uts_crm_deal uts ON uts.VALUE_ID = d.ID
-        INNER JOIN b_user u_prev
-                ON u_prev.ID IN {$inAgents}
-               AND UPPER(REPLACE(CONCAT(COALESCE(u_prev.NAME, ''), ' ', COALESCE(u_prev.LAST_NAME, '')), '  ', ' ')) = UPPER(REPLACE(e.EVENT_TEXT_1, '  ', ' '))
-        LEFT JOIN b_user u_new
-                ON UPPER(REPLACE(CONCAT(COALESCE(u_new.NAME, ''), ' ', COALESCE(u_new.LAST_NAME, '')), '  ', ' ')) = UPPER(REPLACE(e.EVENT_TEXT_2, '  ', ' '))
         WHERE r.ENTITY_TYPE       = 'DEAL'
           AND r.ENTITY_FIELD      = 'ASSIGNED_BY_ID'
           AND e.CREATED_BY_ID     = 1
           AND DATE(e.DATE_CREATE) >= '{$from}'
           AND DATE(e.DATE_CREATE) <= '{$to}'
+          AND d.ASSIGNED_BY_ID IN {$inAgents}
           AND (uts.UF_CRM_1774601088414 IS NULL OR uts.UF_CRM_1774601088414 != 1)
+          AND d.STAGE_ID NOT IN {$excludeStages}
           AND (
-              d.STAGE_ID NOT IN {$excludeStages}
-              OR COALESCE(u_new.ID, 0) != 1
-          )
+              SELECT COUNT(*)
+              FROM b_crm_event_relations r2
+              WHERE r2.ENTITY_ID    = r.ENTITY_ID
+                AND r2.ENTITY_TYPE  = 'DEAL'
+                AND r2.ENTITY_FIELD = 'ASSIGNED_BY_ID'
+          ) > 1
     ");
 
     return (int)($row['cnt'] ?? 0);
