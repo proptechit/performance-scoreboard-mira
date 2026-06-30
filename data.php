@@ -341,7 +341,9 @@ if ($role === 'agent') {
         ? fetchActiveListingDetailsForDepartments(array($deptId))
         : (empty($agentIds) ? array('sale' => array(), 'rent' => array()) : fetchActiveListingDetailsForUsers($agentIds));
     $noDeal60     = countNoDealIn60Days($agentIds);
-    $leadRows     = empty($agentIds) ? array() : fetchLeadBreakdownRows($agentIds, $dateRange, $dealType);
+    $targetDeptId = $deptId > 0 ? $deptId : getUserDeptId($managerId);
+    $deptUserIds  = $targetDeptId > 0 ? getDeptUserIds(array($targetDeptId)) : array();
+    $leadRows     = empty($deptUserIds) ? array() : fetchLeadBreakdownRows($deptUserIds, $dateRange, $dealType);
 
     // Charts
     $dealDist       = buildDealDistribution($allDeals);
@@ -491,7 +493,7 @@ if ($role === 'agent') {
     $listings = countActiveListingsByBranches();
     $listingDetails = fetchActiveListingDetailsByBranches();
     $noDeal60 = countNoDealIn60Days($allAgentIds);
-    $leadRows = empty($allAgentIds) ? array() : fetchLeadBreakdownRows($allAgentIds, $dateRange, $dealType);
+    $leadRows = fetchLeadBreakdownRows(array(), $dateRange, $dealType);
 
     // Charts
     $dealDist         = buildDealDistribution($allDeals);

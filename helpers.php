@@ -521,6 +521,36 @@ function getAgentsByDept($deptIds)
 }
 
 /**
+ * Fetch all active user IDs in a given department (and its sub-departments), without role restrictions.
+ *
+ * @param  int|array $deptIds  Single dept ID or array of dept IDs
+ * @return array
+ */
+function getDeptUserIds($deptIds)
+{
+    $deptIds = filterAllowedSalesDepartmentIds($deptIds, true);
+    if (empty($deptIds)) {
+        return array();
+    }
+
+    $in = inClauseInt($deptIds);
+
+    $rows = dbQuery("
+        SELECT DISTINCT u.ID
+        FROM b_user u
+        LEFT JOIN b_utm_user ud
+            ON ud.VALUE_ID = u.ID
+           AND ud.FIELD_ID = 40   -- UF_DEPARTMENT
+        WHERE u.ACTIVE = 'Y'
+          AND (CASE WHEN TRIM(LOWER(u.WORK_POSITION)) = 'private office' THEN 23 ELSE ud.VALUE_INT END) IN {$in}
+    ");
+
+    return array_map(function ($row) {
+        return (int)$row['ID'];
+    }, $rows);
+}
+
+/**
  * Fetch a single user's profile info.
  */
 function getUserProfile($userId)
