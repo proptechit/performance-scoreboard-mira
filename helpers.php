@@ -1158,7 +1158,7 @@ function fetchLeadBreakdownRows($agentIds, $dateRange, $dealType = 'All')
     ");
 }
 
-function buildLeadStageBreakdown($rows)
+function buildLeadStageBreakdown($rows, $pipelineIdFilter = null)
 {
     $stageMap  = $GLOBALS['CFG_LEAD_STAGE_MAP'];
     $stageMeta = $GLOBALS['CFG_LEAD_STAGE_META'] ?? array();
@@ -1167,6 +1167,9 @@ function buildLeadStageBreakdown($rows)
 
     foreach ($rows as $row) {
         $pipelineId = (int)($row['CATEGORY_ID'] ?? 0);
+        if ($pipelineIdFilter !== null && $pipelineId !== (int)$pipelineIdFilter) {
+            continue;
+        }
         $stageId    = (string)($row['STAGE_ID'] ?? '');
         $count      = (int)($row['cnt'] ?? 0);
         $label      = $stageMap[$pipelineId][$stageId] ?? $stageId ?: 'Unknown';

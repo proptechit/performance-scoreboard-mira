@@ -685,6 +685,13 @@ body {
   margin-bottom: 24px;
 }
 
+.chart-grid-3-equal {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
 .chart-card {
   background: var(--white);
   border-radius: var(--radius);
@@ -1635,7 +1642,8 @@ body {
   }
 
   .chart-grid-2,
-  .chart-grid-3 {
+  .chart-grid-3,
+  .chart-grid-3-equal {
     grid-template-columns: 1fr;
   }
 

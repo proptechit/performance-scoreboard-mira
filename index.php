@@ -212,22 +212,39 @@
                 </div>
             </div>
 
-            <div class="chart-grid-2 mb-24">
+            <div class="chart-grid-3-equal mb-24">
                 <div class="chart-card">
                     <div class="chart-card-header">
                         <div>
-                            <div class="chart-card-title">Leads by Stage</div>
-                            <div class="chart-card-subtitle">Current lead mix by stage</div>
+                            <div class="chart-card-title">Offplan Leads by Stage</div>
+                            <div class="chart-card-subtitle">Current lead mix (Offplan)</div>
                         </div>
                     </div>
                     <div class="donut-wrapper" style="height:220px;">
-                        <canvas id="ceoLeadStageChart"></canvas>
+                        <canvas id="ceoLeadStageOffplanChart"></canvas>
                         <div class="donut-center">
-                            <div class="donut-center-value" id="ceoLeadStageVal">–</div>
+                            <div class="donut-center-value" id="ceoLeadStageOffplanVal">–</div>
                             <div class="donut-center-label">Leads</div>
                         </div>
                     </div>
-                    <div class="chart-legend" id="ceoLeadStageLegend"></div>
+                    <div class="chart-legend" id="ceoLeadStageOffplanLegend"></div>
+                </div>
+
+                <div class="chart-card">
+                    <div class="chart-card-header">
+                        <div>
+                            <div class="chart-card-title">Secondary Leads by Stage</div>
+                            <div class="chart-card-subtitle">Current lead mix (Secondary)</div>
+                        </div>
+                    </div>
+                    <div class="donut-wrapper" style="height:220px;">
+                        <canvas id="ceoLeadStageSecondaryChart"></canvas>
+                        <div class="donut-center">
+                            <div class="donut-center-value" id="ceoLeadStageSecondaryVal">–</div>
+                            <div class="donut-center-label">Leads</div>
+                        </div>
+                    </div>
+                    <div class="chart-legend" id="ceoLeadStageSecondaryLegend"></div>
                 </div>
 
                 <div class="chart-card">
@@ -459,23 +476,41 @@
                 </div>
             </div>
 
-            <div class="chart-grid-2 mb-24">
+            <div class="chart-grid-3-equal mb-24">
                 <div class="chart-card">
                     <div class="chart-card-header">
                         <div>
-                            <div class="chart-card-title">Leads by Stage</div>
-                            <div class="chart-card-subtitle">Current lead mix by stage</div>
+                            <div class="chart-card-title">Offplan Leads by Stage</div>
+                            <div class="chart-card-subtitle">Current lead mix (Offplan)</div>
                         </div>
                     </div>
                     <div class="donut-wrapper" style="height:220px;">
-                        <canvas id="managerLeadStageChart"></canvas>
+                        <canvas id="managerLeadStageOffplanChart"></canvas>
                         <div class="donut-center">
-                            <div class="donut-center-value" id="managerLeadStageVal">–</div>
+                            <div class="donut-center-value" id="managerLeadStageOffplanVal">–</div>
                             <div class="donut-center-label">Leads</div>
                         </div>
                     </div>
-                    <div class="chart-legend" id="managerLeadStageLegend"></div>
+                    <div class="chart-legend" id="managerLeadStageOffplanLegend"></div>
                 </div>
+
+                <div class="chart-card">
+                    <div class="chart-card-header">
+                        <div>
+                            <div class="chart-card-title">Secondary Leads by Stage</div>
+                            <div class="chart-card-subtitle">Current lead mix (Secondary)</div>
+                        </div>
+                    </div>
+                    <div class="donut-wrapper" style="height:220px;">
+                        <canvas id="managerLeadStageSecondaryChart"></canvas>
+                        <div class="donut-center">
+                            <div class="donut-center-value" id="managerLeadStageSecondaryVal">–</div>
+                            <div class="donut-center-label">Leads</div>
+                        </div>
+                    </div>
+                    <div class="chart-legend" id="managerLeadStageSecondaryLegend"></div>
+                </div>
+
                 <div class="chart-card">
                     <div class="chart-card-header">
                         <div>
@@ -586,23 +621,41 @@
                 </div>
             </div>
 
-            <div class="chart-grid-2 mb-24">
+            <div class="chart-grid-3-equal mb-24">
                 <div class="chart-card">
                     <div class="chart-card-header">
                         <div>
-                            <div class="chart-card-title">Leads by Stage</div>
-                            <div class="chart-card-subtitle">Current lead mix by stage</div>
+                            <div class="chart-card-title">Offplan Leads by Stage</div>
+                            <div class="chart-card-subtitle">Current lead mix (Offplan)</div>
                         </div>
                     </div>
                     <div class="donut-wrapper" style="height:220px;">
-                        <canvas id="agentLeadStageChart"></canvas>
+                        <canvas id="agentLeadStageOffplanChart"></canvas>
                         <div class="donut-center">
-                            <div class="donut-center-value" id="agentLeadStageVal">–</div>
+                            <div class="donut-center-value" id="agentLeadStageOffplanVal">–</div>
                             <div class="donut-center-label">Leads</div>
                         </div>
                     </div>
-                    <div class="chart-legend" id="agentLeadStageLegend"></div>
+                    <div class="chart-legend" id="agentLeadStageOffplanLegend"></div>
                 </div>
+
+                <div class="chart-card">
+                    <div class="chart-card-header">
+                        <div>
+                            <div class="chart-card-title">Secondary Leads by Stage</div>
+                            <div class="chart-card-subtitle">Current lead mix (Secondary)</div>
+                        </div>
+                    </div>
+                    <div class="donut-wrapper" style="height:220px;">
+                        <canvas id="agentLeadStageSecondaryChart"></canvas>
+                        <div class="donut-center">
+                            <div class="donut-center-value" id="agentLeadStageSecondaryVal">–</div>
+                            <div class="donut-center-label">Leads</div>
+                        </div>
+                    </div>
+                    <div class="chart-legend" id="agentLeadStageSecondaryLegend"></div>
+                </div>
+
                 <div class="chart-card">
                     <div class="chart-card-header">
                         <div>

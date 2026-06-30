@@ -639,10 +639,17 @@ function renderCEO(data) {
     s.sales_volume,
   );
   renderBreakdownDonut(
-    data.leads_by_stage,
-    "ceoLeadStageChart",
-    "ceoLeadStageLegend",
-    "ceoLeadStageVal",
+    data.leads_by_stage_offplan,
+    "ceoLeadStageOffplanChart",
+    "ceoLeadStageOffplanLegend",
+    "ceoLeadStageOffplanVal",
+    "Leads",
+  );
+  renderBreakdownDonut(
+    data.leads_by_stage_secondary,
+    "ceoLeadStageSecondaryChart",
+    "ceoLeadStageSecondaryLegend",
+    "ceoLeadStageSecondaryVal",
     "Leads",
   );
   renderBreakdownDonut(
@@ -2067,10 +2074,17 @@ function renderManager(data) {
   );
 
   renderBreakdownDonut(
-    mgr.leads_by_stage,
-    "managerLeadStageChart",
-    "managerLeadStageLegend",
-    "managerLeadStageVal",
+    mgr.leads_by_stage_offplan,
+    "managerLeadStageOffplanChart",
+    "managerLeadStageOffplanLegend",
+    "managerLeadStageOffplanVal",
+    "Leads",
+  );
+  renderBreakdownDonut(
+    mgr.leads_by_stage_secondary,
+    "managerLeadStageSecondaryChart",
+    "managerLeadStageSecondaryLegend",
+    "managerLeadStageSecondaryVal",
     "Leads",
   );
 
@@ -2321,10 +2335,17 @@ function renderAgent(data) {
   );
 
   renderBreakdownDonut(
-    ag.leads_by_stage,
-    "agentLeadStageChart",
-    "agentLeadStageLegend",
-    "agentLeadStageVal",
+    ag.leads_by_stage_offplan,
+    "agentLeadStageOffplanChart",
+    "agentLeadStageOffplanLegend",
+    "agentLeadStageOffplanVal",
+    "Leads",
+  );
+  renderBreakdownDonut(
+    ag.leads_by_stage_secondary,
+    "agentLeadStageSecondaryChart",
+    "agentLeadStageSecondaryLegend",
+    "agentLeadStageSecondaryVal",
     "Leads",
   );
 
