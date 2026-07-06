@@ -659,6 +659,13 @@ function renderCEO(data) {
     "ceoLeadSourceVal",
     "Leads",
   );
+  renderBreakdownDonut(
+    data.leads_by_source_secondary,
+    "ceoLeadSourceSecondaryChart",
+    "ceoLeadSourceSecondaryLegend",
+    "ceoLeadSourceSecondaryVal",
+    "Leads",
+  );
   renderTargetActual(data.target_vs_actual);
   // renderDeveloperTable(data.top_developers);
   handleTableFilter(data);
@@ -2095,6 +2102,13 @@ function renderManager(data) {
     "managerLeadSourceVal",
     "Leads",
   );
+  renderBreakdownDonut(
+    mgr.leads_by_source_secondary,
+    "managerLeadSourceSecondaryChart",
+    "managerLeadSourceSecondaryLegend",
+    "managerLeadSourceSecondaryVal",
+    "Leads",
+  );
 
   // Comm split
   document.getElementById("managerCommSplit").innerHTML = `
@@ -2354,6 +2368,13 @@ function renderAgent(data) {
     "agentLeadSourceChart",
     "agentLeadSourceLegend",
     "agentLeadSourceVal",
+    "Leads",
+  );
+  renderBreakdownDonut(
+    ag.leads_by_source_secondary,
+    "agentLeadSourceSecondaryChart",
+    "agentLeadSourceSecondaryLegend",
+    "agentLeadSourceSecondaryVal",
     "Leads",
   );
 

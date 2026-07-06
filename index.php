@@ -212,7 +212,7 @@
                 </div>
             </div>
 
-            <div class="chart-grid-3-equal mb-24">
+            <div class="chart-grid-2 mb-24">
                 <div class="chart-card">
                     <div class="chart-card-header">
                         <div>
@@ -250,8 +250,8 @@
                 <div class="chart-card">
                     <div class="chart-card-header">
                         <div>
-                            <div class="chart-card-title">Leads by Source</div>
-                            <div class="chart-card-subtitle">Lead acquisition breakdown</div>
+                            <div class="chart-card-title">Offplan Leads by Source</div>
+                            <div class="chart-card-subtitle">Lead acquisition breakdown (Offplan)</div>
                         </div>
                     </div>
                     <div class="donut-wrapper" style="height:220px;">
@@ -262,6 +262,23 @@
                         </div>
                     </div>
                     <div class="chart-legend" id="ceoLeadSourceLegend"></div>
+                </div>
+
+                <div class="chart-card">
+                    <div class="chart-card-header">
+                        <div>
+                            <div class="chart-card-title">Secondary Leads by Source</div>
+                            <div class="chart-card-subtitle">Lead acquisition breakdown (Secondary)</div>
+                        </div>
+                    </div>
+                    <div class="donut-wrapper" style="height:220px;">
+                        <canvas id="ceoLeadSourceSecondaryChart"></canvas>
+                        <div class="donut-center">
+                            <div class="donut-center-value" id="ceoLeadSourceSecondaryVal">–</div>
+                            <div class="donut-center-label">Leads</div>
+                        </div>
+                    </div>
+                    <div class="chart-legend" id="ceoLeadSourceSecondaryLegend"></div>
                 </div>
             </div>
 
@@ -476,7 +493,7 @@
                 </div>
             </div>
 
-            <div class="chart-grid-3-equal mb-24">
+            <div class="chart-grid-2 mb-24">
                 <div class="chart-card">
                     <div class="chart-card-header">
                         <div>
@@ -514,8 +531,8 @@
                 <div class="chart-card">
                     <div class="chart-card-header">
                         <div>
-                            <div class="chart-card-title">Leads by Source</div>
-                            <div class="chart-card-subtitle">Lead acquisition breakdown</div>
+                            <div class="chart-card-title">Offplan Leads by Source</div>
+                            <div class="chart-card-subtitle">Lead acquisition breakdown (Offplan)</div>
                         </div>
                     </div>
                     <div class="donut-wrapper" style="height:220px;">
@@ -526,6 +543,23 @@
                         </div>
                     </div>
                     <div class="chart-legend" id="managerLeadSourceLegend"></div>
+                </div>
+
+                <div class="chart-card">
+                    <div class="chart-card-header">
+                        <div>
+                            <div class="chart-card-title">Secondary Leads by Source</div>
+                            <div class="chart-card-subtitle">Lead acquisition breakdown (Secondary)</div>
+                        </div>
+                    </div>
+                    <div class="donut-wrapper" style="height:220px;">
+                        <canvas id="managerLeadSourceSecondaryChart"></canvas>
+                        <div class="donut-center">
+                            <div class="donut-center-value" id="managerLeadSourceSecondaryVal">–</div>
+                            <div class="donut-center-label">Leads</div>
+                        </div>
+                    </div>
+                    <div class="chart-legend" id="managerLeadSourceSecondaryLegend"></div>
                 </div>
             </div>
 
@@ -621,7 +655,7 @@
                 </div>
             </div>
 
-            <div class="chart-grid-3-equal mb-24">
+            <div class="chart-grid-2 mb-24">
                 <div class="chart-card">
                     <div class="chart-card-header">
                         <div>
@@ -659,8 +693,8 @@
                 <div class="chart-card">
                     <div class="chart-card-header">
                         <div>
-                            <div class="chart-card-title">Leads by Source</div>
-                            <div class="chart-card-subtitle">Lead acquisition breakdown</div>
+                            <div class="chart-card-title">Offplan Leads by Source</div>
+                            <div class="chart-card-subtitle">Lead acquisition breakdown (Offplan)</div>
                         </div>
                     </div>
                     <div class="donut-wrapper" style="height:220px;">
@@ -671,6 +705,23 @@
                         </div>
                     </div>
                     <div class="chart-legend" id="agentLeadSourceLegend"></div>
+                </div>
+
+                <div class="chart-card">
+                    <div class="chart-card-header">
+                        <div>
+                            <div class="chart-card-title">Secondary Leads by Source</div>
+                            <div class="chart-card-subtitle">Lead acquisition breakdown (Secondary)</div>
+                        </div>
+                    </div>
+                    <div class="donut-wrapper" style="height:220px;">
+                        <canvas id="agentLeadSourceSecondaryChart"></canvas>
+                        <div class="donut-center">
+                            <div class="donut-center-value" id="agentLeadSourceSecondaryVal">–</div>
+                            <div class="donut-center-label">Leads</div>
+                        </div>
+                    </div>
+                    <div class="chart-legend" id="agentLeadSourceSecondaryLegend"></div>
                 </div>
             </div>
 

@@ -1227,13 +1227,17 @@ function buildLeadStageBreakdown($rows, $pipelineIdFilter = null)
     return formatLeadBreakdownItems($grouped, $total, true);
 }
 
-function buildLeadSourceBreakdown($rows)
+function buildLeadSourceBreakdown($rows, $pipelineIdFilter = null)
 {
     $sourceMap = $GLOBALS['CFG_LEAD_SOURCE_MAP'];
     $grouped   = array();
     $total     = 0;
 
     foreach ($rows as $row) {
+        $pipelineId = (int)($row['CATEGORY_ID'] ?? 0);
+        if ($pipelineIdFilter !== null && $pipelineId !== (int)$pipelineIdFilter) {
+            continue;
+        }
         $sourceId = trim((string)($row['source_id'] ?? ''));
         $count    = (int)($row['cnt'] ?? 0);
         $label    = $sourceMap[$sourceId] ?? ($sourceId !== '' ? $sourceId : 'Unknown');

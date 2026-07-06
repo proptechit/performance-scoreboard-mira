@@ -205,9 +205,10 @@ if ($role === 'agent') {
     $topPropertyTypes = buildTopPropertyTypes($allDeals);
     $targetVsActual   = buildTargetVsActual($monthlyDeals, $monthlyTarget);
     $avgTicketSize    = buildAvgTicketSize($monthlyDeals);
-    $leadsByStageOffplan   = buildLeadStageBreakdown($leadRows, PIPELINE_OFFPLAN);
-    $leadsByStageSecondary = buildLeadStageBreakdown($leadRows, PIPELINE_SECONDARY);
-    $leadsBySource         = buildLeadSourceBreakdown($leadRows);
+    $leadsByStageOffplan    = buildLeadStageBreakdown($leadRows, PIPELINE_OFFPLAN);
+    $leadsByStageSecondary  = buildLeadStageBreakdown($leadRows, PIPELINE_SECONDARY);
+    $leadsBySource          = buildLeadSourceBreakdown($leadRows, PIPELINE_OFFPLAN);
+    $leadsBySourceSecondary = buildLeadSourceBreakdown($leadRows, PIPELINE_SECONDARY);
 
     $commissionTrend = array();
     foreach ($monthlyDeals as $m) {
@@ -256,6 +257,7 @@ if ($role === 'agent') {
         'leads_by_stage_offplan'   => $leadsByStageOffplan,
         'leads_by_stage_secondary' => $leadsByStageSecondary,
         'leads_by_source'    => $leadsBySource,
+        'leads_by_source_secondary' => $leadsBySourceSecondary,
     );
     $response['listing_details'] = $listingDetails;
 
@@ -355,9 +357,10 @@ if ($role === 'agent') {
     // Charts
     $dealDist       = buildDealDistribution($allDeals);
     $targetVsActual = buildTargetVsActual($monthlyDeals, $monthlyTarget);
-    $leadsByStageOffplan   = buildLeadStageBreakdown($leadRows, PIPELINE_OFFPLAN);
-    $leadsByStageSecondary = buildLeadStageBreakdown($leadRows, PIPELINE_SECONDARY);
-    $leadsBySource         = buildLeadSourceBreakdown($leadRows);
+    $leadsByStageOffplan    = buildLeadStageBreakdown($leadRows, PIPELINE_OFFPLAN);
+    $leadsByStageSecondary  = buildLeadStageBreakdown($leadRows, PIPELINE_SECONDARY);
+    $leadsBySource          = buildLeadSourceBreakdown($leadRows, PIPELINE_OFFPLAN);
+    $leadsBySourceSecondary = buildLeadSourceBreakdown($leadRows, PIPELINE_SECONDARY);
 
     $commissionTrend = array();
     foreach ($monthlyDeals as $m) {
@@ -440,6 +443,7 @@ if ($role === 'agent') {
         'leads_by_stage_offplan'   => $leadsByStageOffplan,
         'leads_by_stage_secondary' => $leadsByStageSecondary,
         'leads_by_source'   => $leadsBySource,
+        'leads_by_source_secondary' => $leadsBySourceSecondary,
     );
     $response['all_agents'] = $allAgentRows;
     $response['listing_details'] = $listingDetails;
@@ -510,9 +514,10 @@ if ($role === 'agent') {
     $topPropertyTypes = buildTopPropertyTypes($allDeals);
     $targetVsActual   = buildTargetVsActual($monthlyDeals, $monthlyTarget);
     $salesByDealType  = buildSalesByDealType($allDeals, $chartYear);
-    $leadsByStageOffplan   = buildLeadStageBreakdown($leadRows, PIPELINE_OFFPLAN);
-    $leadsByStageSecondary = buildLeadStageBreakdown($leadRows, PIPELINE_SECONDARY);
-    $leadsBySource         = buildLeadSourceBreakdown($leadRows);
+    $leadsByStageOffplan    = buildLeadStageBreakdown($leadRows, PIPELINE_OFFPLAN);
+    $leadsByStageSecondary  = buildLeadStageBreakdown($leadRows, PIPELINE_SECONDARY);
+    $leadsBySource          = buildLeadSourceBreakdown($leadRows, PIPELINE_OFFPLAN);
+    $leadsBySourceSecondary = buildLeadSourceBreakdown($leadRows, PIPELINE_SECONDARY);
 
     $commissionTrend = array();
     foreach ($monthlyDeals as $m) {
@@ -678,6 +683,7 @@ if ($role === 'agent') {
     $response['leads_by_stage_offplan']   = $leadsByStageOffplan;
     $response['leads_by_stage_secondary'] = $leadsByStageSecondary;
     $response['leads_by_source']    = $leadsBySource;
+    $response['leads_by_source_secondary'] = $leadsBySourceSecondary;
     $response['listing_details']    = $listingDetails;
     $response['agent_performance']  = $agentPerformance;
     $response['team_performance']   = $teamPerformance;
