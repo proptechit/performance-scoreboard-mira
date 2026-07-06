@@ -478,9 +478,15 @@ function getSalesTeamDisplayName($teamRow)
  * Returns array of user rows: ID, NAME, LAST_NAME, WORK_POSITION, UF_DEPARTMENT.
  *
  * @param  int|array $deptIds  Single dept ID or array of dept IDs
+ * @param  bool      $applyPrivateOfficeOverride  When true (default), users whose
+ *                    WORK_POSITION is "Private Office" are grouped under dept 23 (PO team)
+ *                    instead of their actual assigned department. This is CEO-view
+ *                    behavior. Pass false to use each user's real UF_DEPARTMENT instead
+ *                    (manager-view behavior), so Private Office agents show up normally
+ *                    under their actual department for their own manager.
  * @return array
  */
-function getAgentsByDept($deptIds)
+function getAgentsByDept($deptIds, $applyPrivateOfficeOverride = true)
 {
     $deptIds = filterAllowedSalesDepartmentIds($deptIds, true);
     if (empty($deptIds)) {
@@ -493,6 +499,10 @@ function getAgentsByDept($deptIds)
     $excludeNonAgents = !empty($nonAgentIds)
         ? 'AND u.ID NOT IN ' . inClauseInt($nonAgentIds)
         : '';
+
+    $deptExpr = $applyPrivateOfficeOverride
+        ? "CASE WHEN TRIM(LOWER(u.WORK_POSITION)) = 'private office' THEN 23 ELSE ud.VALUE_INT END"
+        : 'ud.VALUE_INT';
 
     return dbQuery("
         SELECT DISTINCT
@@ -513,7 +523,7 @@ function getAgentsByDept($deptIds)
             ON uts_u.VALUE_ID = u.ID
 
         WHERE u.ACTIVE = 'Y'
-          AND (CASE WHEN TRIM(LOWER(u.WORK_POSITION)) = 'private office' THEN 23 ELSE ud.VALUE_INT END) IN {$in}
+          AND ({$deptExpr}) IN {$in}
           {$excludeNonAgents}
 
         ORDER BY u.LAST_NAME ASC, u.NAME ASC
@@ -524,9 +534,11 @@ function getAgentsByDept($deptIds)
  * Fetch all active user IDs in a given department (and its sub-departments), without role restrictions.
  *
  * @param  int|array $deptIds  Single dept ID or array of dept IDs
+ * @param  bool      $applyPrivateOfficeOverride  See getAgentsByDept(). Default true (CEO-view
+ *                    grouping); pass false for manager-view (real department) behavior.
  * @return array
  */
-function getDeptUserIds($deptIds)
+function getDeptUserIds($deptIds, $applyPrivateOfficeOverride = true)
 {
     $deptIds = filterAllowedSalesDepartmentIds($deptIds, true);
     if (empty($deptIds)) {
@@ -535,6 +547,10 @@ function getDeptUserIds($deptIds)
 
     $in = inClauseInt($deptIds);
 
+    $deptExpr = $applyPrivateOfficeOverride
+        ? "CASE WHEN TRIM(LOWER(u.WORK_POSITION)) = 'private office' THEN 23 ELSE ud.VALUE_INT END"
+        : 'ud.VALUE_INT';
+
     $rows = dbQuery("
         SELECT DISTINCT u.ID
         FROM b_user u
@@ -542,7 +558,7 @@ function getDeptUserIds($deptIds)
             ON ud.VALUE_ID = u.ID
            AND ud.FIELD_ID = 40   -- UF_DEPARTMENT
         WHERE u.ACTIVE = 'Y'
-          AND (CASE WHEN TRIM(LOWER(u.WORK_POSITION)) = 'private office' THEN 23 ELSE ud.VALUE_INT END) IN {$in}
+          AND ({$deptExpr}) IN {$in}
     ");
 
     return array_map(function ($row) {
@@ -711,8 +727,13 @@ function getListingBranchCodesForUserIds($userIds)
 /**
  * Get all agent user IDs managed by a given manager (by department UF_HEAD).
  * Returns array of integer user IDs.
+ *
+ * @param  int  $managerId
+ * @param  bool $applyPrivateOfficeOverride  See getAgentsByDept(). Default true (CEO-view
+ *              grouping); pass false for manager-view (real department) behavior, so a
+ *              Private Office agent shows up normally under their actual manager/department.
  */
-function getAgentIdsByManager($managerId)
+function getAgentIdsByManager($managerId, $applyPrivateOfficeOverride = true)
 {
     $mid = dbInt($managerId);
     $nonAgentIds = getNonAgentUserIds();
@@ -736,6 +757,10 @@ function getAgentIdsByManager($managerId)
         return array();
     }
 
+    $deptExpr = $applyPrivateOfficeOverride
+        ? "CASE WHEN TRIM(LOWER(u.WORK_POSITION)) = 'private office' THEN 23 ELSE ud.VALUE_INT END"
+        : 'ud.VALUE_INT';
+
     $rows = dbQuery("
         SELECT DISTINCT u.ID
         FROM b_user u
@@ -743,7 +768,7 @@ function getAgentIdsByManager($managerId)
             ON ud.VALUE_ID = u.ID
            AND ud.FIELD_ID = 40
         WHERE u.ACTIVE = 'Y'
-          AND (CASE WHEN TRIM(LOWER(u.WORK_POSITION)) = 'private office' THEN 23 ELSE ud.VALUE_INT END) IN " . inClauseInt($managerDepts) . "
+          AND ({$deptExpr}) IN " . inClauseInt($managerDepts) . "
           {$excludeNonAgents}
     ");
 

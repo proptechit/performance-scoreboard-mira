@@ -110,7 +110,9 @@ if (in_array($role, array('manager', 'agent'), true) && $deptId <= 0) {
 
 if ($role === 'agent') {
     if ($currentUserRole === 'manager') {
-        $managedAgentIds = getAgentIdsByManager($currentUserId);
+        // Manager-view lookup: Private Office agents should still count as normal
+        // members of this manager's own department here.
+        $managedAgentIds = getAgentIdsByManager($currentUserId, false);
         if (!in_array($agentId, $managedAgentIds, true)) {
             echo json_encode(array('error' => 'Unauthorized agent selection', 'agent_id' => $agentId));
             exit;
@@ -287,7 +289,9 @@ if ($role === 'agent') {
     // All agents in this manager's department(s)
     $agentRows = array();
     if ($deptId > 0) {
-        $deptAgents = getAgentsByDept(array($deptId));
+        // Manager-view: use each agent's real department, so a Private Office
+        // agent still shows up normally under this manager's team (no CEO-only override).
+        $deptAgents = getAgentsByDept(array($deptId), false);
         $agentIds = array_map(function ($row) {
             return (int)$row['ID'];
         }, $deptAgents);
@@ -295,7 +299,8 @@ if ($role === 'agent') {
             $agentRows[(int)$row['ID']] = $row;
         }
     } else {
-        $agentIds = getAgentIdsByManager($managerId);
+        // Manager-view: same rationale as above — no CEO-only PO override here.
+        $agentIds = getAgentIdsByManager($managerId, false);
         foreach ($agentIds as $aid) {
             $row = getUserProfile($aid);
             if (!empty($row)) {
@@ -344,7 +349,7 @@ if ($role === 'agent') {
         : (empty($agentIds) ? array('sale' => array(), 'rent' => array()) : fetchActiveListingDetailsForUsers($agentIds));
     $noDeal60     = countNoDealIn60Days($agentIds);
     $targetDeptId = $deptId > 0 ? $deptId : getUserDeptId($managerId);
-    $deptUserIds  = $targetDeptId > 0 ? getDeptUserIds(array($targetDeptId)) : array();
+    $deptUserIds  = $targetDeptId > 0 ? getDeptUserIds(array($targetDeptId), false) : array();
     $leadRows     = empty($deptUserIds) ? array() : fetchLeadBreakdownRows($deptUserIds, $dateRange, $dealType);
 
     // Charts
