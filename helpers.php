@@ -486,7 +486,7 @@ function getSalesTeamDisplayName($teamRow)
  *                    under their actual department for their own manager.
  * @return array
  */
-function getAgentsByDept($deptIds, $applyPrivateOfficeOverride = true)
+function getAgentsByDept($deptIds, $applyPrivateOfficeOverride = true, $dateRange = null)
 {
     $deptIds = filterAllowedSalesDepartmentIds($deptIds, true);
     if (empty($deptIds)) {
@@ -504,30 +504,63 @@ function getAgentsByDept($deptIds, $applyPrivateOfficeOverride = true)
         ? "CASE WHEN TRIM(LOWER(u.WORK_POSITION)) = 'private office' THEN 23 ELSE ud.VALUE_INT END"
         : 'ud.VALUE_INT';
 
-    return dbQuery("
-        SELECT DISTINCT
-            u.ID,
-            u.NAME,
-            u.LAST_NAME,
-            u.WORK_POSITION,
-            u.DATE_REGISTER,
-            u.PERSONAL_PHOTO,
-            uts_u.UF_USR_1778656838068
-        FROM b_user u
+    if ($dateRange && isset($dateRange['from']) && isset($dateRange['to'])) {
+        $from = dbEsc($dateRange['from']);
+        $to   = dbEsc($dateRange['to']);
 
-        LEFT JOIN b_utm_user ud
-            ON ud.VALUE_ID = u.ID
-           AND ud.FIELD_ID = 40   -- UF_DEPARTMENT
-           
-        LEFT JOIN b_uts_user uts_u
-            ON uts_u.VALUE_ID = u.ID
+        $sql = "
+            SELECT DISTINCT
+                u.ID,
+                u.NAME,
+                u.LAST_NAME,
+                u.WORK_POSITION,
+                u.DATE_REGISTER,
+                u.PERSONAL_PHOTO,
+                uts_u.UF_USR_1778656838068
+            FROM b_user u
+            LEFT JOIN b_utm_user ud
+                ON ud.VALUE_ID = u.ID
+               AND ud.FIELD_ID = 40   -- UF_DEPARTMENT
+            LEFT JOIN b_uts_user uts_u
+                ON uts_u.VALUE_ID = u.ID
+            WHERE u.ACTIVE = 'Y'
+              AND (
+                  ({$deptExpr}) IN {$in}
+                  OR u.ID IN (
+                      SELECT h.USER_ID 
+                      FROM b_agent_dept_history h 
+                      WHERE h.DEPT_ID IN {$in}
+                        AND h.EFFECTIVE_FROM <= '{$to}'
+                        AND (h.EFFECTIVE_TO IS NULL OR h.EFFECTIVE_TO >= '{$from}')
+                  )
+              )
+              {$excludeNonAgents}
+            ORDER BY u.LAST_NAME ASC, u.NAME ASC
+        ";
+    } else {
+        $sql = "
+            SELECT DISTINCT
+                u.ID,
+                u.NAME,
+                u.LAST_NAME,
+                u.WORK_POSITION,
+                u.DATE_REGISTER,
+                u.PERSONAL_PHOTO,
+                uts_u.UF_USR_1778656838068
+            FROM b_user u
+            LEFT JOIN b_utm_user ud
+                ON ud.VALUE_ID = u.ID
+               AND ud.FIELD_ID = 40   -- UF_DEPARTMENT
+            LEFT JOIN b_uts_user uts_u
+                ON uts_u.VALUE_ID = u.ID
+            WHERE u.ACTIVE = 'Y'
+              AND ({$deptExpr}) IN {$in}
+              {$excludeNonAgents}
+            ORDER BY u.LAST_NAME ASC, u.NAME ASC
+        ";
+    }
 
-        WHERE u.ACTIVE = 'Y'
-          AND ({$deptExpr}) IN {$in}
-          {$excludeNonAgents}
-
-        ORDER BY u.LAST_NAME ASC, u.NAME ASC
-    ");
+    return dbQuery($sql);
 }
 
 /**
@@ -536,9 +569,10 @@ function getAgentsByDept($deptIds, $applyPrivateOfficeOverride = true)
  * @param  int|array $deptIds  Single dept ID or array of dept IDs
  * @param  bool      $applyPrivateOfficeOverride  See getAgentsByDept(). Default true (CEO-view
  *                    grouping); pass false for manager-view (real department) behavior.
+ * @param  array|null $dateRange Optional date range filter to include historical members.
  * @return array
  */
-function getDeptUserIds($deptIds, $applyPrivateOfficeOverride = true)
+function getDeptUserIds($deptIds, $applyPrivateOfficeOverride = true, $dateRange = null)
 {
     $deptIds = filterAllowedSalesDepartmentIds($deptIds, true);
     if (empty($deptIds)) {
@@ -551,15 +585,41 @@ function getDeptUserIds($deptIds, $applyPrivateOfficeOverride = true)
         ? "CASE WHEN TRIM(LOWER(u.WORK_POSITION)) = 'private office' THEN 23 ELSE ud.VALUE_INT END"
         : 'ud.VALUE_INT';
 
-    $rows = dbQuery("
-        SELECT DISTINCT u.ID
-        FROM b_user u
-        LEFT JOIN b_utm_user ud
-            ON ud.VALUE_ID = u.ID
-           AND ud.FIELD_ID = 40   -- UF_DEPARTMENT
-        WHERE u.ACTIVE = 'Y'
-          AND ({$deptExpr}) IN {$in}
-    ");
+    if ($dateRange && isset($dateRange['from']) && isset($dateRange['to'])) {
+        $from = dbEsc($dateRange['from']);
+        $to   = dbEsc($dateRange['to']);
+
+        $sql = "
+            SELECT DISTINCT u.ID
+            FROM b_user u
+            LEFT JOIN b_utm_user ud
+                ON ud.VALUE_ID = u.ID
+               AND ud.FIELD_ID = 40   -- UF_DEPARTMENT
+            WHERE u.ACTIVE = 'Y'
+              AND (
+                  ({$deptExpr}) IN {$in}
+                  OR u.ID IN (
+                      SELECT h.USER_ID 
+                      FROM b_agent_dept_history h 
+                      WHERE h.DEPT_ID IN {$in}
+                        AND h.EFFECTIVE_FROM <= '{$to}'
+                        AND (h.EFFECTIVE_TO IS NULL OR h.EFFECTIVE_TO >= '{$from}')
+                  )
+              )
+        ";
+    } else {
+        $sql = "
+            SELECT DISTINCT u.ID
+            FROM b_user u
+            LEFT JOIN b_utm_user ud
+                ON ud.VALUE_ID = u.ID
+               AND ud.FIELD_ID = 40   -- UF_DEPARTMENT
+            WHERE u.ACTIVE = 'Y'
+              AND ({$deptExpr}) IN {$in}
+        ";
+    }
+
+    $rows = dbQuery($sql);
 
     return array_map(function ($row) {
         return (int)$row['ID'];
@@ -732,8 +792,9 @@ function getListingBranchCodesForUserIds($userIds)
  * @param  bool $applyPrivateOfficeOverride  See getAgentsByDept(). Default true (CEO-view
  *              grouping); pass false for manager-view (real department) behavior, so a
  *              Private Office agent shows up normally under their actual manager/department.
+ * @param  array|null $dateRange Optional date range filter to include historical members.
  */
-function getAgentIdsByManager($managerId, $applyPrivateOfficeOverride = true)
+function getAgentIdsByManager($managerId, $applyPrivateOfficeOverride = true, $dateRange = null)
 {
     $mid = dbInt($managerId);
     $nonAgentIds = getNonAgentUserIds();
@@ -761,16 +822,45 @@ function getAgentIdsByManager($managerId, $applyPrivateOfficeOverride = true)
         ? "CASE WHEN TRIM(LOWER(u.WORK_POSITION)) = 'private office' THEN 23 ELSE ud.VALUE_INT END"
         : 'ud.VALUE_INT';
 
-    $rows = dbQuery("
-        SELECT DISTINCT u.ID
-        FROM b_user u
-        LEFT JOIN b_utm_user ud
-            ON ud.VALUE_ID = u.ID
-           AND ud.FIELD_ID = 40
-        WHERE u.ACTIVE = 'Y'
-          AND ({$deptExpr}) IN " . inClauseInt($managerDepts) . "
-          {$excludeNonAgents}
-    ");
+    $deptIn = inClauseInt($managerDepts);
+
+    if ($dateRange && isset($dateRange['from']) && isset($dateRange['to'])) {
+        $from = dbEsc($dateRange['from']);
+        $to   = dbEsc($dateRange['to']);
+
+        $sql = "
+            SELECT DISTINCT u.ID
+            FROM b_user u
+            LEFT JOIN b_utm_user ud
+                ON ud.VALUE_ID = u.ID
+               AND ud.FIELD_ID = 40
+            WHERE u.ACTIVE = 'Y'
+              AND (
+                  ({$deptExpr}) IN {$deptIn}
+                  OR u.ID IN (
+                      SELECT h.USER_ID 
+                      FROM b_agent_dept_history h 
+                      WHERE h.DEPT_ID IN {$deptIn}
+                        AND h.EFFECTIVE_FROM <= '{$to}'
+                        AND (h.EFFECTIVE_TO IS NULL OR h.EFFECTIVE_TO >= '{$from}')
+                  )
+              )
+              {$excludeNonAgents}
+        ";
+    } else {
+        $sql = "
+            SELECT DISTINCT u.ID
+            FROM b_user u
+            LEFT JOIN b_utm_user ud
+                ON ud.VALUE_ID = u.ID
+               AND ud.FIELD_ID = 40
+            WHERE u.ACTIVE = 'Y'
+              AND ({$deptExpr}) IN {$deptIn}
+              {$excludeNonAgents}
+        ";
+    }
+
+    $rows = dbQuery($sql);
 
     return array_map(function ($r) {
         return (int)$r['ID'];
@@ -1151,7 +1241,7 @@ function getLeadPipelinesForDealType($dealType)
     return array(PIPELINE_OFFPLAN, PIPELINE_SECONDARY);
 }
 
-function fetchLeadBreakdownRows($agentIds, $dateRange, $dealType = 'All')
+function fetchLeadBreakdownRows($agentIds, $dateRange, $dealType = 'All', $scopeDeptId = 0)
 {
     $pipelines = getLeadPipelinesForDealType($dealType);
     if (empty($pipelines)) {
@@ -1168,6 +1258,28 @@ function fetchLeadBreakdownRows($agentIds, $dateRange, $dealType = 'All')
         $agentFilter = 'AND d.ASSIGNED_BY_ID IN ' . inClauseInt($agentIds);
     }
 
+    $scopeJoin = '';
+    $scopeFilter = '';
+    if ($scopeDeptId > 0) {
+        $scopeJoin = "
+            LEFT JOIN b_utm_user ud
+                ON ud.VALUE_ID = d.ASSIGNED_BY_ID
+               AND ud.FIELD_ID = 40
+            LEFT JOIN b_agent_dept_history h
+                ON h.USER_ID = d.ASSIGNED_BY_ID
+               AND DATE(d.CLOSEDATE) >= h.EFFECTIVE_FROM
+               AND (h.EFFECTIVE_TO IS NULL OR DATE(d.CLOSEDATE) <= h.EFFECTIVE_TO)
+        ";
+        $scopeFilter = "
+            AND (
+                (h.DEPT_ID IS NOT NULL AND h.DEPT_ID = {$scopeDeptId})
+                OR (h.DEPT_ID IS NULL AND COALESCE(
+                    (CASE WHEN (SELECT TRIM(LOWER(WORK_POSITION)) FROM b_user WHERE ID = d.ASSIGNED_BY_ID) = 'private office' THEN 23 ELSE ud.VALUE_INT END), 0
+                ) = {$scopeDeptId})
+            )
+        ";
+    }
+
     return dbQuery("
         SELECT
             d.CATEGORY_ID,
@@ -1175,10 +1287,12 @@ function fetchLeadBreakdownRows($agentIds, $dateRange, $dealType = 'All')
             d.{$source} AS source_id,
             COUNT(*) AS cnt
         FROM b_crm_deal d
+        {$scopeJoin}
         WHERE d.CATEGORY_ID IN {$catIn}
           AND DATE(d.DATE_CREATE) >= '{$from}'
           AND DATE(d.DATE_CREATE) <= '{$to}'
           {$agentFilter}
+          {$scopeFilter}
         GROUP BY d.CATEGORY_ID, d.STAGE_ID, d.{$source}
     ");
 }
@@ -1313,7 +1427,7 @@ function formatLeadBreakdownItems($grouped, $total, $preserveStageOrder = false)
  * @param  array  $dateRange
  * @return int
  */
-function countActiveLeads($agentIds, $dateRange, $pipeline = null)
+function countActiveLeads($agentIds, $dateRange, $pipeline = null, $scopeDeptId = 0)
 {
     if ($pipeline === PIPELINE_OFFPLAN) {
         $pipelines = array(PIPELINE_OFFPLAN);
@@ -1336,14 +1450,38 @@ function countActiveLeads($agentIds, $dateRange, $pipeline = null)
 
     $excludeIn     = inClauseStr($excludeStages);
 
+    $scopeJoin = '';
+    $scopeFilter = '';
+    if ($scopeDeptId > 0) {
+        $scopeJoin = "
+            LEFT JOIN b_utm_user ud
+                ON ud.VALUE_ID = d.ASSIGNED_BY_ID
+               AND ud.FIELD_ID = 40
+            LEFT JOIN b_agent_dept_history h
+                ON h.USER_ID = d.ASSIGNED_BY_ID
+               AND DATE(d.CLOSEDATE) >= h.EFFECTIVE_FROM
+               AND (h.EFFECTIVE_TO IS NULL OR DATE(d.CLOSEDATE) <= h.EFFECTIVE_TO)
+        ";
+        $scopeFilter = "
+            AND (
+                (h.DEPT_ID IS NOT NULL AND h.DEPT_ID = {$scopeDeptId})
+                OR (h.DEPT_ID IS NULL AND COALESCE(
+                    (CASE WHEN (SELECT TRIM(LOWER(WORK_POSITION)) FROM b_user WHERE ID = d.ASSIGNED_BY_ID) = 'private office' THEN 23 ELSE ud.VALUE_INT END), 0
+                ) = {$scopeDeptId})
+            )
+        ";
+    }
+
     $row = dbQueryOne("
         SELECT COUNT(*) AS cnt
         FROM b_crm_deal d
+        {$scopeJoin}
         WHERE d.CATEGORY_ID IN {$in}
           AND d.STAGE_ID NOT IN {$excludeIn}
           AND DATE(d.DATE_CREATE) >= '{$from}'
           AND DATE(d.DATE_CREATE) <= '{$to}'
           {$agentFilter}
+          {$scopeFilter}
     ");
     return (int)($row['cnt'] ?? 0);
 }
@@ -1365,9 +1503,10 @@ function countActiveLeads($agentIds, $dateRange, $pipeline = null)
  *
  * @param  array  $agentIds
  * @param  array  $dateRange
+ * @param  int    $scopeDeptId
  * @return int
  */
-function countReshuffledLeads($agentIds, $dateRange)
+function countReshuffledLeads($agentIds, $dateRange, $scopeDeptId = 0)
 {
     $pipelines = array(PIPELINE_OFFPLAN);
     $in        = inClauseInt($pipelines);
@@ -1381,6 +1520,28 @@ function countReshuffledLeads($agentIds, $dateRange)
     $inAgents = inClauseInt($agentIds);
     $excludeStages = inClauseStr($GLOBALS['CFG_LEAD_JUNK_STAGES_OFFPLAN']);
 
+    $scopeJoin = '';
+    $scopeFilter = '';
+    if ($scopeDeptId > 0) {
+        $scopeJoin = "
+            LEFT JOIN b_utm_user ud
+                ON ud.VALUE_ID = d.ASSIGNED_BY_ID
+               AND ud.FIELD_ID = 40
+            LEFT JOIN b_agent_dept_history h
+                ON h.USER_ID = d.ASSIGNED_BY_ID
+               AND DATE(e.DATE_CREATE) >= h.EFFECTIVE_FROM
+               AND (h.EFFECTIVE_TO IS NULL OR DATE(e.DATE_CREATE) <= h.EFFECTIVE_TO)
+        ";
+        $scopeFilter = "
+            AND (
+                (h.DEPT_ID IS NOT NULL AND h.DEPT_ID = {$scopeDeptId})
+                OR (h.DEPT_ID IS NULL AND COALESCE(
+                    (CASE WHEN (SELECT TRIM(LOWER(WORK_POSITION)) FROM b_user WHERE ID = d.ASSIGNED_BY_ID) = 'private office' THEN 23 ELSE ud.VALUE_INT END), 0
+                ) = {$scopeDeptId})
+            )
+        ";
+    }
+
     $row = dbQueryOne("
         SELECT COUNT(DISTINCT d.ID) AS cnt
         FROM b_crm_event_relations r
@@ -1390,6 +1551,7 @@ function countReshuffledLeads($agentIds, $dateRange)
                AND d.CATEGORY_ID IN {$in}
                AND d.SOURCE_ID != '11'
         INNER JOIN b_uts_crm_deal uts ON uts.VALUE_ID = d.ID
+        {$scopeJoin}
         WHERE r.ENTITY_TYPE       = 'DEAL'
           AND r.ENTITY_FIELD      = 'ASSIGNED_BY_ID'
           AND e.CREATED_BY_ID     = 1
@@ -1405,6 +1567,7 @@ function countReshuffledLeads($agentIds, $dateRange)
                 AND r2.ENTITY_TYPE  = 'DEAL'
                 AND r2.ENTITY_FIELD = 'ASSIGNED_BY_ID'
           ) > 1
+          {$scopeFilter}
     ");
 
     return (int)($row['cnt'] ?? 0);
@@ -1697,7 +1860,7 @@ function fetchActiveListingDetailsForDepartments($deptIds)
  * @param  array $dateRange
  * @return int
  */
-function countAttendanceDays($userId, $dateRange)
+function countAttendanceDays($userId, $dateRange, $scopeDeptId = 0)
 {
     $table     = SPA_ATTENDANCE_TABLE;
     $typeField = ATTENDANCE_TYPE_FIELD;
@@ -1706,14 +1869,38 @@ function countAttendanceDays($userId, $dateRange)
     $from      = dbEsc($dateRange['from']);
     $to        = dbEsc($dateRange['to']);
 
+    $scopeJoin = '';
+    $scopeFilter = '';
+    if ($scopeDeptId > 0) {
+        $scopeJoin = "
+            LEFT JOIN b_utm_user ud
+                ON ud.VALUE_ID = a.ASSIGNED_BY_ID
+               AND ud.FIELD_ID = 40
+            LEFT JOIN b_agent_dept_history h
+                ON h.USER_ID = a.ASSIGNED_BY_ID
+               AND DATE(a.CREATED_TIME) >= h.EFFECTIVE_FROM
+               AND (h.EFFECTIVE_TO IS NULL OR DATE(a.CREATED_TIME) <= h.EFFECTIVE_TO)
+        ";
+        $scopeFilter = "
+            AND (
+                (h.DEPT_ID IS NOT NULL AND h.DEPT_ID = {$scopeDeptId})
+                OR (h.DEPT_ID IS NULL AND COALESCE(
+                    (CASE WHEN (SELECT TRIM(LOWER(WORK_POSITION)) FROM b_user WHERE ID = a.ASSIGNED_BY_ID) = 'private office' THEN 23 ELSE ud.VALUE_INT END), 0
+                ) = {$scopeDeptId})
+            )
+        ";
+    }
+
     // Count distinct calendar days the agent punched in
     $row = dbQueryOne("
         SELECT COUNT(DISTINCT DATE(a.CREATED_TIME)) AS cnt
         FROM {$table} a
+        {$scopeJoin}
         WHERE a.ASSIGNED_BY_ID = {$uid}
           AND a.{$typeField}   = '{$typeIn}'
           AND DATE(a.CREATED_TIME) >= '{$from}'
           AND DATE(a.CREATED_TIME) <= '{$to}'
+          {$scopeFilter}
     ");
     return (int)($row['cnt'] ?? 0);
 }
@@ -2495,19 +2682,19 @@ function fetchYearMonthly($year, $agentIds = array())
  * @param  array $dateRange
  * @return array
  */
-function buildAgentPerformanceRow($userRow, $allDeals, $wonDeals, $committedDeals, $dateRange)
+function buildAgentPerformanceRow($userRow, $allDeals, $wonDeals, $committedDeals, $dateRange, $scopeDeptId = 0)
 {
     $uid = (int)$userRow['ID'];
     $agg = aggregateDeals($allDeals);
     $commissionAgg = aggregateCommissionDeals($wonDeals, $committedDeals);
 
-    $leadCountOffplan   = countActiveLeads(array($uid), $dateRange, PIPELINE_OFFPLAN);
-    $leadCountSecondary = countActiveLeads(array($uid), $dateRange, PIPELINE_SECONDARY);
-    $reshuffledCount = countReshuffledLeads(array($uid), $dateRange);
+    $leadCountOffplan   = countActiveLeads(array($uid), $dateRange, PIPELINE_OFFPLAN, $scopeDeptId);
+    $leadCountSecondary = countActiveLeads(array($uid), $dateRange, PIPELINE_SECONDARY, $scopeDeptId);
+    $reshuffledCount = countReshuffledLeads(array($uid), $dateRange, $scopeDeptId);
     $listingCount    = countListingsForUsers(array($uid));
     $lastDealDays    = daysSinceLastDeal(array($uid));
     $avgGap          = avgGapBetweenDeals($uid, $dateRange);
-    $attendance      = countAttendanceDays($uid, $dateRange);
+    $attendance      = countAttendanceDays($uid, $dateRange, $scopeDeptId);
 
     try {
         $start = new \DateTime($dateRange['from']);
@@ -2533,6 +2720,9 @@ function buildAgentPerformanceRow($userRow, $allDeals, $wonDeals, $committedDeal
         }
     }
 
+    $currentDeptId = getUserDeptId($uid);
+    $isTransferred = ($scopeDeptId > 0 && $currentDeptId !== $scopeDeptId);
+
     return array(
         'id'               => $uid,
         'name'             => fullName($userRow),
@@ -2552,6 +2742,7 @@ function buildAgentPerformanceRow($userRow, $allDeals, $wonDeals, $committedDeal
         'last_deal_days'   => $lastDealDays,
         'attendance'       => $attendance,
         'attendance_total' => $attendanceTotal,
+        'is_transferred'   => $isTransferred,
     );
 }
 
@@ -2574,4 +2765,49 @@ function buildAvgTicketSize($monthlyDeals)
         );
     }
     return $result;
+}
+
+/**
+ * Resolve an agent's department ID at a specific date using b_agent_dept_history.
+ * Falls back to the current department if no historical record is found or matches.
+ */
+function getAgentDeptAtDate($userId, $dateStr)
+{
+    static $historyCache = null;
+
+    if ($historyCache === null) {
+        $historyCache = array();
+        // Fetch all history records
+        $rows = dbQuery("SELECT USER_ID, DEPT_ID, EFFECTIVE_FROM, EFFECTIVE_TO FROM b_agent_dept_history ORDER BY EFFECTIVE_FROM ASC");
+        foreach ($rows as $row) {
+            $uid = (int)$row['USER_ID'];
+            if (!isset($historyCache[$uid])) {
+                $historyCache[$uid] = array();
+            }
+            $historyCache[$uid][] = array(
+                'dept_id' => (int)$row['DEPT_ID'],
+                'from'    => $row['EFFECTIVE_FROM'],
+                'to'      => $row['EFFECTIVE_TO'] ?: '9999-12-31'
+            );
+        }
+    }
+
+    $uid = (int)$userId;
+    if (empty($dateStr)) {
+        return getUserDeptId($uid);
+    }
+
+    // Convert date string to YYYY-MM-DD
+    $date = date('Y-m-d', strtotime($dateStr));
+
+    if (isset($historyCache[$uid])) {
+        foreach ($historyCache[$uid] as $h) {
+            if ($date >= $h['from'] && $date <= $h['to']) {
+                return $h['dept_id'];
+            }
+        }
+    }
+
+    // Fallback to current department
+    return getUserDeptId($uid);
 }

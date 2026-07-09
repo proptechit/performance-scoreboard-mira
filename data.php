@@ -293,7 +293,7 @@ if ($role === 'agent') {
     if ($deptId > 0) {
         // Manager-view: use each agent's real department, so a Private Office
         // agent still shows up normally under this manager's team (no CEO-only override).
-        $deptAgents = getAgentsByDept(array($deptId), false);
+        $deptAgents = getAgentsByDept(array($deptId), false, $dateRange);
         $agentIds = array_map(function ($row) {
             return (int)$row['ID'];
         }, $deptAgents);
@@ -302,7 +302,7 @@ if ($role === 'agent') {
         }
     } else {
         // Manager-view: same rationale as above — no CEO-only PO override here.
-        $agentIds = getAgentIdsByManager($managerId, false);
+        $agentIds = getAgentIdsByManager($managerId, false, $dateRange);
         foreach ($agentIds as $aid) {
             $row = getUserProfile($aid);
             if (!empty($row)) {
@@ -317,13 +317,41 @@ if ($role === 'agent') {
     }
     $dealOwnerIds = array_values(array_unique(array_map('intval', $dealOwnerIds)));
 
+    $targetDeptId  = $deptId > 0 ? $deptId : getUserDeptId($managerId);
+
     // Team won deals
     $allDeals       = empty($dealOwnerIds) ? array() : fetchAllDeals($dealOwnerIds, $dateRange, $dealType);
     $wonDeals       = empty($dealOwnerIds) ? array() : fetchWonDeals($dealOwnerIds, $dateRange, $dealType);
     $committedDeals = empty($dealOwnerIds) ? array() : fetchCommittedDeals($dealOwnerIds, $dateRange, $dealType);
-    $agg            = aggregateDeals($allDeals);
+
+    // Filter deals for the team
+    $filteredAllDeals = array();
+    foreach ($allDeals as $d) {
+        $dealDate = $d['effective_close_date'] ?? $d['CLOSEDATE'] ?? '';
+        if (getAgentDeptAtDate($d['ASSIGNED_BY_ID'], $dealDate) === $targetDeptId) {
+            $filteredAllDeals[] = $d;
+        }
+    }
+
+    $filteredWonDeals = array();
+    foreach ($wonDeals as $d) {
+        $dealDate = $d['effective_close_date'] ?? $d['CLOSEDATE'] ?? '';
+        if (getAgentDeptAtDate($d['ASSIGNED_BY_ID'], $dealDate) === $targetDeptId) {
+            $filteredWonDeals[] = $d;
+        }
+    }
+
+    $filteredCommittedDeals = array();
+    foreach ($committedDeals as $d) {
+        $dealDate = $d['effective_close_date'] ?? $d['CLOSEDATE'] ?? '';
+        if (getAgentDeptAtDate($d['ASSIGNED_BY_ID'], $dealDate) === $targetDeptId) {
+            $filteredCommittedDeals[] = $d;
+        }
+    }
+
+    $agg            = aggregateDeals($filteredAllDeals);
     // Keep the headline "top" stats scoped to the selected manager team.
-    $monthlyDeals   = groupDealsByMonth($allDeals, $chartYear);
+    $monthlyDeals   = groupDealsByMonth($filteredAllDeals, $chartYear);
     $commSplit      = empty($dealOwnerIds) ? array(
         'total' => 0,
         'committed_commission' => 0,
@@ -332,14 +360,13 @@ if ($role === 'agent') {
         'operational_commission_pct' => 0,
         'top_commission' => 0,
         'top_commission_id' => 0,
-    ) : aggregateCommissionDeals($wonDeals, $committedDeals);
-    $targetDeptId  = $deptId > 0 ? $deptId : getUserDeptId($managerId);
+    ) : aggregateCommissionDeals($filteredWonDeals, $filteredCommittedDeals);
     $monthlyTarget = getTeamTarget($targetDeptId);
 
     // Team-wide supplementary
-    $leadCountOffplan   = empty($agentIds) ? 0 : countActiveLeads($agentIds, $dateRange, PIPELINE_OFFPLAN);
-    $leadCountSecondary = empty($agentIds) ? 0 : countActiveLeads($agentIds, $dateRange, PIPELINE_SECONDARY);
-    $reshuffled   = empty($agentIds) ? 0 : countReshuffledLeads($agentIds, $dateRange);
+    $leadCountOffplan   = empty($agentIds) ? 0 : countActiveLeads($agentIds, $dateRange, PIPELINE_OFFPLAN, $targetDeptId);
+    $leadCountSecondary = empty($agentIds) ? 0 : countActiveLeads($agentIds, $dateRange, PIPELINE_SECONDARY, $targetDeptId);
+    $reshuffled   = empty($agentIds) ? 0 : countReshuffledLeads($agentIds, $dateRange, $targetDeptId);
     $listingCount = $deptId > 0
         ? countListingsForDepartments(array($deptId))
         : (empty($agentIds) ? 0 : countListingsForUsers($agentIds));
@@ -350,12 +377,11 @@ if ($role === 'agent') {
         ? fetchActiveListingDetailsForDepartments(array($deptId))
         : (empty($agentIds) ? array('sale' => array(), 'rent' => array()) : fetchActiveListingDetailsForUsers($agentIds));
     $noDeal60     = countNoDealIn60Days($agentIds);
-    $targetDeptId = $deptId > 0 ? $deptId : getUserDeptId($managerId);
-    $deptUserIds  = $targetDeptId > 0 ? getDeptUserIds(array($targetDeptId), false) : array();
-    $leadRows     = empty($deptUserIds) ? array() : fetchLeadBreakdownRows($deptUserIds, $dateRange, $dealType);
+    $deptUserIds  = $targetDeptId > 0 ? getDeptUserIds(array($targetDeptId), false, $dateRange) : array();
+    $leadRows     = empty($deptUserIds) ? array() : fetchLeadBreakdownRows($deptUserIds, $dateRange, $dealType, $targetDeptId);
 
     // Charts
-    $dealDist       = buildDealDistribution($allDeals);
+    $dealDist       = buildDealDistribution($filteredAllDeals);
     $targetVsActual = buildTargetVsActual($monthlyDeals, $monthlyTarget);
     $leadsByStageOffplan    = buildLeadStageBreakdown($leadRows, PIPELINE_OFFPLAN);
     $leadsByStageSecondary  = buildLeadStageBreakdown($leadRows, PIPELINE_SECONDARY);
@@ -400,10 +426,22 @@ if ($role === 'agent') {
         if (!isset($agentRows[$aid])) {
             continue;
         }
-        $agentDeals          = isset($dealsByAgent[$aid]) ? $dealsByAgent[$aid] : array();
-        $agentWonDeals       = isset($wonDealsByAgent[$aid]) ? $wonDealsByAgent[$aid] : array();
-        $agentCommittedDeals = isset($committedDealsByAgent[$aid]) ? $committedDealsByAgent[$aid] : array();
-        $allAgentRows[] = buildAgentPerformanceRow($agentRows[$aid], $agentDeals, $agentWonDeals, $agentCommittedDeals, $dateRange);
+        $agentDeals          = isset($dealsByAgent[$aid]) ? array_values(array_filter($dealsByAgent[$aid], function($d) use ($targetDeptId) {
+            $dealDate = $d['effective_close_date'] ?? $d['CLOSEDATE'] ?? '';
+            return getAgentDeptAtDate($d['ASSIGNED_BY_ID'], $dealDate) === $targetDeptId;
+        })) : array();
+
+        $agentWonDeals       = isset($wonDealsByAgent[$aid]) ? array_values(array_filter($wonDealsByAgent[$aid], function($d) use ($targetDeptId) {
+            $dealDate = $d['effective_close_date'] ?? $d['CLOSEDATE'] ?? '';
+            return getAgentDeptAtDate($d['ASSIGNED_BY_ID'], $dealDate) === $targetDeptId;
+        })) : array();
+
+        $agentCommittedDeals = isset($committedDealsByAgent[$aid]) ? array_values(array_filter($committedDealsByAgent[$aid], function($d) use ($targetDeptId) {
+            $dealDate = $d['effective_close_date'] ?? $d['CLOSEDATE'] ?? '';
+            return getAgentDeptAtDate($d['ASSIGNED_BY_ID'], $dealDate) === $targetDeptId;
+        })) : array();
+
+        $allAgentRows[] = buildAgentPerformanceRow($agentRows[$aid], $agentDeals, $agentWonDeals, $agentCommittedDeals, $dateRange, $targetDeptId);
     }
 
     $response['view']    = 'manager';
@@ -458,7 +496,7 @@ if ($role === 'agent') {
     $allDeptIds  = array_map(function ($t) {
         return (int)$t['ID'];
     }, $salesTeams);
-    $allAgents   = empty($allDeptIds) ? array() : getAgentsByDept($allDeptIds);
+    $allAgents   = empty($allDeptIds) ? array() : getAgentsByDept($allDeptIds, true, $dateRange);
 
     // Explicitly include user ID 168 and 156 since they have some deals or need access but don't belong to any sales department
     $specialUserIds = array(168, 156);
@@ -573,7 +611,7 @@ if ($role === 'agent') {
         if ($tid === 23) {
             continue;
         }
-        $teamAgents = getAgentsByDept(array($tid));
+        $teamAgents = getAgentsByDept(array($tid), true, $dateRange);
         $teamIds    = array_map(function ($a) {
             return (int)$a['ID'];
         }, $teamAgents);
@@ -593,17 +631,26 @@ if ($role === 'agent') {
         foreach ($teamDealOwnerIds as $tid2) {
             if (isset($dealsByAgent[$tid2])) {
                 foreach ($dealsByAgent[$tid2] as $d) {
-                    $teamDeals[] = $d;
+                    $dealDate = $d['effective_close_date'] ?? $d['CLOSEDATE'] ?? '';
+                    if (getAgentDeptAtDate($d['ASSIGNED_BY_ID'], $dealDate) === $tid) {
+                        $teamDeals[] = $d;
+                    }
                 }
             }
             if (isset($wonDealsByAgent[$tid2])) {
                 foreach ($wonDealsByAgent[$tid2] as $d) {
-                    $teamWonDeals[] = $d;
+                    $dealDate = $d['effective_close_date'] ?? $d['CLOSEDATE'] ?? '';
+                    if (getAgentDeptAtDate($d['ASSIGNED_BY_ID'], $dealDate) === $tid) {
+                        $teamWonDeals[] = $d;
+                    }
                 }
             }
             if (isset($committedDealsByAgent[$tid2])) {
                 foreach ($committedDealsByAgent[$tid2] as $d) {
-                    $teamCommittedDeals[] = $d;
+                    $dealDate = $d['effective_close_date'] ?? $d['CLOSEDATE'] ?? '';
+                    if (getAgentDeptAtDate($d['ASSIGNED_BY_ID'], $dealDate) === $tid) {
+                        $teamCommittedDeals[] = $d;
+                    }
                 }
             }
         }
@@ -611,8 +658,8 @@ if ($role === 'agent') {
         $tagg      = aggregateDeals($teamDeals);
         $teamComm  = aggregateCommissionDeals($teamWonDeals, $teamCommittedDeals);
         $teamList  = countListingsForDepartments(array($tid));
-        $teamLeadsOffplan   = countActiveLeads($teamIds, $dateRange, PIPELINE_OFFPLAN);
-        $teamLeadsSecondary = countActiveLeads($teamIds, $dateRange, PIPELINE_SECONDARY);
+        $teamLeadsOffplan   = countActiveLeads($teamIds, $dateRange, PIPELINE_OFFPLAN, $tid);
+        $teamLeadsSecondary = countActiveLeads($teamIds, $dateRange, PIPELINE_SECONDARY, $tid);
         $lastDeal  = daysSinceLastDeal($teamIds);
         $teamAvgGap = avgGapBetweenDealsForTeam($teamIds, $dateRange);
 

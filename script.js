@@ -1294,7 +1294,7 @@ function renderAgentTable(agents) {
         <div class="agent-name-cell">
           <div class="agent-mini-avatar">${initials(a.name)}</div>
           <div>
-            <div style="font-weight:600;">${a.name}</div>
+            <div style="font-weight:600;">${a.name} ${a.is_transferred ? '<span class="days-badge warn" style="font-size:9px;padding:2px 4px;margin-left:6px;display:inline-flex;">No longer in dept</span>' : ''}</div>
             <div style="font-size:10px;color:var(--grey-400);">${a.designation}</div>
           </div>
         </div>
@@ -1431,7 +1431,7 @@ function renderAgentPrivateOfficeTable(agents) {
         <div class="agent-name-cell">
           <div class="agent-mini-avatar">${initials(a.name)}</div>
           <div>
-            <div style="font-weight:600;">${a.name}</div>
+            <div style="font-weight:600;">${a.name} ${a.is_transferred ? '<span class="days-badge warn" style="font-size:9px;padding:2px 4px;margin-left:6px;display:inline-flex;">No longer in dept</span>' : ''}</div>
             <div style="font-size:10px;color:var(--grey-400);">${a.designation}</div>
           </div>
         </div>
