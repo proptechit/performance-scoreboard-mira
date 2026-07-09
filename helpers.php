@@ -731,6 +731,11 @@ function getUserOriginalDeptId($userId)
     $uid = dbInt($userId);
     $allowedDeptIds = getSalesReportDepartmentIds(true);
 
+    // Exclude Private Office (23) and Sales Root (3) to get the agent's actual sales team department
+    $allowedDeptIds = array_values(array_filter($allowedDeptIds, function($id) {
+        return (int)$id !== 23 && (int)$id !== 3;
+    }));
+
     $row = dbQueryOne("
         SELECT VALUE_INT
         FROM b_utm_user
