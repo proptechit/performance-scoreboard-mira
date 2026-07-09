@@ -2729,7 +2729,7 @@ function buildAgentPerformanceRow($userRow, $allDeals, $wonDeals, $committedDeal
     $transferredAt = '';
     if ($scopeDeptId > 0) {
         $teamDepts = filterAllowedSalesDepartmentIds(array($scopeDeptId), true);
-        $sql = "
+        $historyRow = dbQueryOne("
             SELECT EFFECTIVE_TO 
             FROM b_agent_dept_history 
             WHERE USER_ID = {$uid} 
@@ -2738,16 +2738,14 @@ function buildAgentPerformanceRow($userRow, $allDeals, $wonDeals, $committedDeal
               AND EFFECTIVE_TO != '0000-00-00'
             ORDER BY EFFECTIVE_TO DESC 
             LIMIT 1
-        ";
-        $historyRow = dbQueryOne($sql);
-
-        // Temporary debug log — remove after verification
-        $debugLine = date('Y-m-d H:i:s') . " | UID={$uid} | scope={$scopeDeptId} | teamDepts=" . json_encode($teamDepts) . " | sql=" . trim(preg_replace('/\s+/', ' ', $sql)) . " | result=" . json_encode($historyRow) . "\n";
-        @file_put_contents(__DIR__ . '/debug_transfer.log', $debugLine, FILE_APPEND);
-
-        if (!empty($historyRow) && !empty($historyRow['EFFECTIVE_TO']) && $historyRow['EFFECTIVE_TO'] !== '0000-00-00') {
-            $isTransferred = true;
-            $transferredAt = date('d/m/Y', strtotime($historyRow['EFFECTIVE_TO']));
+        ");
+        if (!empty($historyRow) && !empty($historyRow['EFFECTIVE_TO'])) {
+            // Bitrix returns Date objects — cast to string for strtotime
+            $effectiveTo = (string)$historyRow['EFFECTIVE_TO'];
+            if ($effectiveTo !== '' && $effectiveTo !== '0000-00-00') {
+                $isTransferred = true;
+                $transferredAt = date('d/m/Y', strtotime($effectiveTo));
+            }
         }
     }
 
@@ -2815,8 +2813,8 @@ function getAgentDeptAtDate($userId, $dateStr)
             }
             $historyCache[$uid][] = array(
                 'dept_id' => (int)$row['DEPT_ID'],
-                'from'    => $row['EFFECTIVE_FROM'],
-                'to'      => $row['EFFECTIVE_TO'] ?: '9999-12-31'
+                'from'    => (string)$row['EFFECTIVE_FROM'],
+                'to'      => $row['EFFECTIVE_TO'] ? (string)$row['EFFECTIVE_TO'] : '9999-12-31'
             );
         }
     }
@@ -2826,8 +2824,8 @@ function getAgentDeptAtDate($userId, $dateStr)
         return getUserDeptId($uid);
     }
 
-    // Convert date string to YYYY-MM-DD
-    $date = date('Y-m-d', strtotime($dateStr));
+    // Convert date string to YYYY-MM-DD (cast to string in case Bitrix Date object)
+    $date = date('Y-m-d', strtotime((string)$dateStr));
 
     if (isset($historyCache[$uid])) {
         foreach ($historyCache[$uid] as $h) {
