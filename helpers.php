@@ -2720,8 +2720,28 @@ function buildAgentPerformanceRow($userRow, $allDeals, $wonDeals, $committedDeal
         }
     }
 
-    $currentDeptId = getUserDeptId($uid);
-    $isTransferred = ($scopeDeptId > 0 && $currentDeptId !== $scopeDeptId);
+    $isTransferred = false;
+    $transferredAt = '';
+    if ($scopeDeptId > 0) {
+        $teamDepts = filterAllowedSalesDepartmentIds(array($scopeDeptId), true);
+        $currentOriginalDept = getUserOriginalDeptId($uid);
+        if (!in_array($currentOriginalDept, $teamDepts)) {
+            $hasHistory = dbQueryOne("
+                SELECT EFFECTIVE_TO 
+                FROM b_agent_dept_history 
+                WHERE USER_ID = {$uid} 
+                  AND DEPT_ID IN " . inClauseInt($teamDepts) . "
+                ORDER BY EFFECTIVE_TO DESC 
+                LIMIT 1
+            ");
+            if ($hasHistory) {
+                $isTransferred = true;
+                if (!empty($hasHistory['EFFECTIVE_TO'])) {
+                    $transferredAt = date('d/m/Y', strtotime($hasHistory['EFFECTIVE_TO']));
+                }
+            }
+        }
+    }
 
     return array(
         'id'               => $uid,
@@ -2743,6 +2763,7 @@ function buildAgentPerformanceRow($userRow, $allDeals, $wonDeals, $committedDeal
         'attendance'       => $attendance,
         'attendance_total' => $attendanceTotal,
         'is_transferred'   => $isTransferred,
+        'transferred_at'   => $transferredAt,
     );
 }
 
