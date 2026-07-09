@@ -947,6 +947,50 @@ function parseReportDate($dateStr)
     }
 }
 
+/**
+ * Convert a raw DB date field (which can be a string, null, or Bitrix\Main\Type\Date/DateTime object)
+ * into a clean standard date string.
+ *
+ * @param mixed $val
+ * @param string $format Target format, defaults to 'Y-m-d'
+ * @return string
+ */
+function convertBitrixDateToString($val, $format = 'Y-m-d')
+{
+    if ($val === null) {
+        return '';
+    }
+    if (is_object($val)) {
+        if (method_exists($val, 'format')) {
+            return (string)$val->format($format);
+        }
+        if (method_exists($val, 'getTimestamp')) {
+            $ts = $val->getTimestamp();
+            return $ts > 0 ? date($format, $ts) : '';
+        }
+        $val = (string)$val;
+    }
+
+    $val = trim((string)$val);
+    if ($val === '' || $val === '0000-00-00' || $val === '0000-00-00 00:00:00') {
+        return '';
+    }
+
+    // Parse using our existing robust parseReportDate
+    $dt = parseReportDate($val);
+    if ($dt) {
+        return $dt->format($format);
+    }
+
+    // Fallback to strtotime
+    $ts = strtotime($val);
+    if ($ts !== false && $ts > 0) {
+        return date($format, $ts);
+    }
+
+    return $val;
+}
+
 function filterDealsByReportDateRange($deals, $dateRange, $primaryField = 'DATE_CREATE')
 {
     $from = new \DateTime($dateRange['from']);
@@ -2740,9 +2784,8 @@ function buildAgentPerformanceRow($userRow, $allDeals, $wonDeals, $committedDeal
             LIMIT 1
         ");
         if (!empty($historyRow) && !empty($historyRow['EFFECTIVE_TO'])) {
-            // Bitrix returns Date objects — cast to string for strtotime
-            $effectiveTo = (string)$historyRow['EFFECTIVE_TO'];
-            if ($effectiveTo !== '' && $effectiveTo !== '0000-00-00') {
+            $effectiveTo = convertBitrixDateToString($historyRow['EFFECTIVE_TO'], 'Y-m-d');
+            if ($effectiveTo !== '') {
                 $isTransferred = true;
                 $transferredAt = date('d/m/Y', strtotime($effectiveTo));
             }
@@ -2811,10 +2854,12 @@ function getAgentDeptAtDate($userId, $dateStr)
             if (!isset($historyCache[$uid])) {
                 $historyCache[$uid] = array();
             }
+            $fromStr = convertBitrixDateToString($row['EFFECTIVE_FROM'], 'Y-m-d');
+            $toStr   = convertBitrixDateToString($row['EFFECTIVE_TO'], 'Y-m-d') ?: '9999-12-31';
             $historyCache[$uid][] = array(
                 'dept_id' => (int)$row['DEPT_ID'],
-                'from'    => (string)$row['EFFECTIVE_FROM'],
-                'to'      => $row['EFFECTIVE_TO'] ? (string)$row['EFFECTIVE_TO'] : '9999-12-31'
+                'from'    => $fromStr,
+                'to'      => $toStr
             );
         }
     }
@@ -2824,8 +2869,11 @@ function getAgentDeptAtDate($userId, $dateStr)
         return getUserDeptId($uid);
     }
 
-    // Convert date string to YYYY-MM-DD (cast to string in case Bitrix Date object)
-    $date = date('Y-m-d', strtotime((string)$dateStr));
+    // Convert date string to YYYY-MM-DD
+    $date = convertBitrixDateToString($dateStr, 'Y-m-d');
+    if ($date === '') {
+        return getUserDeptId($uid);
+    }
 
     if (isset($historyCache[$uid])) {
         foreach ($historyCache[$uid] as $h) {
