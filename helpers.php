@@ -2735,10 +2735,11 @@ function buildAgentPerformanceRow($userRow, $allDeals, $wonDeals, $committedDeal
             WHERE USER_ID = {$uid} 
               AND DEPT_ID IN " . inClauseInt($teamDepts) . "
               AND EFFECTIVE_TO IS NOT NULL
+              AND EFFECTIVE_TO != '0000-00-00'
             ORDER BY EFFECTIVE_TO DESC 
             LIMIT 1
         ");
-        if (!empty($historyRow) && isset($historyRow['EFFECTIVE_TO'])) {
+        if (!empty($historyRow) && !empty($historyRow['EFFECTIVE_TO']) && $historyRow['EFFECTIVE_TO'] !== '0000-00-00') {
             $isTransferred = true;
             $transferredAt = date('d/m/Y', strtotime($historyRow['EFFECTIVE_TO']));
         }
