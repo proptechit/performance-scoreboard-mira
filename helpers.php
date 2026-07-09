@@ -2729,7 +2729,7 @@ function buildAgentPerformanceRow($userRow, $allDeals, $wonDeals, $committedDeal
     $transferredAt = '';
     if ($scopeDeptId > 0) {
         $teamDepts = filterAllowedSalesDepartmentIds(array($scopeDeptId), true);
-        $historyRow = dbQueryOne("
+        $sql = "
             SELECT EFFECTIVE_TO 
             FROM b_agent_dept_history 
             WHERE USER_ID = {$uid} 
@@ -2738,7 +2738,13 @@ function buildAgentPerformanceRow($userRow, $allDeals, $wonDeals, $committedDeal
               AND EFFECTIVE_TO != '0000-00-00'
             ORDER BY EFFECTIVE_TO DESC 
             LIMIT 1
-        ");
+        ";
+        $historyRow = dbQueryOne($sql);
+
+        // Temporary debug log — remove after verification
+        $debugLine = date('Y-m-d H:i:s') . " | UID={$uid} | scope={$scopeDeptId} | teamDepts=" . json_encode($teamDepts) . " | sql=" . trim(preg_replace('/\s+/', ' ', $sql)) . " | result=" . json_encode($historyRow) . "\n";
+        @file_put_contents(__DIR__ . '/debug_transfer.log', $debugLine, FILE_APPEND);
+
         if (!empty($historyRow) && !empty($historyRow['EFFECTIVE_TO']) && $historyRow['EFFECTIVE_TO'] !== '0000-00-00') {
             $isTransferred = true;
             $transferredAt = date('d/m/Y', strtotime($historyRow['EFFECTIVE_TO']));

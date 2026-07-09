@@ -427,7 +427,7 @@ if ($role === 'agent') {
             continue;
         }
         $agentDeals          = isset($dealsByAgent[$aid]) ? array_values(array_filter($dealsByAgent[$aid], function($d) use ($targetDeptId) {
-            $dealDate = $d['effective_close_date'] ?? $d['CLOSEDATE'] ?? '';
+            $dealDate = $d['effective_create_date'] ?? $d['DATE_CREATE'] ?? '';
             return getAgentDeptAtDate($d['ASSIGNED_BY_ID'], $dealDate) === $targetDeptId;
         })) : array();
 
@@ -437,7 +437,7 @@ if ($role === 'agent') {
         })) : array();
 
         $agentCommittedDeals = isset($committedDealsByAgent[$aid]) ? array_values(array_filter($committedDealsByAgent[$aid], function($d) use ($targetDeptId) {
-            $dealDate = $d['effective_close_date'] ?? $d['CLOSEDATE'] ?? '';
+            $dealDate = $d['effective_create_date'] ?? $d['DATE_CREATE'] ?? '';
             return getAgentDeptAtDate($d['ASSIGNED_BY_ID'], $dealDate) === $targetDeptId;
         })) : array();
 
