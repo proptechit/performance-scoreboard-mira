@@ -1290,7 +1290,7 @@ function getLeadPipelinesForDealType($dealType)
     return array(PIPELINE_OFFPLAN, PIPELINE_SECONDARY);
 }
 
-function fetchLeadBreakdownRows($agentIds, $dateRange, $dealType = 'All', $scopeDeptId = 0)
+function fetchLeadBreakdownRows($agentIds, $dateRange, $dealType = 'All')
 {
     $pipelines = getLeadPipelinesForDealType($dealType);
     if (empty($pipelines)) {
@@ -1307,28 +1307,6 @@ function fetchLeadBreakdownRows($agentIds, $dateRange, $dealType = 'All', $scope
         $agentFilter = 'AND d.ASSIGNED_BY_ID IN ' . inClauseInt($agentIds);
     }
 
-    $scopeJoin = '';
-    $scopeFilter = '';
-    if ($scopeDeptId > 0) {
-        $scopeJoin = "
-            LEFT JOIN b_utm_user ud
-                ON ud.VALUE_ID = d.ASSIGNED_BY_ID
-               AND ud.FIELD_ID = 40
-            LEFT JOIN b_agent_dept_history h
-                ON h.USER_ID = d.ASSIGNED_BY_ID
-               AND DATE(d.CLOSEDATE) >= h.EFFECTIVE_FROM
-               AND (h.EFFECTIVE_TO IS NULL OR DATE(d.CLOSEDATE) <= h.EFFECTIVE_TO)
-        ";
-        $scopeFilter = "
-            AND (
-                (h.DEPT_ID IS NOT NULL AND h.DEPT_ID = {$scopeDeptId})
-                OR (h.DEPT_ID IS NULL AND COALESCE(
-                    (CASE WHEN (SELECT TRIM(LOWER(WORK_POSITION)) FROM b_user WHERE ID = d.ASSIGNED_BY_ID) = 'private office' THEN 23 ELSE ud.VALUE_INT END), 0
-                ) = {$scopeDeptId})
-            )
-        ";
-    }
-
     return dbQuery("
         SELECT
             d.CATEGORY_ID,
@@ -1336,12 +1314,10 @@ function fetchLeadBreakdownRows($agentIds, $dateRange, $dealType = 'All', $scope
             d.{$source} AS source_id,
             COUNT(*) AS cnt
         FROM b_crm_deal d
-        {$scopeJoin}
         WHERE d.CATEGORY_ID IN {$catIn}
           AND DATE(d.DATE_CREATE) >= '{$from}'
           AND DATE(d.DATE_CREATE) <= '{$to}'
           {$agentFilter}
-          {$scopeFilter}
         GROUP BY d.CATEGORY_ID, d.STAGE_ID, d.{$source}
     ");
 }
@@ -1476,7 +1452,7 @@ function formatLeadBreakdownItems($grouped, $total, $preserveStageOrder = false)
  * @param  array  $dateRange
  * @return int
  */
-function countActiveLeads($agentIds, $dateRange, $pipeline = null, $scopeDeptId = 0)
+function countActiveLeads($agentIds, $dateRange, $pipeline = null)
 {
     if ($pipeline === PIPELINE_OFFPLAN) {
         $pipelines = array(PIPELINE_OFFPLAN);
@@ -1499,38 +1475,14 @@ function countActiveLeads($agentIds, $dateRange, $pipeline = null, $scopeDeptId 
 
     $excludeIn     = inClauseStr($excludeStages);
 
-    $scopeJoin = '';
-    $scopeFilter = '';
-    if ($scopeDeptId > 0) {
-        $scopeJoin = "
-            LEFT JOIN b_utm_user ud
-                ON ud.VALUE_ID = d.ASSIGNED_BY_ID
-               AND ud.FIELD_ID = 40
-            LEFT JOIN b_agent_dept_history h
-                ON h.USER_ID = d.ASSIGNED_BY_ID
-               AND DATE(d.CLOSEDATE) >= h.EFFECTIVE_FROM
-               AND (h.EFFECTIVE_TO IS NULL OR DATE(d.CLOSEDATE) <= h.EFFECTIVE_TO)
-        ";
-        $scopeFilter = "
-            AND (
-                (h.DEPT_ID IS NOT NULL AND h.DEPT_ID = {$scopeDeptId})
-                OR (h.DEPT_ID IS NULL AND COALESCE(
-                    (CASE WHEN (SELECT TRIM(LOWER(WORK_POSITION)) FROM b_user WHERE ID = d.ASSIGNED_BY_ID) = 'private office' THEN 23 ELSE ud.VALUE_INT END), 0
-                ) = {$scopeDeptId})
-            )
-        ";
-    }
-
     $row = dbQueryOne("
         SELECT COUNT(*) AS cnt
         FROM b_crm_deal d
-        {$scopeJoin}
         WHERE d.CATEGORY_ID IN {$in}
           AND d.STAGE_ID NOT IN {$excludeIn}
           AND DATE(d.DATE_CREATE) >= '{$from}'
           AND DATE(d.DATE_CREATE) <= '{$to}'
           {$agentFilter}
-          {$scopeFilter}
     ");
     return (int)($row['cnt'] ?? 0);
 }
@@ -1555,7 +1507,7 @@ function countActiveLeads($agentIds, $dateRange, $pipeline = null, $scopeDeptId 
  * @param  int    $scopeDeptId
  * @return int
  */
-function countReshuffledLeads($agentIds, $dateRange, $scopeDeptId = 0)
+function countReshuffledLeads($agentIds, $dateRange)
 {
     $pipelines = array(PIPELINE_OFFPLAN);
     $in        = inClauseInt($pipelines);
@@ -1569,28 +1521,6 @@ function countReshuffledLeads($agentIds, $dateRange, $scopeDeptId = 0)
     $inAgents = inClauseInt($agentIds);
     $excludeStages = inClauseStr($GLOBALS['CFG_LEAD_JUNK_STAGES_OFFPLAN']);
 
-    $scopeJoin = '';
-    $scopeFilter = '';
-    if ($scopeDeptId > 0) {
-        $scopeJoin = "
-            LEFT JOIN b_utm_user ud
-                ON ud.VALUE_ID = d.ASSIGNED_BY_ID
-               AND ud.FIELD_ID = 40
-            LEFT JOIN b_agent_dept_history h
-                ON h.USER_ID = d.ASSIGNED_BY_ID
-               AND DATE(e.DATE_CREATE) >= h.EFFECTIVE_FROM
-               AND (h.EFFECTIVE_TO IS NULL OR DATE(e.DATE_CREATE) <= h.EFFECTIVE_TO)
-        ";
-        $scopeFilter = "
-            AND (
-                (h.DEPT_ID IS NOT NULL AND h.DEPT_ID = {$scopeDeptId})
-                OR (h.DEPT_ID IS NULL AND COALESCE(
-                    (CASE WHEN (SELECT TRIM(LOWER(WORK_POSITION)) FROM b_user WHERE ID = d.ASSIGNED_BY_ID) = 'private office' THEN 23 ELSE ud.VALUE_INT END), 0
-                ) = {$scopeDeptId})
-            )
-        ";
-    }
-
     $row = dbQueryOne("
         SELECT COUNT(DISTINCT d.ID) AS cnt
         FROM b_crm_event_relations r
@@ -1600,7 +1530,6 @@ function countReshuffledLeads($agentIds, $dateRange, $scopeDeptId = 0)
                AND d.CATEGORY_ID IN {$in}
                AND d.SOURCE_ID != '11'
         INNER JOIN b_uts_crm_deal uts ON uts.VALUE_ID = d.ID
-        {$scopeJoin}
         WHERE r.ENTITY_TYPE       = 'DEAL'
           AND r.ENTITY_FIELD      = 'ASSIGNED_BY_ID'
           AND e.CREATED_BY_ID     = 1
@@ -1616,7 +1545,6 @@ function countReshuffledLeads($agentIds, $dateRange, $scopeDeptId = 0)
                 AND r2.ENTITY_TYPE  = 'DEAL'
                 AND r2.ENTITY_FIELD = 'ASSIGNED_BY_ID'
           ) > 1
-          {$scopeFilter}
     ");
 
     return (int)($row['cnt'] ?? 0);
@@ -2737,9 +2665,9 @@ function buildAgentPerformanceRow($userRow, $allDeals, $wonDeals, $committedDeal
     $agg = aggregateDeals($allDeals);
     $commissionAgg = aggregateCommissionDeals($wonDeals, $committedDeals);
 
-    $leadCountOffplan   = countActiveLeads(array($uid), $dateRange, PIPELINE_OFFPLAN, $scopeDeptId);
-    $leadCountSecondary = countActiveLeads(array($uid), $dateRange, PIPELINE_SECONDARY, $scopeDeptId);
-    $reshuffledCount = countReshuffledLeads(array($uid), $dateRange, $scopeDeptId);
+    $leadCountOffplan   = countActiveLeads(array($uid), $dateRange, PIPELINE_OFFPLAN);
+    $leadCountSecondary = countActiveLeads(array($uid), $dateRange, PIPELINE_SECONDARY);
+    $reshuffledCount = countReshuffledLeads(array($uid), $dateRange);
     $listingCount    = countListingsForUsers(array($uid));
     $lastDealDays    = daysSinceLastDeal(array($uid));
     $avgGap          = avgGapBetweenDeals($uid, $dateRange);

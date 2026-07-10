@@ -363,22 +363,33 @@ if ($role === 'agent') {
     ) : aggregateCommissionDeals($filteredWonDeals, $filteredCommittedDeals);
     $monthlyTarget = getTeamTarget($targetDeptId);
 
-    // Team-wide supplementary
-    $leadCountOffplan   = empty($agentIds) ? 0 : countActiveLeads($agentIds, $dateRange, PIPELINE_OFFPLAN, $targetDeptId);
-    $leadCountSecondary = empty($agentIds) ? 0 : countActiveLeads($agentIds, $dateRange, PIPELINE_SECONDARY, $targetDeptId);
-    $reshuffled   = empty($agentIds) ? 0 : countReshuffledLeads($agentIds, $dateRange, $targetDeptId);
+    // Team-wide supplementary (filtered to current members only for listings/leads/activity)
+    $currentAgentIds = array();
+    if (!empty($agentIds)) {
+        $allowedDepts = filterAllowedSalesDepartmentIds(array($targetDeptId), true);
+        foreach ($agentIds as $aid) {
+            $currDept = getUserDeptId($aid);
+            if (in_array($currDept, $allowedDepts)) {
+                $currentAgentIds[] = $aid;
+            }
+        }
+    }
+
+    $leadCountOffplan   = empty($currentAgentIds) ? 0 : countActiveLeads($currentAgentIds, $dateRange, PIPELINE_OFFPLAN);
+    $leadCountSecondary = empty($currentAgentIds) ? 0 : countActiveLeads($currentAgentIds, $dateRange, PIPELINE_SECONDARY);
+    $reshuffled   = empty($currentAgentIds) ? 0 : countReshuffledLeads($currentAgentIds, $dateRange);
     $listingCount = $deptId > 0
         ? countListingsForDepartments(array($deptId))
-        : (empty($agentIds) ? 0 : countListingsForUsers($agentIds));
+        : (empty($currentAgentIds) ? 0 : countListingsForUsers($currentAgentIds));
     $listingSummary = $deptId > 0
         ? countActiveListingsForDepartments(array($deptId))
-        : (empty($agentIds) ? array('sale' => 0, 'rent' => 0) : countActiveListingsForUsers($agentIds));
+        : (empty($currentAgentIds) ? array('sale' => 0, 'rent' => 0) : countActiveListingsForUsers($currentAgentIds));
     $listingDetails = $deptId > 0
         ? fetchActiveListingDetailsForDepartments(array($deptId))
-        : (empty($agentIds) ? array('sale' => array(), 'rent' => array()) : fetchActiveListingDetailsForUsers($agentIds));
-    $noDeal60     = countNoDealIn60Days($agentIds);
-    $deptUserIds  = $targetDeptId > 0 ? getDeptUserIds(array($targetDeptId), false, $dateRange) : array();
-    $leadRows     = empty($deptUserIds) ? array() : fetchLeadBreakdownRows($deptUserIds, $dateRange, $dealType, $targetDeptId);
+        : (empty($currentAgentIds) ? array('sale' => array(), 'rent' => array()) : fetchActiveListingDetailsForUsers($currentAgentIds));
+    $noDeal60     = countNoDealIn60Days($currentAgentIds);
+    $deptUserIds  = $targetDeptId > 0 ? getDeptUserIds(array($targetDeptId), false) : array();
+    $leadRows     = empty($deptUserIds) ? array() : fetchLeadBreakdownRows($deptUserIds, $dateRange, $dealType);
 
     // Charts
     $dealDist       = buildDealDistribution($filteredAllDeals);
@@ -658,10 +669,21 @@ if ($role === 'agent') {
         $tagg      = aggregateDeals($teamDeals);
         $teamComm  = aggregateCommissionDeals($teamWonDeals, $teamCommittedDeals);
         $teamList  = countListingsForDepartments(array($tid));
-        $teamLeadsOffplan   = countActiveLeads($teamIds, $dateRange, PIPELINE_OFFPLAN, $tid);
-        $teamLeadsSecondary = countActiveLeads($teamIds, $dateRange, PIPELINE_SECONDARY, $tid);
-        $lastDeal  = daysSinceLastDeal($teamIds);
-        $teamAvgGap = avgGapBetweenDealsForTeam($teamIds, $dateRange);
+        $currentTeamIds = array();
+        if (!empty($teamIds)) {
+            $allowedTeamDepts = filterAllowedSalesDepartmentIds(array($tid), true);
+            foreach ($teamIds as $aid) {
+                $currDept = getUserDeptId($aid);
+                if (in_array($currDept, $allowedTeamDepts)) {
+                    $currentTeamIds[] = $aid;
+                }
+            }
+        }
+
+        $teamLeadsOffplan   = empty($currentTeamIds) ? 0 : countActiveLeads($currentTeamIds, $dateRange, PIPELINE_OFFPLAN);
+        $teamLeadsSecondary = empty($currentTeamIds) ? 0 : countActiveLeads($currentTeamIds, $dateRange, PIPELINE_SECONDARY);
+        $lastDeal  = daysSinceLastDeal($currentTeamIds);
+        $teamAvgGap = avgGapBetweenDealsForTeam($currentTeamIds, $dateRange);
 
         $teamPerformance[] = array(
             'id'             => $tid,
