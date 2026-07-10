@@ -1678,7 +1678,7 @@ function countListingsByBranches($branchCodes = array())
 /**
  * Count active listings for a set of users.
  */
-function countListingsForUsers($userIds, $scopeDeptId = 0)
+function countListingsForUsers($userIds)
 {
     if (empty($userIds)) {
         return 0;
@@ -1691,35 +1691,11 @@ function countListingsForUsers($userIds, $scopeDeptId = 0)
     $inUsers    = inClauseInt($userIds);
     $ownerField = LISTING_OWNER_FIELD;
 
-    $scopeJoin = '';
-    $scopeFilter = '';
-    if ($scopeDeptId > 0) {
-        $scopeJoin = "
-            LEFT JOIN b_utm_user ud
-                ON ud.VALUE_ID = CASE WHEN l.ASSIGNED_BY_ID IN {$inUsers} THEN l.ASSIGNED_BY_ID ELSE l.{$ownerField} END
-               AND ud.FIELD_ID = 40
-            LEFT JOIN b_agent_dept_history h
-                ON h.USER_ID = CASE WHEN l.ASSIGNED_BY_ID IN {$inUsers} THEN l.ASSIGNED_BY_ID ELSE l.{$ownerField} END
-               AND DATE(l.CREATED_TIME) >= h.EFFECTIVE_FROM
-               AND (h.EFFECTIVE_TO IS NULL OR DATE(l.CREATED_TIME) <= h.EFFECTIVE_TO)
-        ";
-        $scopeFilter = "
-            AND (
-                (h.DEPT_ID IS NOT NULL AND h.DEPT_ID = {$scopeDeptId})
-                OR (h.DEPT_ID IS NULL AND COALESCE(
-                    (CASE WHEN (SELECT TRIM(LOWER(WORK_POSITION)) FROM b_user WHERE ID = CASE WHEN l.ASSIGNED_BY_ID IN {$inUsers} THEN l.ASSIGNED_BY_ID ELSE l.{$ownerField} END) = 'private office' THEN 23 ELSE ud.VALUE_INT END), 0
-                ) = {$scopeDeptId})
-            )
-        ";
-    }
-
     $row = dbQueryOne("
         SELECT COUNT(*) AS cnt
         FROM {$table} l
-        {$scopeJoin}
         WHERE l.STAGE_ID = '{$stage}'
           AND (l.ASSIGNED_BY_ID IN {$inUsers} OR l.{$ownerField} IN {$inUsers})
-          {$scopeFilter}
     ");
     return (int)($row['cnt'] ?? 0);
 }
@@ -1740,7 +1716,7 @@ function countListingsForDepartments($deptIds)
 /**
  * Count active listings split by sale/rent for a set of users.
  */
-function countActiveListingsForUsers($userIds, $scopeDeptId = 0)
+function countActiveListingsForUsers($userIds)
 {
     if (empty($userIds)) {
         return array('sale' => 0, 'rent' => 0);
@@ -1755,37 +1731,13 @@ function countActiveListingsForUsers($userIds, $scopeDeptId = 0)
     $ownerField = LISTING_OWNER_FIELD;
     $inUsers    = inClauseInt($userIds);
 
-    $scopeJoin = '';
-    $scopeFilter = '';
-    if ($scopeDeptId > 0) {
-        $scopeJoin = "
-            LEFT JOIN b_utm_user ud
-                ON ud.VALUE_ID = CASE WHEN l.ASSIGNED_BY_ID IN {$inUsers} THEN l.ASSIGNED_BY_ID ELSE l.{$ownerField} END
-               AND ud.FIELD_ID = 40
-            LEFT JOIN b_agent_dept_history h
-                ON h.USER_ID = CASE WHEN l.ASSIGNED_BY_ID IN {$inUsers} THEN l.ASSIGNED_BY_ID ELSE l.{$ownerField} END
-               AND DATE(l.CREATED_TIME) >= h.EFFECTIVE_FROM
-               AND (h.EFFECTIVE_TO IS NULL OR DATE(l.CREATED_TIME) <= h.EFFECTIVE_TO)
-        ";
-        $scopeFilter = "
-            AND (
-                (h.DEPT_ID IS NOT NULL AND h.DEPT_ID = {$scopeDeptId})
-                OR (h.DEPT_ID IS NULL AND COALESCE(
-                    (CASE WHEN (SELECT TRIM(LOWER(WORK_POSITION)) FROM b_user WHERE ID = CASE WHEN l.ASSIGNED_BY_ID IN {$inUsers} THEN l.ASSIGNED_BY_ID ELSE l.{$ownerField} END) = 'private office' THEN 23 ELSE ud.VALUE_INT END), 0
-                ) = {$scopeDeptId})
-            )
-        ";
-    }
-
     $rows = dbQuery("
         SELECT
             SUM(CASE WHEN l.{$typeField} = {$saleValue} THEN 1 ELSE 0 END) AS sale_count,
             SUM(CASE WHEN l.{$typeField} != {$saleValue} OR l.{$typeField} IS NULL THEN 1 ELSE 0 END) AS rent_count
         FROM {$table} l
-        {$scopeJoin}
         WHERE l.STAGE_ID = '{$stage}'
           AND (l.ASSIGNED_BY_ID IN {$inUsers} OR l.{$ownerField} IN {$inUsers})
-          {$scopeFilter}
     ");
 
     $row = !empty($rows) ? $rows[0] : array();
@@ -1877,7 +1829,7 @@ function fetchActiveListingDetailsByBranches($branchCodes = array())
 /**
  * Fetch active listing details for a set of users.
  */
-function fetchActiveListingDetailsForUsers($userIds, $scopeDeptId = 0)
+function fetchActiveListingDetailsForUsers($userIds)
 {
     if (empty($userIds)) {
         return array('sale' => array(), 'rent' => array());
@@ -1893,28 +1845,6 @@ function fetchActiveListingDetailsForUsers($userIds, $scopeDeptId = 0)
     $ownerField = LISTING_OWNER_FIELD;
     $inUsers    = inClauseInt($userIds);
 
-    $scopeJoin = '';
-    $scopeFilter = '';
-    if ($scopeDeptId > 0) {
-        $scopeJoin = "
-            LEFT JOIN b_utm_user ud
-                ON ud.VALUE_ID = CASE WHEN l.ASSIGNED_BY_ID IN {$inUsers} THEN l.ASSIGNED_BY_ID ELSE l.{$ownerField} END
-               AND ud.FIELD_ID = 40
-            LEFT JOIN b_agent_dept_history h
-                ON h.USER_ID = CASE WHEN l.ASSIGNED_BY_ID IN {$inUsers} THEN l.ASSIGNED_BY_ID ELSE l.{$ownerField} END
-               AND DATE(l.CREATED_TIME) >= h.EFFECTIVE_FROM
-               AND (h.EFFECTIVE_TO IS NULL OR DATE(l.CREATED_TIME) <= h.EFFECTIVE_TO)
-        ";
-        $scopeFilter = "
-            AND (
-                (h.DEPT_ID IS NOT NULL AND h.DEPT_ID = {$scopeDeptId})
-                OR (h.DEPT_ID IS NULL AND COALESCE(
-                    (CASE WHEN (SELECT TRIM(LOWER(WORK_POSITION)) FROM b_user WHERE ID = CASE WHEN l.ASSIGNED_BY_ID IN {$inUsers} THEN l.ASSIGNED_BY_ID ELSE l.{$ownerField} END) = 'private office' THEN 23 ELSE ud.VALUE_INT END), 0
-                ) = {$scopeDeptId})
-            )
-        ";
-    }
-
     $rows = dbQuery("
         SELECT
             l.ID,
@@ -1929,10 +1859,8 @@ function fetchActiveListingDetailsForUsers($userIds, $scopeDeptId = 0)
           ON agent.ID = l.ASSIGNED_BY_ID
         LEFT JOIN b_user owner
           ON owner.ID = l.{$ownerField}
-        {$scopeJoin}
         WHERE l.STAGE_ID = '{$stage}'
           AND (l.ASSIGNED_BY_ID IN {$inUsers} OR l.{$ownerField} IN {$inUsers})
-          {$scopeFilter}
         ORDER BY l.ID DESC
     ");
 
@@ -2812,7 +2740,7 @@ function buildAgentPerformanceRow($userRow, $allDeals, $wonDeals, $committedDeal
     $leadCountOffplan   = countActiveLeads(array($uid), $dateRange, PIPELINE_OFFPLAN, $scopeDeptId);
     $leadCountSecondary = countActiveLeads(array($uid), $dateRange, PIPELINE_SECONDARY, $scopeDeptId);
     $reshuffledCount = countReshuffledLeads(array($uid), $dateRange, $scopeDeptId);
-    $listingCount    = countListingsForUsers(array($uid), $scopeDeptId);
+    $listingCount    = countListingsForUsers(array($uid));
     $lastDealDays    = daysSinceLastDeal(array($uid));
     $avgGap          = avgGapBetweenDeals($uid, $dateRange);
     $attendance      = countAttendanceDays($uid, $dateRange, $scopeDeptId);

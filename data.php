@@ -367,15 +367,15 @@ if ($role === 'agent') {
     $leadCountOffplan   = empty($agentIds) ? 0 : countActiveLeads($agentIds, $dateRange, PIPELINE_OFFPLAN, $targetDeptId);
     $leadCountSecondary = empty($agentIds) ? 0 : countActiveLeads($agentIds, $dateRange, PIPELINE_SECONDARY, $targetDeptId);
     $reshuffled   = empty($agentIds) ? 0 : countReshuffledLeads($agentIds, $dateRange, $targetDeptId);
-    $listingCount = $targetDeptId > 0
-        ? countListingsForDepartments(array($targetDeptId))
-        : (empty($agentIds) ? 0 : countListingsForUsers($agentIds, $targetDeptId));
-    $listingSummary = $targetDeptId > 0
-        ? countActiveListingsForDepartments(array($targetDeptId))
-        : (empty($agentIds) ? array('sale' => 0, 'rent' => 0) : countActiveListingsForUsers($agentIds, $targetDeptId));
-    $listingDetails = $targetDeptId > 0
-        ? fetchActiveListingDetailsForDepartments(array($targetDeptId))
-        : (empty($agentIds) ? array('sale' => array(), 'rent' => array()) : fetchActiveListingDetailsForUsers($agentIds, $targetDeptId));
+    $listingCount = $deptId > 0
+        ? countListingsForDepartments(array($deptId))
+        : (empty($agentIds) ? 0 : countListingsForUsers($agentIds));
+    $listingSummary = $deptId > 0
+        ? countActiveListingsForDepartments(array($deptId))
+        : (empty($agentIds) ? array('sale' => 0, 'rent' => 0) : countActiveListingsForUsers($agentIds));
+    $listingDetails = $deptId > 0
+        ? fetchActiveListingDetailsForDepartments(array($deptId))
+        : (empty($agentIds) ? array('sale' => array(), 'rent' => array()) : fetchActiveListingDetailsForUsers($agentIds));
     $noDeal60     = countNoDealIn60Days($agentIds);
     $deptUserIds  = $targetDeptId > 0 ? getDeptUserIds(array($targetDeptId), false, $dateRange) : array();
     $leadRows     = empty($deptUserIds) ? array() : fetchLeadBreakdownRows($deptUserIds, $dateRange, $dealType, $targetDeptId);
