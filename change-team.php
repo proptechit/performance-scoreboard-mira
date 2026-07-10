@@ -37,6 +37,24 @@ if (!$isAdmin && $userRole !== 'ceo' && $userRole !== 'manager') {
     exit;
 }
 
+// ── 0. Self-healing DB check (heal missing DEPT_NAME from previous entries) ─
+try {
+    $connection = \Bitrix\Main\Application::getConnection();
+    $connection->queryExecute("
+        UPDATE b_agent_dept_history h
+        JOIN b_iblock_section s ON s.ID = h.DEPT_ID
+        SET h.DEPT_NAME = s.NAME
+        WHERE h.DEPT_NAME IS NULL OR h.DEPT_NAME = ''
+    ");
+    $connection->queryExecute("
+        UPDATE b_agent_dept_history h
+        SET h.DEPT_NAME = 'Private Office'
+        WHERE h.DEPT_ID = 23 AND (h.DEPT_NAME IS NULL OR h.DEPT_NAME = '')
+    ");
+} catch (\Exception $e) {
+    // Ignore database write/lock issues
+}
+
 // ── 1. Fetch sales departments ──────────────────────────────────────────────
 $teams = getSalesTeams();
 $allSalesDeptIds = getSalesReportDepartmentIds(false);
@@ -93,10 +111,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                         ";
                         $connection->queryExecute($updateSql);
 
+                        $newDeptNameEsc = dbEsc($newDeptName);
                         // B. Insert new history row with tomorrow as EFFECTIVE_FROM
                         $insertSql = "
-                            INSERT INTO b_agent_dept_history (USER_ID, DEPT_ID, EFFECTIVE_FROM, EFFECTIVE_TO) 
-                            VALUES ({$agentId}, {$newDeptId}, '{$tomorrowStr}', NULL)
+                            INSERT INTO b_agent_dept_history (USER_ID, DEPT_ID, DEPT_NAME, EFFECTIVE_FROM, EFFECTIVE_TO) 
+                            VALUES ({$agentId}, {$newDeptId}, '{$newDeptNameEsc}', '{$tomorrowStr}', NULL)
                         ";
                         $connection->queryExecute($insertSql);
 
