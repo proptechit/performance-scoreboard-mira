@@ -2715,7 +2715,7 @@ function buildAgentPerformanceRow($userRow, $allDeals, $wonDeals, $committedDeal
             $effectiveTo = convertBitrixDateToString($historyRow['EFFECTIVE_TO'], 'Y-m-d');
             if ($effectiveTo !== '') {
                 $isTransferred = true;
-                $transferredAt = date('d/m/Y', strtotime($effectiveTo));
+                $transferredAt = date('d/m/Y', strtotime($effectiveTo . ' +1 day'));
             }
         }
     }

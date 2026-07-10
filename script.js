@@ -1294,7 +1294,7 @@ function renderAgentTable(agents) {
         <div class="agent-name-cell">
           <div class="agent-mini-avatar">${initials(a.name)}</div>
           <div>
-            <div style="font-weight:600;">${a.name} ${a.is_transferred ? `<span class="days-badge warn" style="font-size:9px;padding:2px 4px;margin-left:6px;display:inline-flex;">No longer in dept${a.transferred_at ? ' (until ' + a.transferred_at + ')' : ''}</span>` : ''}</div>
+            <div style="font-weight:600;">${a.name} ${a.is_transferred ? `<span class="days-badge warn" style="font-size:9px;padding:2px 4px;margin-left:6px;display:inline-flex;">No longer in dept${a.transferred_at ? ' (since ' + a.transferred_at + ')' : ''}</span>` : ''}</div>
             <div style="font-size:10px;color:var(--grey-400);">${a.designation}</div>
           </div>
         </div>
@@ -1431,7 +1431,7 @@ function renderAgentPrivateOfficeTable(agents) {
         <div class="agent-name-cell">
           <div class="agent-mini-avatar">${initials(a.name)}</div>
           <div>
-            <div style="font-weight:600;">${a.name} ${a.is_transferred ? `<span class="days-badge warn" style="font-size:9px;padding:2px 4px;margin-left:6px;display:inline-flex;">No longer in dept${a.transferred_at ? ' (until ' + a.transferred_at + ')' : ''}</span>` : ''}</div>
+            <div style="font-weight:600;">${a.name} ${a.is_transferred ? `<span class="days-badge warn" style="font-size:9px;padding:2px 4px;margin-left:6px;display:inline-flex;">No longer in dept${a.transferred_at ? ' (since ' + a.transferred_at + ')' : ''}</span>` : ''}</div>
             <div style="font-size:10px;color:var(--grey-400);">${a.designation}</div>
           </div>
         </div>
@@ -1585,7 +1585,7 @@ function renderManagerAgentTable(agents) {
       const ac =
         a.attendance <= 14 ? "crit" : a.attendance <= 30 ? "warn" : "ok";
       return `<tr onclick="drillToAgent(${a.id})">
-        <td><div class="agent-name-cell"><div class="agent-mini-avatar">${initials(a.name)}</div><div><div style="font-weight:600">${a.name} ${a.is_transferred ? `<span class="days-badge warn" style="font-size:9px;padding:2px 4px;margin-left:6px;display:inline-flex;">No longer in dept${a.transferred_at ? ' (until ' + a.transferred_at + ')' : ''}</span>` : ''}</div><div style="font-size:10px;color:var(--grey-400)">${a.designation}</div></div></div></td>
+        <td><div class="agent-name-cell"><div class="agent-mini-avatar">${initials(a.name)}</div><div><div style="font-weight:600">${a.name} ${a.is_transferred ? `<span class="days-badge warn" style="font-size:9px;padding:2px 4px;margin-left:6px;display:inline-flex;">No longer in dept${a.transferred_at ? ' (since ' + a.transferred_at + ')' : ''}</span>` : ''}</div><div style="font-size:10px;color:var(--grey-400)">${a.designation}</div></div></div></td>
         <td>${a.leads_offplan}</td>
         <td>${a.leads_secondary}</td>
         <td>${a.reshuffled_leads}</td>
