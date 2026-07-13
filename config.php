@@ -285,6 +285,7 @@ $GLOBALS['CFG_CEO_USER_IDS'] = array(
     259,   // Nazira Raimkulova
     156,   // Jaymee Javin
     104,   // Bitrix Support
+    38,    // Vladislav Tikholaz
 );
 
 $GLOBALS['CFG_MANAGER_USER_IDS'] = array(
