@@ -501,8 +501,8 @@ function getAgentsByDept($deptIds, $applyPrivateOfficeOverride = true, $dateRang
         : '';
 
     $deptExpr = $applyPrivateOfficeOverride
-        ? "(ud.VALUE_INT IN {$in} OR (23 IN {$in} AND TRIM(LOWER(u.WORK_POSITION)) = 'private office'))"
-        : "ud.VALUE_INT IN {$in}";
+        ? "(ud.VALUE_INT IN {$in} OR (23 IN {$in} AND TRIM(LOWER(u.WORK_POSITION)) = 'private office') OR (u.ID = 168 AND 30 IN {$in}) OR (u.ID = 156 AND 26 IN {$in}))"
+        : "(ud.VALUE_INT IN {$in} OR (u.ID = 168 AND 30 IN {$in}) OR (u.ID = 156 AND 26 IN {$in}))";
 
     if ($dateRange && isset($dateRange['from']) && isset($dateRange['to'])) {
         $from = dbEsc($dateRange['from']);
@@ -582,8 +582,8 @@ function getDeptUserIds($deptIds, $applyPrivateOfficeOverride = true, $dateRange
     $in = inClauseInt($deptIds);
 
     $deptExpr = $applyPrivateOfficeOverride
-        ? "(ud.VALUE_INT IN {$in} OR (23 IN {$in} AND TRIM(LOWER(u.WORK_POSITION)) = 'private office'))"
-        : "ud.VALUE_INT IN {$in}";
+        ? "(ud.VALUE_INT IN {$in} OR (23 IN {$in} AND TRIM(LOWER(u.WORK_POSITION)) = 'private office') OR (u.ID = 168 AND 30 IN {$in}) OR (u.ID = 156 AND 26 IN {$in}))"
+        : "(ud.VALUE_INT IN {$in} OR (u.ID = 168 AND 30 IN {$in}) OR (u.ID = 156 AND 26 IN {$in}))";
 
     if ($dateRange && isset($dateRange['from']) && isset($dateRange['to'])) {
         $from = dbEsc($dateRange['from']);
@@ -705,6 +705,9 @@ function getUserDeptId($userId)
     if ($uid === 156) {
         return 26; // ST3 branch
     }
+    if ($uid === 168) {
+        return 30; // TG department
+    }
 
     // Check if the user is in Private Office via WORK_POSITION
     $userRow = dbQueryOne("SELECT WORK_POSITION FROM b_user WHERE ID = {$uid} LIMIT 1");
@@ -729,6 +732,12 @@ function getUserDeptId($userId)
 function getUserOriginalDeptId($userId)
 {
     $uid = dbInt($userId);
+    if ($uid === 156) {
+        return 26; // ST3 branch
+    }
+    if ($uid === 168) {
+        return 30; // TG department
+    }
     $allowedDeptIds = getSalesReportDepartmentIds(true);
 
     // Exclude Private Office (23) and Sales Root (3) to get the agent's actual sales team department
@@ -824,8 +833,8 @@ function getAgentIdsByManager($managerId, $applyPrivateOfficeOverride = true, $d
     }
 
     $deptExpr = $applyPrivateOfficeOverride
-        ? "(ud.VALUE_INT IN {$deptIn} OR (23 IN {$deptIn} AND TRIM(LOWER(u.WORK_POSITION)) = 'private office'))"
-        : "ud.VALUE_INT IN {$deptIn}";
+        ? "(ud.VALUE_INT IN {$deptIn} OR (23 IN {$deptIn} AND TRIM(LOWER(u.WORK_POSITION)) = 'private office') OR (u.ID = 168 AND 30 IN {$deptIn}) OR (u.ID = 156 AND 26 IN {$deptIn}))"
+        : "(ud.VALUE_INT IN {$deptIn} OR (u.ID = 168 AND 30 IN {$deptIn}) OR (u.ID = 156 AND 26 IN {$deptIn}))";
 
     if ($dateRange && isset($dateRange['from']) && isset($dateRange['to'])) {
         $from = dbEsc($dateRange['from']);
@@ -3016,6 +3025,8 @@ function buildAgentPerformanceRow($userRow, $allDeals, $wonDeals, $committedDeal
     $deptId = 0;
     if ($uid === 156) {
         $deptId = 26;
+    } elseif ($uid === 168) {
+        $deptId = 30;
     } elseif (trim(strtolower($userRow['WORK_POSITION'] ?? '')) === 'private office') {
         $deptId = 23;
     } else {
