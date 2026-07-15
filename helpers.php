@@ -408,14 +408,13 @@ function getSalesTeamById($deptId)
 
 function resolveSalesTeamHeadId($teamRow)
 {
-    $headId = (int)($teamRow['UF_HEAD'] ?? 0);
-    if ($headId > 0) {
-        return $headId;
-    }
-
     $deptId = (int)($teamRow['ID'] ?? 0);
     $headsByDept = $GLOBALS['CFG_SALES_TEAM_HEAD_BY_DEPT'] ?? array();
-    return (int)($headsByDept[$deptId] ?? 0);
+    if ($deptId > 0 && isset($headsByDept[$deptId])) {
+        return (int)$headsByDept[$deptId];
+    }
+
+    return (int)($teamRow['UF_HEAD'] ?? 0);
 }
 
 function getSalesTeamCode($teamRow)
