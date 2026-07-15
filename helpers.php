@@ -831,6 +831,8 @@ function getAgentIdsByManager($managerId, $applyPrivateOfficeOverride = true, $d
         return array();
     }
 
+    $deptIn = inClauseInt($managerDepts);
+
     $deptExpr = $applyPrivateOfficeOverride
         ? "(ud.VALUE_INT IN {$deptIn} OR (23 IN {$deptIn} AND TRIM(LOWER(u.WORK_POSITION)) = 'private office') OR (u.ID = 168 AND 30 IN {$deptIn}) OR (u.ID = 156 AND 26 IN {$deptIn}))"
         : "(ud.VALUE_INT IN {$deptIn} OR (u.ID = 168 AND 30 IN {$deptIn}) OR (u.ID = 156 AND 26 IN {$deptIn}))";
