@@ -29,6 +29,22 @@ try {
     // Fetch all active agents
     $allDeptIds = getSalesReportDepartmentIds(false);
     $allAgents = getAgentsByDept($allDeptIds, true, $dateRange);
+    $specialUserIds = array(168, 156);
+    foreach ($specialUserIds as $specialId) {
+        $found = false;
+        foreach ($allAgents as $a) {
+            if ((int)$a['ID'] === $specialId) {
+                $found = true;
+                break;
+            }
+        }
+        if (!$found) {
+            $userProfile = getUserProfile($specialId);
+            if (!empty($userProfile)) {
+                $allAgents[] = $userProfile;
+            }
+        }
+    }
     $allAgentIds = array_map(function($a) { return (int)$a['ID']; }, $allAgents);
 
     // Fetch all deals for these agents
