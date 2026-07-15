@@ -288,7 +288,7 @@ if ($role === 'agent') {
             echo json_encode(array('error' => 'Team not found', 'dept_id' => $deptId));
             exit;
         }
-        $managerId = (int)($teamRow['UF_HEAD'] ?? 0);
+        $managerId = resolveSalesTeamHeadId($teamRow);
     }
 
     $managerRow = $managerId > 0 ? getUserProfile($managerId) : array();
@@ -388,6 +388,11 @@ if ($role === 'agent') {
             }
         }
     }
+    $resolvedManagerId = $managerId > 0 ? $managerId : (!empty($teamRow) ? resolveSalesTeamHeadId($teamRow) : 0);
+    if ($resolvedManagerId > 0 && isAgentInDept($resolvedManagerId, $targetDeptId)) {
+        $currentAgentIds[] = $resolvedManagerId;
+    }
+    $currentAgentIds = array_values(array_unique($currentAgentIds));
 
     $leadCountOffplan   = empty($currentAgentIds) ? 0 : countActiveLeads($currentAgentIds, $dateRange, PIPELINE_OFFPLAN);
     $leadCountSecondary = empty($currentAgentIds) ? 0 : countActiveLeads($currentAgentIds, $dateRange, PIPELINE_SECONDARY);
@@ -673,7 +678,7 @@ if ($role === 'agent') {
             return (int)$a['ID'];
         }, $teamAgents);
         $teamDealOwnerIds = $teamIds;
-        $teamManagerId = (int)($team['UF_HEAD'] ?? 0);
+        $teamManagerId = resolveSalesTeamHeadId($team);
         if ($teamManagerId > 0) {
             $teamDealOwnerIds[] = $teamManagerId;
         }
@@ -724,6 +729,10 @@ if ($role === 'agent') {
                 }
             }
         }
+        if ($teamManagerId > 0 && isAgentInDept($teamManagerId, $tid)) {
+            $currentTeamIds[] = $teamManagerId;
+        }
+        $currentTeamIds = array_values(array_unique($currentTeamIds));
 
         $teamLeadsOffplan   = empty($currentTeamIds) ? 0 : countActiveLeads($currentTeamIds, $dateRange, PIPELINE_OFFPLAN);
         $teamLeadsSecondary = empty($currentTeamIds) ? 0 : countActiveLeads($currentTeamIds, $dateRange, PIPELINE_SECONDARY);
