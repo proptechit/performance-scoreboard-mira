@@ -7,9 +7,12 @@
 // If running in a non-Bitrix CLI environment, we can still output explanation,
 // but if we are in Bitrix CLI environment, it will run queries.
 try {
-    require_once __DIR__ . '/config.php';
-    require_once __DIR__ . '/helpers.php';
+    require_once __DIR__ . '/./config.php';
+    require_once __DIR__ . '/./helpers.php';
     
+
+    // ── Boot Bitrix ──────────────────────────────────────────────────────────────
+    bx_boot();
 
     $salesTeams = getSalesTeams();
     echo "========================================================================\n";
