@@ -1246,9 +1246,11 @@ function renderAgentTable(agents) {
   const tbody = document.getElementById("agentTableBody");
   if (!tbody || !agents) return;
 
-  // Filter out Private Office agents
+  // Filter out Private Office agents unless they also have a regular department
   const regularAgents = agents.filter(
-    (a) => !((a.designation || "").trim().toLowerCase().startsWith("private office") || a.department_id === 23),
+    (a) =>
+      !((a.designation || "").trim().toLowerCase().startsWith("private office") || a.department_id === 23) ||
+      (a.original_department_id && a.original_department_id > 0),
   );
 
   const searchQuery = (

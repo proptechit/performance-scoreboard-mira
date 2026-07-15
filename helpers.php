@@ -501,8 +501,8 @@ function getAgentsByDept($deptIds, $applyPrivateOfficeOverride = true, $dateRang
         : '';
 
     $deptExpr = $applyPrivateOfficeOverride
-        ? "CASE WHEN TRIM(LOWER(u.WORK_POSITION)) = 'private office' THEN 23 ELSE ud.VALUE_INT END"
-        : 'ud.VALUE_INT';
+        ? "(ud.VALUE_INT IN {$in} OR (23 IN {$in} AND TRIM(LOWER(u.WORK_POSITION)) = 'private office'))"
+        : "ud.VALUE_INT IN {$in}";
 
     if ($dateRange && isset($dateRange['from']) && isset($dateRange['to'])) {
         $from = dbEsc($dateRange['from']);
@@ -525,7 +525,7 @@ function getAgentsByDept($deptIds, $applyPrivateOfficeOverride = true, $dateRang
                 ON uts_u.VALUE_ID = u.ID
             WHERE u.ACTIVE = 'Y'
               AND (
-                  ({$deptExpr}) IN {$in}
+                  {$deptExpr}
                   OR u.ID IN (
                       SELECT h.USER_ID 
                       FROM b_agent_dept_history h 
@@ -554,7 +554,7 @@ function getAgentsByDept($deptIds, $applyPrivateOfficeOverride = true, $dateRang
             LEFT JOIN b_uts_user uts_u
                 ON uts_u.VALUE_ID = u.ID
             WHERE u.ACTIVE = 'Y'
-              AND ({$deptExpr}) IN {$in}
+              AND {$deptExpr}
               {$excludeNonAgents}
             ORDER BY u.LAST_NAME ASC, u.NAME ASC
         ";
@@ -582,8 +582,8 @@ function getDeptUserIds($deptIds, $applyPrivateOfficeOverride = true, $dateRange
     $in = inClauseInt($deptIds);
 
     $deptExpr = $applyPrivateOfficeOverride
-        ? "CASE WHEN TRIM(LOWER(u.WORK_POSITION)) = 'private office' THEN 23 ELSE ud.VALUE_INT END"
-        : 'ud.VALUE_INT';
+        ? "(ud.VALUE_INT IN {$in} OR (23 IN {$in} AND TRIM(LOWER(u.WORK_POSITION)) = 'private office'))"
+        : "ud.VALUE_INT IN {$in}";
 
     if ($dateRange && isset($dateRange['from']) && isset($dateRange['to'])) {
         $from = dbEsc($dateRange['from']);
@@ -597,7 +597,7 @@ function getDeptUserIds($deptIds, $applyPrivateOfficeOverride = true, $dateRange
                AND ud.FIELD_ID = 40   -- UF_DEPARTMENT
             WHERE u.ACTIVE = 'Y'
               AND (
-                  ({$deptExpr}) IN {$in}
+                  {$deptExpr}
                   OR u.ID IN (
                       SELECT h.USER_ID 
                       FROM b_agent_dept_history h 
@@ -615,7 +615,7 @@ function getDeptUserIds($deptIds, $applyPrivateOfficeOverride = true, $dateRange
                 ON ud.VALUE_ID = u.ID
                AND ud.FIELD_ID = 40   -- UF_DEPARTMENT
             WHERE u.ACTIVE = 'Y'
-              AND ({$deptExpr}) IN {$in}
+              AND {$deptExpr}
         ";
     }
 
@@ -824,10 +824,8 @@ function getAgentIdsByManager($managerId, $applyPrivateOfficeOverride = true, $d
     }
 
     $deptExpr = $applyPrivateOfficeOverride
-        ? "CASE WHEN TRIM(LOWER(u.WORK_POSITION)) = 'private office' THEN 23 ELSE ud.VALUE_INT END"
-        : 'ud.VALUE_INT';
-
-    $deptIn = inClauseInt($managerDepts);
+        ? "(ud.VALUE_INT IN {$deptIn} OR (23 IN {$deptIn} AND TRIM(LOWER(u.WORK_POSITION)) = 'private office'))"
+        : "ud.VALUE_INT IN {$deptIn}";
 
     if ($dateRange && isset($dateRange['from']) && isset($dateRange['to'])) {
         $from = dbEsc($dateRange['from']);
@@ -841,7 +839,7 @@ function getAgentIdsByManager($managerId, $applyPrivateOfficeOverride = true, $d
                AND ud.FIELD_ID = 40
             WHERE u.ACTIVE = 'Y'
               AND (
-                  ({$deptExpr}) IN {$deptIn}
+                  {$deptExpr}
                   OR u.ID IN (
                       SELECT h.USER_ID 
                       FROM b_agent_dept_history h 
@@ -860,7 +858,7 @@ function getAgentIdsByManager($managerId, $applyPrivateOfficeOverride = true, $d
                 ON ud.VALUE_ID = u.ID
                AND ud.FIELD_ID = 40
             WHERE u.ACTIVE = 'Y'
-              AND ({$deptExpr}) IN {$deptIn}
+              AND {$deptExpr}
               {$excludeNonAgents}
         ";
     }
@@ -2131,10 +2129,31 @@ function countAttendanceDays($userId, $dateRange, $scopeDeptId = 0)
         ";
         $scopeFilter = "
             AND (
-                (h.DEPT_ID IS NOT NULL AND h.DEPT_ID = {$scopeDeptId})
-                OR (h.DEPT_ID IS NULL AND COALESCE(
-                    (CASE WHEN (SELECT TRIM(LOWER(WORK_POSITION)) FROM b_user WHERE ID = a.ASSIGNED_BY_ID) = 'private office' THEN 23 ELSE ud.VALUE_INT END), 0
-                ) = {$scopeDeptId})
+                (h.DEPT_ID IS NOT NULL AND (
+                    h.DEPT_ID = {$scopeDeptId}
+                    OR (h.DEPT_ID = 23 AND EXISTS (
+                        SELECT 1 FROM b_utm_user ud2 
+                        WHERE ud2.VALUE_ID = a.ASSIGNED_BY_ID 
+                          AND ud2.FIELD_ID = 40 
+                          AND ud2.VALUE_INT = {$scopeDeptId}
+                    ))
+                ))
+                OR (h.DEPT_ID IS NULL AND (
+                    ud.VALUE_INT = {$scopeDeptId}
+                    OR (
+                        {$scopeDeptId} = 23
+                        AND (SELECT TRIM(LOWER(WORK_POSITION)) FROM b_user WHERE ID = a.ASSIGNED_BY_ID) = 'private office'
+                    )
+                    OR (
+                        ud.VALUE_INT = 23
+                        AND EXISTS (
+                            SELECT 1 FROM b_utm_user ud2 
+                            WHERE ud2.VALUE_ID = a.ASSIGNED_BY_ID 
+                              AND ud2.FIELD_ID = 40 
+                              AND ud2.VALUE_INT = {$scopeDeptId}
+                        )
+                    )
+                ))
             )
         ";
     }
@@ -2873,7 +2892,8 @@ function countAllActiveAgents()
            AND ud.FIELD_ID = 40
 
         JOIN b_iblock_section s 
-            ON s.ID = (CASE WHEN TRIM(LOWER(u.WORK_POSITION)) = 'private office' THEN 23 ELSE ud.VALUE_INT END)
+            ON s.ID = ud.VALUE_INT
+            OR (s.ID = 23 AND TRIM(LOWER(u.WORK_POSITION)) = 'private office')
 
         WHERE u.ACTIVE = 'Y'
           AND s.IBLOCK_ID = 3
@@ -3011,12 +3031,15 @@ function buildAgentPerformanceRow($userRow, $allDeals, $wonDeals, $committedDeal
         $deptId = (int)($row['VALUE_INT'] ?? 0);
     }
 
+    $origDeptId = getUserOriginalDeptId($uid);
+
     return array(
-        'id'               => $uid,
-        'name'             => fullName($userRow),
-        'designation'      => $designation,
-        'department_id'    => $deptId,
-        'leads_offplan'    => $leadCountOffplan,
+        'id'                     => $uid,
+        'name'                   => fullName($userRow),
+        'designation'            => $designation,
+        'department_id'          => $deptId,
+        'original_department_id' => $origDeptId,
+        'leads_offplan'          => $leadCountOffplan,
         'leads_secondary'  => $leadCountSecondary,
         'reshuffled_leads' => $reshuffledCount,
         'listings'         => (int)$listingCount + (int)$pocketListingCount,
@@ -3108,4 +3131,90 @@ function getAgentDeptAtDate($userId, $dateStr)
 
     // Fallback to current department
     return getUserDeptId($uid);
+}
+
+/**
+ * Resolve an agent's original department ID (excluding 23 and 3) at a specific date using b_agent_dept_history.
+ * Falls back to their current original department if no historical record matches.
+ */
+function getAgentOriginalDeptAtDate($userId, $dateStr)
+{
+    static $origHistoryCache = null;
+
+    if ($origHistoryCache === null) {
+        $origHistoryCache = array();
+        // Fetch all history records
+        $rows = dbQuery("SELECT USER_ID, DEPT_ID, EFFECTIVE_FROM, EFFECTIVE_TO FROM b_agent_dept_history ORDER BY EFFECTIVE_FROM ASC");
+        foreach ($rows as $row) {
+            $deptId = (int)$row['DEPT_ID'];
+            if ($deptId === 23 || $deptId === 3) {
+                continue;
+            }
+            $uid = (int)$row['USER_ID'];
+            if (!isset($origHistoryCache[$uid])) {
+                $origHistoryCache[$uid] = array();
+            }
+            $fromStr = convertBitrixDateToString($row['EFFECTIVE_FROM'], 'Y-m-d');
+            $toStr   = convertBitrixDateToString($row['EFFECTIVE_TO'], 'Y-m-d') ?: '9999-12-31';
+            $origHistoryCache[$uid][] = array(
+                'dept_id' => $deptId,
+                'from'    => $fromStr,
+                'to'      => $toStr
+            );
+        }
+    }
+
+    $uid = (int)$userId;
+    if (!empty($dateStr)) {
+        // Convert date string to YYYY-MM-DD
+        $date = convertBitrixDateToString($dateStr, 'Y-m-d');
+        if ($date !== '' && isset($origHistoryCache[$uid])) {
+            foreach ($origHistoryCache[$uid] as $h) {
+                if ($date >= $h['from'] && $date <= $h['to']) {
+                    return $h['dept_id'];
+                }
+            }
+        }
+    }
+
+    // Fallback to current original department
+    return getUserOriginalDeptId($uid);
+}
+
+/**
+ * Check if an agent belongs to a department at a specific date.
+ * Handles Private Office double-grouping.
+ */
+function isAgentInDeptAtDate($userId, $deptId, $dateStr)
+{
+    $resolvedDept = getAgentDeptAtDate($userId, $dateStr);
+    if ($resolvedDept === (int)$deptId) {
+        return true;
+    }
+
+    $origDept = getAgentOriginalDeptAtDate($userId, $dateStr);
+    if ($origDept === (int)$deptId) {
+        return true;
+    }
+
+    return false;
+}
+
+/**
+ * Check if an agent currently belongs to a department.
+ * Handles Private Office double-grouping.
+ */
+function isAgentInDept($userId, $deptId)
+{
+    $currDept = getUserDeptId($userId);
+    if ($currDept === (int)$deptId) {
+        return true;
+    }
+
+    $origDept = getUserOriginalDeptId($userId);
+    if ($origDept === (int)$deptId) {
+        return true;
+    }
+
+    return false;
 }

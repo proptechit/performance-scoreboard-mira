@@ -344,7 +344,7 @@ if ($role === 'agent') {
     $filteredAllDeals = array();
     foreach ($allDeals as $d) {
         $dealDate = $d['effective_create_date'] ?? $d['DATE_CREATE'] ?? '';
-        if (getAgentDeptAtDate($d['ASSIGNED_BY_ID'], $dealDate) === $targetDeptId) {
+        if (isAgentInDeptAtDate($d['ASSIGNED_BY_ID'], $targetDeptId, $dealDate)) {
             $filteredAllDeals[] = $d;
         }
     }
@@ -352,7 +352,7 @@ if ($role === 'agent') {
     $filteredWonDeals = array();
     foreach ($wonDeals as $d) {
         $dealDate = $d['effective_close_date'] ?? $d['CLOSEDATE'] ?? '';
-        if (getAgentDeptAtDate($d['ASSIGNED_BY_ID'], $dealDate) === $targetDeptId) {
+        if (isAgentInDeptAtDate($d['ASSIGNED_BY_ID'], $targetDeptId, $dealDate)) {
             $filteredWonDeals[] = $d;
         }
     }
@@ -360,7 +360,7 @@ if ($role === 'agent') {
     $filteredCommittedDeals = array();
     foreach ($committedDeals as $d) {
         $dealDate = $d['effective_create_date'] ?? $d['DATE_CREATE'] ?? '';
-        if (getAgentDeptAtDate($d['ASSIGNED_BY_ID'], $dealDate) === $targetDeptId) {
+        if (isAgentInDeptAtDate($d['ASSIGNED_BY_ID'], $targetDeptId, $dealDate)) {
             $filteredCommittedDeals[] = $d;
         }
     }
@@ -382,10 +382,8 @@ if ($role === 'agent') {
     // Team-wide supplementary (filtered to current members only for listings/leads/activity)
     $currentAgentIds = array();
     if (!empty($agentIds)) {
-        $allowedDepts = filterAllowedSalesDepartmentIds(array($targetDeptId), true);
         foreach ($agentIds as $aid) {
-            $currDept = getUserDeptId($aid);
-            if (in_array($currDept, $allowedDepts)) {
+            if (isAgentInDept($aid, $targetDeptId)) {
                 $currentAgentIds[] = $aid;
             }
         }
@@ -473,17 +471,17 @@ if ($role === 'agent') {
         }
         $agentDeals          = isset($dealsByAgent[$aid]) ? array_values(array_filter($dealsByAgent[$aid], function($d) use ($targetDeptId) {
             $dealDate = $d['effective_create_date'] ?? $d['DATE_CREATE'] ?? '';
-            return getAgentDeptAtDate($d['ASSIGNED_BY_ID'], $dealDate) === $targetDeptId;
+            return isAgentInDeptAtDate($d['ASSIGNED_BY_ID'], $targetDeptId, $dealDate);
         })) : array();
 
         $agentWonDeals       = isset($wonDealsByAgent[$aid]) ? array_values(array_filter($wonDealsByAgent[$aid], function($d) use ($targetDeptId) {
             $dealDate = $d['effective_close_date'] ?? $d['CLOSEDATE'] ?? '';
-            return getAgentDeptAtDate($d['ASSIGNED_BY_ID'], $dealDate) === $targetDeptId;
+            return isAgentInDeptAtDate($d['ASSIGNED_BY_ID'], $targetDeptId, $dealDate);
         })) : array();
 
         $agentCommittedDeals = isset($committedDealsByAgent[$aid]) ? array_values(array_filter($committedDealsByAgent[$aid], function($d) use ($targetDeptId) {
             $dealDate = $d['effective_create_date'] ?? $d['DATE_CREATE'] ?? '';
-            return getAgentDeptAtDate($d['ASSIGNED_BY_ID'], $dealDate) === $targetDeptId;
+            return isAgentInDeptAtDate($d['ASSIGNED_BY_ID'], $targetDeptId, $dealDate);
         })) : array();
 
         $allAgentRows[] = buildAgentPerformanceRow($agentRows[$aid], $agentDeals, $agentWonDeals, $agentCommittedDeals, $dateRange, $targetDeptId);
@@ -691,7 +689,7 @@ if ($role === 'agent') {
             if (isset($dealsByAgent[$tid2])) {
                 foreach ($dealsByAgent[$tid2] as $d) {
                     $dealDate = $d['effective_create_date'] ?? $d['DATE_CREATE'] ?? '';
-                    if (getAgentDeptAtDate($d['ASSIGNED_BY_ID'], $dealDate) === $tid) {
+                    if (isAgentInDeptAtDate($d['ASSIGNED_BY_ID'], $tid, $dealDate)) {
                         $teamDeals[] = $d;
                     }
                 }
@@ -699,7 +697,7 @@ if ($role === 'agent') {
             if (isset($wonDealsByAgent[$tid2])) {
                 foreach ($wonDealsByAgent[$tid2] as $d) {
                     $dealDate = $d['effective_close_date'] ?? $d['CLOSEDATE'] ?? '';
-                    if (getAgentDeptAtDate($d['ASSIGNED_BY_ID'], $dealDate) === $tid) {
+                    if (isAgentInDeptAtDate($d['ASSIGNED_BY_ID'], $tid, $dealDate)) {
                         $teamWonDeals[] = $d;
                     }
                 }
@@ -707,7 +705,7 @@ if ($role === 'agent') {
             if (isset($committedDealsByAgent[$tid2])) {
                 foreach ($committedDealsByAgent[$tid2] as $d) {
                     $dealDate = $d['effective_create_date'] ?? $d['DATE_CREATE'] ?? '';
-                    if (getAgentDeptAtDate($d['ASSIGNED_BY_ID'], $dealDate) === $tid) {
+                    if (isAgentInDeptAtDate($d['ASSIGNED_BY_ID'], $tid, $dealDate)) {
                         $teamCommittedDeals[] = $d;
                     }
                 }
@@ -720,10 +718,8 @@ if ($role === 'agent') {
         $teamPocketList = countPocketListingsForDepartmentsTotal(array($tid));
         $currentTeamIds = array();
         if (!empty($teamIds)) {
-            $allowedTeamDepts = filterAllowedSalesDepartmentIds(array($tid), true);
             foreach ($teamIds as $aid) {
-                $currDept = getUserDeptId($aid);
-                if (in_array($currDept, $allowedTeamDepts)) {
+                if (isAgentInDept($aid, $tid)) {
                     $currentTeamIds[] = $aid;
                 }
             }
