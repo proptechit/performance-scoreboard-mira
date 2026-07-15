@@ -19,10 +19,10 @@ try {
     echo "AVERAGE REVENUE PER TRANSACTION REPORT\n";
     echo "========================================================================\n";
 
-    // Date range: Current month or custom
+    // Date range: Current year (to match dashboard default)
     $dateRange = array(
-        'from' => date('Y-m-01'),
-        'to'   => date('Y-m-t')
+        'from' => date('Y-01-01'),
+        'to'   => date('Y-12-31')
     );
     echo "Date Range: {$dateRange['from']} to {$dateRange['to']}\n\n";
 
