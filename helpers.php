@@ -2993,10 +2993,29 @@ function buildAgentPerformanceRow($userRow, $allDeals, $wonDeals, $committedDeal
         }
     }
 
+    $deptId = 0;
+    if ($uid === 156) {
+        $deptId = 26;
+    } elseif (trim(strtolower($userRow['WORK_POSITION'] ?? '')) === 'private office') {
+        $deptId = 23;
+    } else {
+        $allowedDeptIds = getSalesReportDepartmentIds(true);
+        $row = dbQueryOne("
+            SELECT VALUE_INT
+            FROM b_utm_user
+            WHERE VALUE_ID = {$uid}
+              AND FIELD_ID = 40
+              AND VALUE_INT IN " . inClauseInt($allowedDeptIds) . "
+            LIMIT 1
+        ");
+        $deptId = (int)($row['VALUE_INT'] ?? 0);
+    }
+
     return array(
         'id'               => $uid,
         'name'             => fullName($userRow),
         'designation'      => $designation,
+        'department_id'    => $deptId,
         'leads_offplan'    => $leadCountOffplan,
         'leads_secondary'  => $leadCountSecondary,
         'reshuffled_leads' => $reshuffledCount,

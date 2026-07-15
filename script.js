@@ -1248,7 +1248,7 @@ function renderAgentTable(agents) {
 
   // Filter out Private Office agents
   const regularAgents = agents.filter(
-    (a) => !(a.designation || "").trim().toLowerCase().startsWith("private office"),
+    (a) => !((a.designation || "").trim().toLowerCase().startsWith("private office") || a.department_id === 23),
   );
 
   const searchQuery = (
@@ -1368,7 +1368,7 @@ function renderAgentPrivateOfficeTable(agents) {
 
   // Filter only Private Office agents (case-insensitive & trimmed)
   const poAgents = agents.filter(
-    (a) => (a.designation || "").trim().toLowerCase().startsWith("private office"),
+    (a) => (a.designation || "").trim().toLowerCase().startsWith("private office") || a.department_id === 23,
   );
 
   const searchQuery = (
