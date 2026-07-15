@@ -75,9 +75,12 @@ try {
 
         echo "Team: {$team['DISPLAY_NAME']} (ID: {$tid})\n";
         echo "  - Total Transactions (Active Stages): " . count($teamDeals) . "\n";
-        echo "  - Total Sales Volume: AED " . number_format($agg['sales_volume']) . "\n";
-        echo "  - Avg Revenue Per Transaction (Calculation: Sales Volume / Transactions Count):\n";
+        echo "  - Total Sales Volume (Property Prices): AED " . number_format($agg['sales_volume']) . "\n";
+        echo "  - Total Commission Volume: AED " . number_format($agg['commissions']) . "\n";
+        echo "  - Avg Sales Value / Transaction (Calculation: Sales Volume / Transactions Count):\n";
         echo "    AED " . number_format($agg['avg_sales_per_deal']) . "\n";
+        echo "  - Avg Revenue / Transaction (Gross Commission) (Calculation: Commission Volume / Transactions Count):\n";
+        echo "    AED " . number_format($agg['avg_commission_per_deal']) . "\n";
         echo "  - Deal Breakdown:\n";
         if (empty($teamDeals)) {
             echo "    (No active deals found in this date range)\n";
@@ -85,7 +88,7 @@ try {
             foreach ($teamDeals as $td) {
                 $agent = getUserProfile($td['ASSIGNED_BY_ID']);
                 $agentName = $agent ? ($agent['NAME'] . ' ' . $agent['LAST_NAME']) : "Unknown ID: {$td['ASSIGNED_BY_ID']}";
-                echo "    * Deal ID: {$td['ID']} | Amount: AED " . number_format($td['sale_amount']) . " | Agent: {$agentName}\n";
+                echo "    * Deal ID: {$td['ID']} | Price: AED " . number_format($td['sale_amount']) . " | Commission: AED " . number_format($td['commission']) . " | Agent: {$agentName}\n";
             }
         }
         echo "------------------------------------------------------------------------\n";

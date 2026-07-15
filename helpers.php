@@ -2225,6 +2225,7 @@ function aggregateDeals($deals)
         'top_commission'   => (int)$topComm,
         'top_commission_id' => $topCommId,
         'avg_sales_per_deal' => $count > 0 ? (int)round($sales / $count) : 0,
+        'avg_commission_per_deal' => $count > 0 ? (int)round($comm / $count) : 0,
     );
 }
 
