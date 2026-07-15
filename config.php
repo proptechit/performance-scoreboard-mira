@@ -206,6 +206,7 @@ $GLOBALS['CFG_DEVELOPER_MAP'] = array(
 define('SPA_LISTINGS_ID',         1052);
 define('SPA_LISTINGS_TABLE',      'b_crm_dynamic_items_1052');
 define('LISTING_STAGE_ACTIVE',    'DT1052_11:SUCCESS');        // Published = active
+define('LISTING_STAGE_POCKET',    'DT1052_11:UC_BDKHAU');      // Pocket listing stage
 define('LISTING_TYPE_SALE_VALUE', 493);                        // UF_CRM_5_1752569908 = 493 → For Sale
 define('LISTING_TYPE_FIELD',      'UF_CRM_5_1752569908');      // Listing type field
 define('LISTING_BRANCH_FIELD',    'UF_CRM_7_1772708634');      // Branch code field

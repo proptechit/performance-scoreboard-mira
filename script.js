@@ -579,6 +579,22 @@ function renderCEO(data) {
       badge: null,
       action: "sale",
     },
+    {
+      label: "Pocket Listings",
+      value: fmtNum(s.pocket_listings_rent),
+      sub: "For Rent",
+      icon: "🔑",
+      badge: null,
+      action: "pocket_rent",
+    },
+    {
+      label: "Pocket Listings",
+      value: fmtNum(s.pocket_listings_sale),
+      sub: "For Sale",
+      icon: "🔑",
+      badge: null,
+      action: "pocket_sale",
+    },
   ];
 
   document.getElementById("ceoKpiGrid").innerHTML = kpis
@@ -734,19 +750,21 @@ function openListingModal(type) {
   const tbody = document.getElementById("listingModalTableBody");
   if (!modal || !title || !subtitle || !tbody) return;
 
-  const normalizedType = type === "sale" ? "sale" : "rent";
   const labels = {
     sale: "Active Listings for Sale",
     rent: "Active Listings for Rent",
+    pocket_sale: "Pocket Listings for Sale",
+    pocket_rent: "Pocket Listings for Rent",
   };
-  const items = currentData?.listing_details?.[normalizedType] || [];
+  const items = currentData?.listing_details?.[type] || [];
+  const isPocket = type.startsWith("pocket");
 
   listingModalLastFocus = document.activeElement;
-  title.textContent = labels[normalizedType];
-  subtitle.textContent = `${fmtNum(items.length)} listing${items.length === 1 ? "" : "s"} currently active`;
+  title.textContent = labels[type] || "Listing Details";
+  subtitle.textContent = `${fmtNum(items.length)} listing${items.length === 1 ? "" : "s"} currently ${isPocket ? "in pocket stage" : "active"}`;
 
   if (!items.length) {
-    tbody.innerHTML = `<tr><td colspan="4" class="listing-modal-empty">No active listings found for this category.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="4" class="listing-modal-empty">No ${isPocket ? "pocket" : "active"} listings found for this category.</td></tr>`;
   } else {
     tbody.innerHTML = items
       .map((item) => {
@@ -1507,7 +1525,8 @@ function renderTeamTable(teams) {
     deals: { type: "number", get: (a) => a.deals },
     leads_offplan: { type: "number", get: (a) => a.leads_offplan },
     leads_secondary: { type: "number", get: (a) => a.leads_secondary },
-    listings: { type: "number", get: (a) => a.listings },
+    active_listings: { type: "number", get: (a) => a.active_listings },
+    pocket_listings: { type: "number", get: (a) => a.pocket_listings },
     sales: { type: "number", get: (a) => a.sales },
     commission: { type: "number", get: (a) => a.commission },
     top_deal: { type: "number", get: (a) => a.top_deal },
@@ -1531,7 +1550,8 @@ function renderTeamTable(teams) {
       <td style="font-weight:600;">${a.deals}</td>
       <td style="font-weight:600;">${a.leads_offplan}</td>
       <td style="font-weight:600;">${a.leads_secondary}</td>
-      <td style="font-weight:600;">${a.listings}</td>
+      <td style="font-weight:600;">${a.active_listings}</td>
+      <td style="font-weight:600;">${a.pocket_listings}</td>
       <td>AED ${fmtCurrency(a.sales)}</td>
       <td>AED ${fmtCurrency(a.commission)}</td>
       <td>AED ${fmtCurrency(a.top_deal, true)}</td>
@@ -1571,7 +1591,8 @@ function renderManagerAgentTable(agents) {
     leads_secondary: { type: "number", get: (a) => a.leads_secondary },
     reshuffled_leads: { type: "number", get: (a) => a.reshuffled_leads },
     deals: { type: "number", get: (a) => a.deals },
-    listings: { type: "number", get: (a) => a.listings },
+    active_listings: { type: "number", get: (a) => a.active_listings },
+    pocket_listings: { type: "number", get: (a) => a.pocket_listings },
     sales: { type: "number", get: (a) => a.sales },
     commission: { type: "number", get: (a) => a.commission },
     top_deal: { type: "number", get: (a) => a.top_deal },
@@ -1590,7 +1611,8 @@ function renderManagerAgentTable(agents) {
         <td>${a.leads_secondary}</td>
         <td>${a.reshuffled_leads}</td>
         <td>${a.deals}</td>
-        <td>${a.listings}</td>
+        <td>${a.active_listings}</td>
+        <td>${a.pocket_listings}</td>
         <td>AED ${fmtCurrency(a.sales)}</td>
         <td>AED ${fmtCurrency(a.commission)}</td>
         <td>AED ${fmtCurrency(a.top_deal, true)}</td>
@@ -1911,6 +1933,20 @@ function renderManager(data) {
       action: "sale",
     },
     {
+      label: "Pocket Listings",
+      value: fmtNum(s.pocket_listings_rent),
+      sub: "For Rent",
+      icon: "🔑",
+      action: "pocket_rent",
+    },
+    {
+      label: "Pocket Listings",
+      value: fmtNum(s.pocket_listings_sale),
+      sub: "For Sale",
+      icon: "🔑",
+      action: "pocket_sale",
+    },
+    {
       label: "Sales Volume",
       value: "AED " + fmtCurrency(s.sales_volume, true),
       icon: "💰",
@@ -2219,6 +2255,20 @@ function renderAgent(data) {
       sub: "For Sale",
       icon: "🏡",
       action: "sale",
+    },
+    {
+      label: "Pocket Listings",
+      value: fmtNum(s.pocket_listings_rent),
+      sub: "For Rent",
+      icon: "🔑",
+      action: "pocket_rent",
+    },
+    {
+      label: "Pocket Listings",
+      value: fmtNum(s.pocket_listings_sale),
+      sub: "For Sale",
+      icon: "🔑",
+      action: "pocket_sale",
     },
     {
       label: "Avg Revenue / Transaction",

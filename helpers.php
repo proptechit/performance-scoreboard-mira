@@ -1690,6 +1690,277 @@ function countActiveListingsForDepartments($deptIds)
 }
 
 /**
+ * Count pocket listings (for rent vs for sale) for a set of branches.
+ * Returns array('sale' => int, 'rent' => int)
+ *
+ * @param  array $branchCodes Empty = all configured branches
+ * @return array
+ */
+function countPocketListingsByBranches($branchCodes = array())
+{
+    $table       = SPA_LISTINGS_TABLE;
+    $stage       = dbEsc(LISTING_STAGE_POCKET);
+    $typeField   = LISTING_TYPE_FIELD;
+    $saleValue   = dbInt(LISTING_TYPE_SALE_VALUE);
+    $branchField = LISTING_BRANCH_FIELD;
+
+    if (empty($branchCodes)) {
+        $branchCodes = getListingBranchCodesForDeptIds(array_keys($GLOBALS['CFG_LISTING_BRANCH_BY_DEPT'] ?? array()));
+    }
+
+    $branchFilter = '';
+    if (!empty($branchCodes)) {
+        $branchFilter = 'AND l.' . $branchField . ' IN ' . inClauseStr($branchCodes);
+    }
+
+    $rows = dbQuery("
+        SELECT
+            SUM(CASE WHEN l.{$typeField} = {$saleValue} THEN 1 ELSE 0 END) AS sale_count,
+            SUM(CASE WHEN l.{$typeField} != {$saleValue} OR l.{$typeField} IS NULL THEN 1 ELSE 0 END) AS rent_count
+        FROM {$table} l
+        WHERE l.STAGE_ID = '{$stage}'
+          {$branchFilter}
+    ");
+
+    $row = !empty($rows) ? $rows[0] : array();
+    return array(
+        'sale' => (int)($row['sale_count'] ?? 0),
+        'rent' => (int)($row['rent_count'] ?? 0),
+    );
+}
+
+/**
+ * Count pocket listings for a set of branches.
+ */
+function countPocketListingsByBranchesTotal($branchCodes = array())
+{
+    $counts = countPocketListingsByBranches($branchCodes);
+    return (int)$counts['sale'] + (int)$counts['rent'];
+}
+
+/**
+ * Count pocket listings split by sale/rent for the branches represented by a set of departments.
+ */
+function countPocketListingsForDepartments($deptIds)
+{
+    $branchCodes = getListingBranchCodesForDeptIds($deptIds);
+    if (empty($branchCodes)) {
+        return array('sale' => 0, 'rent' => 0);
+    }
+
+    return countPocketListingsByBranches($branchCodes);
+}
+
+/**
+ * Count pocket listings total for the branches represented by a set of departments.
+ */
+function countPocketListingsForDepartmentsTotal($deptIds)
+{
+    $branchCodes = getListingBranchCodesForDeptIds($deptIds);
+    if (empty($branchCodes)) {
+        return 0;
+    }
+
+    return countPocketListingsByBranchesTotal($branchCodes);
+}
+
+/**
+ * Count pocket listings split by sale/rent for a set of users.
+ */
+function countPocketListingsForUsers($userIds)
+{
+    if (empty($userIds)) {
+        return array('sale' => 0, 'rent' => 0);
+    }
+    if (!is_array($userIds)) {
+        $userIds = array($userIds);
+    }
+    $table      = SPA_LISTINGS_TABLE;
+    $stage      = dbEsc(LISTING_STAGE_POCKET);
+    $typeField  = LISTING_TYPE_FIELD;
+    $saleValue  = dbInt(LISTING_TYPE_SALE_VALUE);
+    $ownerField = LISTING_OWNER_FIELD;
+    $inUsers    = inClauseInt($userIds);
+
+    $rows = dbQuery("
+        SELECT
+            SUM(CASE WHEN l.{$typeField} = {$saleValue} THEN 1 ELSE 0 END) AS sale_count,
+            SUM(CASE WHEN l.{$typeField} != {$saleValue} OR l.{$typeField} IS NULL THEN 1 ELSE 0 END) AS rent_count
+        FROM {$table} l
+        WHERE l.STAGE_ID = '{$stage}'
+          AND (l.ASSIGNED_BY_ID IN {$inUsers} OR l.{$ownerField} IN {$inUsers})
+    ");
+
+    $row = !empty($rows) ? $rows[0] : array();
+    return array(
+        'sale' => (int)($row['sale_count'] ?? 0),
+        'rent' => (int)($row['rent_count'] ?? 0),
+    );
+}
+
+/**
+ * Count pocket listings total for a set of users.
+ */
+function countPocketListingsForUsersTotal($userIds)
+{
+    if (empty($userIds)) {
+        return 0;
+    }
+    if (!is_array($userIds)) {
+        $userIds = array($userIds);
+    }
+    $table      = SPA_LISTINGS_TABLE;
+    $stage      = dbEsc(LISTING_STAGE_POCKET);
+    $inUsers    = inClauseInt($userIds);
+    $ownerField = LISTING_OWNER_FIELD;
+
+    $row = dbQueryOne("
+        SELECT COUNT(*) AS cnt
+        FROM {$table} l
+        WHERE l.STAGE_ID = '{$stage}'
+          AND (l.ASSIGNED_BY_ID IN {$inUsers} OR l.{$ownerField} IN {$inUsers})
+    ");
+    return (int)($row['cnt'] ?? 0);
+}
+
+/**
+ * Fetch pocket listing details for a set of branches, grouped by sale/rent.
+ * Returns array('sale' => [...], 'rent' => [...])
+ *
+ * @param  array $branchCodes Empty = all configured branches
+ * @return array
+ */
+function fetchPocketListingDetailsByBranches($branchCodes = array())
+{
+    $table      = SPA_LISTINGS_TABLE;
+    $stage      = dbEsc(LISTING_STAGE_POCKET);
+    $typeField  = LISTING_TYPE_FIELD;
+    $saleValue  = dbInt(LISTING_TYPE_SALE_VALUE);
+    $branchField = LISTING_BRANCH_FIELD;
+    $refField   = LISTING_REF_FIELD;
+    $ownerField = LISTING_OWNER_FIELD;
+
+    if (empty($branchCodes)) {
+        $branchCodes = getListingBranchCodesForDeptIds(array_keys($GLOBALS['CFG_LISTING_BRANCH_BY_DEPT'] ?? array()));
+    }
+
+    $branchFilter = '';
+    if (!empty($branchCodes)) {
+        $branchFilter = 'AND l.' . $branchField . ' IN ' . inClauseStr($branchCodes);
+    }
+
+    $rows = dbQuery("
+        SELECT
+            l.ID,
+            l.{$typeField} AS listing_type,
+            l.{$refField} AS reference_number,
+            l.ASSIGNED_BY_ID,
+            CONCAT(COALESCE(agent.NAME, ''), ' ', COALESCE(agent.LAST_NAME, '')) AS assigned_name,
+            l.{$ownerField} AS owner_user_id,
+            CONCAT(COALESCE(owner.NAME, ''), ' ', COALESCE(owner.LAST_NAME, '')) AS owner_name
+        FROM {$table} l
+        LEFT JOIN b_user agent
+          ON agent.ID = l.ASSIGNED_BY_ID
+        LEFT JOIN b_user owner
+          ON owner.ID = l.{$ownerField}
+        WHERE l.STAGE_ID = '{$stage}'
+          {$branchFilter}
+        ORDER BY l.ID DESC
+    ");
+
+    $grouped = array(
+        'sale' => array(),
+        'rent' => array(),
+    );
+
+    foreach ($rows as $row) {
+        $typeKey = (int)($row['listing_type'] ?? 0) === LISTING_TYPE_SALE_VALUE ? 'sale' : 'rent';
+        $id = (int)($row['ID'] ?? 0);
+        $grouped[$typeKey][] = array(
+            'id' => $id,
+            'reference_number' => trim((string)($row['reference_number'] ?? '')),
+            'listing_agent' => trim((string)($row['assigned_name'] ?? '')),
+            'listing_owner' => trim((string)($row['owner_name'] ?? '')),
+            'link' => $id > 0 ? 'https://crm.mira-international.com/crm/type/1052/details/' . $id . '/' : '',
+        );
+    }
+
+    return $grouped;
+}
+
+/**
+ * Fetch pocket listing details for a set of departments.
+ */
+function fetchPocketListingDetailsForDepartments($deptIds)
+{
+    $branchCodes = getListingBranchCodesForDeptIds($deptIds);
+    if (empty($branchCodes)) {
+        return array('sale' => array(), 'rent' => array());
+    }
+
+    return fetchPocketListingDetailsByBranches($branchCodes);
+}
+
+/**
+ * Fetch pocket listing details for a set of users.
+ */
+function fetchPocketListingDetailsForUsers($userIds)
+{
+    if (empty($userIds)) {
+        return array('sale' => array(), 'rent' => array());
+    }
+    if (!is_array($userIds)) {
+        $userIds = array($userIds);
+    }
+    $table      = SPA_LISTINGS_TABLE;
+    $stage      = dbEsc(LISTING_STAGE_POCKET);
+    $typeField  = LISTING_TYPE_FIELD;
+    $saleValue  = dbInt(LISTING_TYPE_SALE_VALUE);
+    $refField   = LISTING_REF_FIELD;
+    $ownerField = LISTING_OWNER_FIELD;
+    $inUsers    = inClauseInt($userIds);
+
+    $rows = dbQuery("
+        SELECT
+            l.ID,
+            l.{$typeField} AS listing_type,
+            l.{$refField} AS reference_number,
+            l.ASSIGNED_BY_ID,
+            CONCAT(COALESCE(agent.NAME, ''), ' ', COALESCE(agent.LAST_NAME, '')) AS assigned_name,
+            l.{$ownerField} AS owner_user_id,
+            CONCAT(COALESCE(owner.NAME, ''), ' ', COALESCE(owner.LAST_NAME, '')) AS owner_name
+        FROM {$table} l
+        LEFT JOIN b_user agent
+          ON agent.ID = l.ASSIGNED_BY_ID
+        LEFT JOIN b_user owner
+          ON owner.ID = l.{$ownerField}
+        WHERE l.STAGE_ID = '{$stage}'
+          AND (l.ASSIGNED_BY_ID IN {$inUsers} OR l.{$ownerField} IN {$inUsers})
+        ORDER BY l.ID DESC
+    ");
+
+    $grouped = array(
+        'sale' => array(),
+        'rent' => array(),
+    );
+
+    foreach ($rows as $row) {
+        $typeKey = (int)($row['listing_type'] ?? 0) === LISTING_TYPE_SALE_VALUE ? 'sale' : 'rent';
+        $id = (int)($row['ID'] ?? 0);
+        $grouped[$typeKey][] = array(
+            'id' => $id,
+            'reference_number' => trim((string)($row['reference_number'] ?? '')),
+            'listing_agent' => trim((string)($row['assigned_name'] ?? '')),
+            'listing_owner' => trim((string)($row['owner_name'] ?? '')),
+            'link' => $id > 0 ? 'https://crm.mira-international.com/crm/type/1052/details/' . $id . '/' : '',
+        );
+    }
+
+    return $grouped;
+}
+
+
+/**
  * Fetch active listing details for a set of branches, grouped by sale/rent.
  * Returns array('sale' => [...], 'rent' => [...])
  *
@@ -2669,6 +2940,8 @@ function buildAgentPerformanceRow($userRow, $allDeals, $wonDeals, $committedDeal
     $leadCountSecondary = countActiveLeads(array($uid), $dateRange, PIPELINE_SECONDARY);
     $reshuffledCount = countReshuffledLeads(array($uid), $dateRange);
     $listingCount    = countListingsForUsers(array($uid));
+    $pocketListings  = countPocketListingsForUsers(array($uid));
+    $pocketListingCount = (int)$pocketListings['sale'] + (int)$pocketListings['rent'];
     $lastDealDays    = daysSinceLastDeal(array($uid));
     $avgGap          = avgGapBetweenDeals($uid, $dateRange);
     $attendance      = countAttendanceDays($uid, $dateRange, $scopeDeptId);
@@ -2728,6 +3001,8 @@ function buildAgentPerformanceRow($userRow, $allDeals, $wonDeals, $committedDeal
         'leads_secondary'  => $leadCountSecondary,
         'reshuffled_leads' => $reshuffledCount,
         'listings'         => $listingCount,
+        'active_listings'  => $listingCount,
+        'pocket_listings'  => $pocketListingCount,
         'deals'            => $agg['deal_count'],
         'sales'            => $agg['sales_volume'],
         'commission'       => $commissionAgg['total'],

@@ -192,7 +192,18 @@ if ($role === 'agent') {
     $lastDealDays = daysSinceLastDeal(array($agentId));
     $listingCount = countListingsForUsers(array($agentId));
     $listingSummary = countActiveListingsForUsers(array($agentId));
-    $listingDetails = fetchActiveListingDetailsForUsers(array($agentId));
+    $pocketListingSummary = countPocketListingsForUsers(array($agentId));
+    $pocketListingCount = (int)$pocketListingSummary['sale'] + (int)$pocketListingSummary['rent'];
+
+    $activeDetails = fetchActiveListingDetailsForUsers(array($agentId));
+    $pocketDetails = fetchPocketListingDetailsForUsers(array($agentId));
+    $listingDetails = array(
+        'sale'        => $activeDetails['sale'],
+        'rent'        => $activeDetails['rent'],
+        'pocket_sale' => $pocketDetails['sale'],
+        'pocket_rent' => $pocketDetails['rent'],
+    );
+
     $attendance   = countAttendanceDays($agentId, $dateRange);
     $leadCountOffplan   = countActiveLeads(array($agentId), $dateRange, PIPELINE_OFFPLAN);
     $leadCountSecondary = countActiveLeads(array($agentId), $dateRange, PIPELINE_SECONDARY);
@@ -236,6 +247,9 @@ if ($role === 'agent') {
             'listings'               => $listingCount,
             'active_listings_rent'   => $listingSummary['rent'],
             'active_listings_sale'   => $listingSummary['sale'],
+            'pocket_listings'        => $pocketListingCount,
+            'pocket_listings_rent'   => $pocketListingSummary['rent'],
+            'pocket_listings_sale'   => $pocketListingSummary['sale'],
             'attendance'             => $attendance,
             'avg_revenue'            => $agg['avg_sales_per_deal'],
             'avg_selling_price'      => $agg['avg_sales_per_deal'],
@@ -381,12 +395,30 @@ if ($role === 'agent') {
     $listingCount = $deptId > 0
         ? countListingsForDepartments(array($deptId))
         : (empty($currentAgentIds) ? 0 : countListingsForUsers($currentAgentIds));
+    $pocketListingCount = $deptId > 0
+        ? countPocketListingsForDepartmentsTotal(array($deptId))
+        : (empty($currentAgentIds) ? 0 : countPocketListingsForUsersTotal($currentAgentIds));
+
     $listingSummary = $deptId > 0
         ? countActiveListingsForDepartments(array($deptId))
         : (empty($currentAgentIds) ? array('sale' => 0, 'rent' => 0) : countActiveListingsForUsers($currentAgentIds));
-    $listingDetails = $deptId > 0
-        ? fetchActiveListingDetailsForDepartments(array($deptId))
-        : (empty($currentAgentIds) ? array('sale' => array(), 'rent' => array()) : fetchActiveListingDetailsForUsers($currentAgentIds));
+    $pocketListingSummary = $deptId > 0
+        ? countPocketListingsForDepartments(array($deptId))
+        : (empty($currentAgentIds) ? array('sale' => 0, 'rent' => 0) : countPocketListingsForUsers($currentAgentIds));
+
+    if ($deptId > 0) {
+        $activeDetails = fetchActiveListingDetailsForDepartments(array($deptId));
+        $pocketDetails = fetchPocketListingDetailsForDepartments(array($deptId));
+    } else {
+        $activeDetails = empty($currentAgentIds) ? array('sale' => array(), 'rent' => array()) : fetchActiveListingDetailsForUsers($currentAgentIds);
+        $pocketDetails = empty($currentAgentIds) ? array('sale' => array(), 'rent' => array()) : fetchPocketListingDetailsForUsers($currentAgentIds);
+    }
+    $listingDetails = array(
+        'sale'        => $activeDetails['sale'],
+        'rent'        => $activeDetails['rent'],
+        'pocket_sale' => $pocketDetails['sale'],
+        'pocket_rent' => $pocketDetails['rent'],
+    );
     $noDeal60     = countNoDealIn60Days($currentAgentIds);
     $deptUserIds  = $targetDeptId > 0 ? getDeptUserIds(array($targetDeptId), false) : array();
     $leadRows     = empty($deptUserIds) ? array() : fetchLeadBreakdownRows($deptUserIds, $dateRange, $dealType);
@@ -473,6 +505,9 @@ if ($role === 'agent') {
             'listings_count'         => $listingCount,
             'active_listings_rent'   => $listingSummary['rent'],
             'active_listings_sale'   => $listingSummary['sale'],
+            'pocket_listings_count'  => $pocketListingCount,
+            'pocket_listings_rent'   => $pocketListingSummary['rent'],
+            'pocket_listings_sale'   => $pocketListingSummary['sale'],
             'sales_volume'           => $agg['sales_volume'],
             'avg_sales_per_deal'     => $agg['avg_sales_per_deal'],
             'avg_sales_per_month'    => (int)round($agg['sales_volume'] / 12),
@@ -553,7 +588,16 @@ if ($role === 'agent') {
 
     // Company-wide supplementary
     $listings = countActiveListingsByBranches();
-    $listingDetails = fetchActiveListingDetailsByBranches();
+    $pocketListings = countPocketListingsByBranches();
+
+    $activeDetails = fetchActiveListingDetailsByBranches();
+    $pocketDetails = fetchPocketListingDetailsByBranches();
+    $listingDetails = array(
+        'sale'        => $activeDetails['sale'],
+        'rent'        => $activeDetails['rent'],
+        'pocket_sale' => $pocketDetails['sale'],
+        'pocket_rent' => $pocketDetails['rent'],
+    );
     $noDeal60 = countNoDealIn60Days($allAgentIds);
     $leadRows = fetchLeadBreakdownRows(array(), $dateRange, $dealType);
 
@@ -669,6 +713,7 @@ if ($role === 'agent') {
         $tagg      = aggregateDeals($teamDeals);
         $teamComm  = aggregateCommissionDeals($teamWonDeals, $teamCommittedDeals);
         $teamList  = countListingsForDepartments(array($tid));
+        $teamPocketList = countPocketListingsForDepartmentsTotal(array($tid));
         $currentTeamIds = array();
         if (!empty($teamIds)) {
             $allowedTeamDepts = filterAllowedSalesDepartmentIds(array($tid), true);
@@ -693,6 +738,8 @@ if ($role === 'agent') {
             'leads_offplan'  => $teamLeadsOffplan,
             'leads_secondary'=> $teamLeadsSecondary,
             'listings'       => $teamList,
+            'active_listings'=> $teamList,
+            'pocket_listings'=> $teamPocketList,
             'sales'          => $tagg['sales_volume'],
             'commission'     => $teamComm['total'],
             'top_deal'       => $tagg['top_deal'],
@@ -739,6 +786,8 @@ if ($role === 'agent') {
         'avg_revenue_per_month'      => (int)round($commSplit['total'] / 12),
         'active_listings_rent'       => $listings['rent'],
         'active_listings_sale'       => $listings['sale'],
+        'pocket_listings_rent'       => $pocketListings['rent'],
+        'pocket_listings_sale'       => $pocketListings['sale'],
         'top_commission'             => $agg['top_commission'],
         'top_commission_id'          => $agg['top_commission_id'],
     );

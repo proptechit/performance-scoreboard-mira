@@ -419,7 +419,8 @@
                                 <th data-table-id="teamTable" data-sort-key="deals" data-sort-type="number">Transactions</th>
                                 <th data-table-id="teamTable" data-sort-key="leads_offplan" data-sort-type="number">Offplan Leads</th>
                                 <th data-table-id="teamTable" data-sort-key="leads_secondary" data-sort-type="number">Secondary Leads</th>
-                                <th data-table-id="teamTable" data-sort-key="listings" data-sort-type="number">Listings</th>
+                                <th data-table-id="teamTable" data-sort-key="active_listings" data-sort-type="number">Active Listings</th>
+                                <th data-table-id="teamTable" data-sort-key="pocket_listings" data-sort-type="number">Pocket Listings</th>
                                 <th data-table-id="teamTable" data-sort-key="sales" data-sort-type="number">Sales Volume (AED)</th>
                                 <th data-table-id="teamTable" data-sort-key="commission" data-sort-type="number">Commission</th>
                                 <th data-table-id="teamTable" data-sort-key="top_deal" data-sort-type="number">Top Transaction</th>
@@ -576,7 +577,8 @@
                                 <th data-table-id="managerAgentTable" data-sort-key="leads_secondary" data-sort-type="number">Secondary Leads</th>
                                 <th data-table-id="managerAgentTable" data-sort-key="reshuffled_leads" data-sort-type="number">Reshuffled Leads</th>
                                 <th data-table-id="managerAgentTable" data-sort-key="deals" data-sort-type="number">Transactions</th>
-                                <th data-table-id="managerAgentTable" data-sort-key="listings" data-sort-type="number">Listings</th>
+                                <th data-table-id="managerAgentTable" data-sort-key="active_listings" data-sort-type="number">Active Listings</th>
+                                <th data-table-id="managerAgentTable" data-sort-key="pocket_listings" data-sort-type="number">Pocket Listings</th>
                                 <th data-table-id="managerAgentTable" data-sort-key="sales" data-sort-type="number">Sales Volume</th>
                                 <th data-table-id="managerAgentTable" data-sort-key="commission" data-sort-type="number">Commission</th>
                                 <th data-table-id="managerAgentTable" data-sort-key="top_deal" data-sort-type="number">Top Transaction</th>
