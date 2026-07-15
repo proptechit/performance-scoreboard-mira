@@ -1272,6 +1272,9 @@ function renderAgentTable(agents) {
     name: { type: "string", get: (a) => a.name },
     reshuffled_leads: { type: "number", get: (a) => a.reshuffled_leads },
     deals: { type: "number", get: (a) => a.deals },
+    total_listings: { type: "number", get: (a) => a.total_listings },
+    active_listings: { type: "number", get: (a) => a.active_listings },
+    pocket_listings: { type: "number", get: (a) => a.pocket_listings },
     sales: { type: "number", get: (a) => a.sales },
     commission: { type: "number", get: (a) => a.commission },
     top_deal: { type: "number", get: (a) => a.top_deal },
@@ -1283,7 +1286,7 @@ function renderAgentTable(agents) {
   if (!sortedAgents.length) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="9" class="table-empty-state">No agents match your search.</td>
+        <td colspan="12" class="table-empty-state">No agents match your search.</td>
       </tr>
     `;
     const pagContainer = document.getElementById("agentTablePagination");
@@ -1319,6 +1322,9 @@ function renderAgentTable(agents) {
       </td>
       <td>${a.reshuffled_leads}</td>
       <td style="font-weight:600;">${a.deals}</td>
+      <td style="font-weight:600;">${a.total_listings}</td>
+      <td>${a.active_listings}</td>
+      <td>${a.pocket_listings}</td>
       <td>AED ${fmtCurrency(a.sales)}</td>
       <td>AED ${fmtCurrency(a.commission)}</td>
       <td>AED ${fmtCurrency(a.top_deal, true)}</td>
@@ -1388,6 +1394,9 @@ function renderAgentPrivateOfficeTable(agents) {
     leads_offplan: { type: "number", get: (a) => a.leads_offplan },
     leads_secondary: { type: "number", get: (a) => a.leads_secondary },
     deals: { type: "number", get: (a) => a.deals },
+    total_listings: { type: "number", get: (a) => a.total_listings },
+    active_listings: { type: "number", get: (a) => a.active_listings },
+    pocket_listings: { type: "number", get: (a) => a.pocket_listings },
     sales: { type: "number", get: (a) => a.sales },
     commission: { type: "number", get: (a) => a.commission },
     top_deal: { type: "number", get: (a) => a.top_deal },
@@ -1399,7 +1408,7 @@ function renderAgentPrivateOfficeTable(agents) {
   if (!sortedAgents.length) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="10" class="table-empty-state">No agents match your search.</td>
+        <td colspan="14" class="table-empty-state">No agents match your search.</td>
       </tr>
     `;
     const pagContainer = document.getElementById("agentPrivateOfficeTablePagination");
@@ -1412,6 +1421,9 @@ function renderAgentPrivateOfficeTable(agents) {
   const totalLeadsOffplan = sortedAgents.reduce((sum, a) => sum + (a.leads_offplan || 0), 0);
   const totalLeadsSecondary = sortedAgents.reduce((sum, a) => sum + (a.leads_secondary || 0), 0);
   const totalDeals      = sortedAgents.reduce((sum, a) => sum + (a.deals || 0), 0);
+  const totalListings   = sortedAgents.reduce((sum, a) => sum + (a.total_listings || 0), 0);
+  const totalActiveListings = sortedAgents.reduce((sum, a) => sum + (a.active_listings || 0), 0);
+  const totalPocketListings = sortedAgents.reduce((sum, a) => sum + (a.pocket_listings || 0), 0);
   const totalSales      = sortedAgents.reduce((sum, a) => sum + (a.sales || 0), 0);
   const totalCommission = sortedAgents.reduce((sum, a) => sum + (a.commission || 0), 0);
   const topDeal         = sortedAgents.reduce((max, a) => Math.max(max, a.top_deal || 0), 0);
@@ -1458,6 +1470,9 @@ function renderAgentPrivateOfficeTable(agents) {
       <td>${a.leads_offplan}</td>
       <td>${a.leads_secondary}</td>
       <td style="font-weight:600;">${a.deals}</td>
+      <td style="font-weight:600;">${a.total_listings}</td>
+      <td>${a.active_listings}</td>
+      <td>${a.pocket_listings}</td>
       <td>AED ${fmtCurrency(a.sales)}</td>
       <td>AED ${fmtCurrency(a.commission)}</td>
       <td>AED ${fmtCurrency(a.top_deal, true)}</td>
@@ -1477,6 +1492,9 @@ function renderAgentPrivateOfficeTable(agents) {
       <td style="color:#fff;padding:12px 14px;text-align:right;">${totalLeadsOffplan}</td>
       <td style="color:#fff;padding:12px 14px;text-align:right;">${totalLeadsSecondary}</td>
       <td style="color:#fff;padding:12px 14px;text-align:right;">${totalDeals}</td>
+      <td style="color:#fff;padding:12px 14px;text-align:right;">${totalListings}</td>
+      <td style="color:#fff;padding:12px 14px;text-align:right;">${totalActiveListings}</td>
+      <td style="color:#fff;padding:12px 14px;text-align:right;">${totalPocketListings}</td>
       <td style="color:var(--gold-light);padding:12px 14px;text-align:right;">AED ${fmtCurrency(totalSales)}</td>
       <td style="color:var(--gold-light);padding:12px 14px;text-align:right;">AED ${fmtCurrency(totalCommission)}</td>
       <td style="color:#fff;padding:12px 14px;text-align:right;">AED ${fmtCurrency(topDeal, true)}</td>
@@ -1527,6 +1545,7 @@ function renderTeamTable(teams) {
     leads_secondary: { type: "number", get: (a) => a.leads_secondary },
     active_listings: { type: "number", get: (a) => a.active_listings },
     pocket_listings: { type: "number", get: (a) => a.pocket_listings },
+    total_listings: { type: "number", get: (a) => a.total_listings },
     sales: { type: "number", get: (a) => a.sales },
     commission: { type: "number", get: (a) => a.commission },
     top_deal: { type: "number", get: (a) => a.top_deal },
@@ -1552,6 +1571,7 @@ function renderTeamTable(teams) {
       <td style="font-weight:600;">${a.leads_secondary}</td>
       <td style="font-weight:600;">${a.active_listings}</td>
       <td style="font-weight:600;">${a.pocket_listings}</td>
+      <td style="font-weight:600;">${a.total_listings}</td>
       <td>AED ${fmtCurrency(a.sales)}</td>
       <td>AED ${fmtCurrency(a.commission)}</td>
       <td>AED ${fmtCurrency(a.top_deal, true)}</td>
@@ -1593,6 +1613,7 @@ function renderManagerAgentTable(agents) {
     deals: { type: "number", get: (a) => a.deals },
     active_listings: { type: "number", get: (a) => a.active_listings },
     pocket_listings: { type: "number", get: (a) => a.pocket_listings },
+    total_listings: { type: "number", get: (a) => a.total_listings },
     sales: { type: "number", get: (a) => a.sales },
     commission: { type: "number", get: (a) => a.commission },
     top_deal: { type: "number", get: (a) => a.top_deal },
@@ -1613,6 +1634,7 @@ function renderManagerAgentTable(agents) {
         <td>${a.deals}</td>
         <td>${a.active_listings}</td>
         <td>${a.pocket_listings}</td>
+        <td>${a.total_listings}</td>
         <td>AED ${fmtCurrency(a.sales)}</td>
         <td>AED ${fmtCurrency(a.commission)}</td>
         <td>AED ${fmtCurrency(a.top_deal, true)}</td>
