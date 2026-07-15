@@ -10,11 +10,6 @@ try {
     require_once __DIR__ . '/config.php';
     require_once __DIR__ . '/helpers.php';
     
-    // Check if we are bootstrapped inside Bitrix
-    if (!class_exists('\Bitrix\Main\Application')) {
-        echo "ERROR: Bitrix environment not bootstrapped. Run this inside the Bitrix environment or check with user.\n";
-        exit(1);
-    }
 
     $salesTeams = getSalesTeams();
     echo "========================================================================\n";
