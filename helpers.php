@@ -523,6 +523,7 @@ function getAgentsByDept($deptIds, $applyPrivateOfficeOverride = true, $dateRang
             LEFT JOIN b_uts_user uts_u
                 ON uts_u.VALUE_ID = u.ID
             WHERE u.ACTIVE = 'Y'
+              AND (u.WORK_POSITION IS NULL OR LOWER(TRIM(u.WORK_POSITION)) != 'pa liaison')
               AND (
                   {$deptExpr}
                   OR u.ID IN (
@@ -553,6 +554,7 @@ function getAgentsByDept($deptIds, $applyPrivateOfficeOverride = true, $dateRang
             LEFT JOIN b_uts_user uts_u
                 ON uts_u.VALUE_ID = u.ID
             WHERE u.ACTIVE = 'Y'
+              AND (u.WORK_POSITION IS NULL OR LOWER(TRIM(u.WORK_POSITION)) != 'pa liaison')
               AND {$deptExpr}
               {$excludeNonAgents}
             ORDER BY u.LAST_NAME ASC, u.NAME ASC
@@ -595,6 +597,7 @@ function getDeptUserIds($deptIds, $applyPrivateOfficeOverride = true, $dateRange
                 ON ud.VALUE_ID = u.ID
                AND ud.FIELD_ID = 40   -- UF_DEPARTMENT
             WHERE u.ACTIVE = 'Y'
+              AND (u.WORK_POSITION IS NULL OR LOWER(TRIM(u.WORK_POSITION)) != 'pa liaison')
               AND (
                   {$deptExpr}
                   OR u.ID IN (
@@ -614,6 +617,7 @@ function getDeptUserIds($deptIds, $applyPrivateOfficeOverride = true, $dateRange
                 ON ud.VALUE_ID = u.ID
                AND ud.FIELD_ID = 40   -- UF_DEPARTMENT
             WHERE u.ACTIVE = 'Y'
+              AND (u.WORK_POSITION IS NULL OR LOWER(TRIM(u.WORK_POSITION)) != 'pa liaison')
               AND {$deptExpr}
         ";
     }
@@ -848,6 +852,7 @@ function getAgentIdsByManager($managerId, $applyPrivateOfficeOverride = true, $d
                 ON ud.VALUE_ID = u.ID
                AND ud.FIELD_ID = 40
             WHERE u.ACTIVE = 'Y'
+              AND (u.WORK_POSITION IS NULL OR LOWER(TRIM(u.WORK_POSITION)) != 'pa liaison')
               AND (
                   {$deptExpr}
                   OR u.ID IN (
@@ -868,6 +873,7 @@ function getAgentIdsByManager($managerId, $applyPrivateOfficeOverride = true, $d
                 ON ud.VALUE_ID = u.ID
                AND ud.FIELD_ID = 40
             WHERE u.ACTIVE = 'Y'
+              AND (u.WORK_POSITION IS NULL OR LOWER(TRIM(u.WORK_POSITION)) != 'pa liaison')
               AND {$deptExpr}
               {$excludeNonAgents}
         ";
@@ -2907,6 +2913,7 @@ function countAllActiveAgents()
             OR (s.ID = 23 AND TRIM(LOWER(u.WORK_POSITION)) = 'private office')
 
         WHERE u.ACTIVE = 'Y'
+          AND (u.WORK_POSITION IS NULL OR LOWER(TRIM(u.WORK_POSITION)) != 'pa liaison')
           AND s.IBLOCK_ID = 3
           AND s.ID IN " . inClauseInt($allowedDeptIds) . "
           {$excludeNonAgents}
