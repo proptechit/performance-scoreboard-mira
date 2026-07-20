@@ -53,8 +53,13 @@ foreach ($specialUserIds as $specialId) {
         if (!empty($userProfile)) {
             $allAgents[] = $userProfile;
         }
-    }
 }
+
+// Filter out users with excluded work positions (PA Liaison, Listing Admin)
+$allAgents = array_filter($allAgents, function ($a) {
+    $pos = strtolower(trim($a['WORK_POSITION'] ?? ''));
+    return ($pos === '' || (strpos($pos, 'pa liaison') === false && strpos($pos, 'listing admin') === false));
+});
 
 // Output list
 header('Content-Type: text/plain; charset=utf-8');

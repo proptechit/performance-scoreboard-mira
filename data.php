@@ -569,6 +569,12 @@ if ($role === 'agent') {
         }
     }
 
+    // Filter out users with excluded work positions (PA Liaison, Listing Admin)
+    $allAgents = array_filter($allAgents, function ($a) {
+        $pos = strtolower(trim($a['WORK_POSITION'] ?? ''));
+        return ($pos === '' || (strpos($pos, 'pa liaison') === false && strpos($pos, 'listing admin') === false));
+    });
+
     $allAgentIds = array_map(function ($a) {
         return (int)$a['ID'];
     }, $allAgents);
