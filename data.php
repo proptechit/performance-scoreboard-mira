@@ -205,6 +205,13 @@ if ($role === 'agent') {
     );
 
     $attendance   = countAttendanceDays($agentId, $dateRange);
+    try {
+        $start = new \DateTime($dateRange['from']);
+        $end = new \DateTime($dateRange['to']);
+        $attendanceTotal = $end->diff($start)->days + 1;
+    } catch (\Exception $e) {
+        $attendanceTotal = 30;
+    }
     $leadCountOffplan   = countActiveLeads(array($agentId), $dateRange, PIPELINE_OFFPLAN);
     $leadCountSecondary = countActiveLeads(array($agentId), $dateRange, PIPELINE_SECONDARY);
     $reshuffled   = countReshuffledLeads(array($agentId), $dateRange);
@@ -253,6 +260,7 @@ if ($role === 'agent') {
             'pocket_listings_rent'   => $pocketListingSummary['rent'],
             'pocket_listings_sale'   => $pocketListingSummary['sale'],
             'attendance'             => $attendance,
+            'attendance_total'       => $attendanceTotal,
             'avg_revenue'            => $agg['avg_commission_per_deal'],
             'avg_selling_price'      => $agg['avg_sales_per_deal'],
             'avg_gap_days'           => $avgGap,

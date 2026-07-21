@@ -230,6 +230,15 @@ function getDaysBadgeMeta(days) {
   return { daysClass, daysLabel };
 }
 
+function getAttendanceBadgeClass(attendance, total) {
+  const t = total || 30;
+  if (t <= 0) return "ok";
+  const pct = (attendance / t) * 100;
+  if (pct < 50) return "crit";
+  if (pct < 85) return "warn";
+  return "ok";
+}
+
 function setActiveView(viewId) {
   closeListingModal();
   ["view-ceo", "view-manager", "view-agent"].forEach((id) =>
@@ -1310,7 +1319,7 @@ function renderAgentTable(agents) {
   tbody.innerHTML = paginatedAgents
     .map((a) => {
       const { daysClass, daysLabel } = getDaysBadgeMeta(a.last_deal_days);
-      const ac = a.attendance <= 14 ? "crit" : a.attendance <= 30 ? "warn" : "ok";
+      const ac = getAttendanceBadgeClass(a.attendance, a.attendance_total);
       return `
     <tr onclick="drillToAgent(${a.id})">
       <td>
@@ -1456,7 +1465,7 @@ function renderAgentPrivateOfficeTable(agents) {
   let rowsHtml = paginatedAgents
     .map((a) => {
       const { daysClass, daysLabel } = getDaysBadgeMeta(a.last_deal_days);
-      const ac = a.attendance <= 14 ? "crit" : a.attendance <= 30 ? "warn" : "ok";
+      const ac = getAttendanceBadgeClass(a.attendance, a.attendance_total);
       return `
     <tr onclick="drillToAgent(${a.id})">
       <td>
@@ -1626,8 +1635,7 @@ function renderManagerAgentTable(agents) {
   tbody.innerHTML = sortedAgents
     .map((a) => {
       const { daysClass, daysLabel } = getDaysBadgeMeta(a.last_deal_days);
-      const ac =
-        a.attendance <= 14 ? "crit" : a.attendance <= 30 ? "warn" : "ok";
+      const ac = getAttendanceBadgeClass(a.attendance, a.attendance_total);
       return `<tr onclick="drillToAgent(${a.id})">
         <td><div class="agent-name-cell"><div class="agent-mini-avatar">${initials(a.name)}</div><div><div style="font-weight:600">${a.name} ${a.is_transferred ? `<span class="days-badge warn" style="font-size:9px;padding:2px 4px;margin-left:6px;display:inline-flex;">No longer in dept${a.transferred_at ? ' (since ' + a.transferred_at + ')' : ''}</span>` : ''}</div><div style="font-size:10px;color:var(--grey-400)">${a.designation}</div></div></div></td>
         <td>${a.leads_offplan}</td>
@@ -2330,6 +2338,13 @@ function renderAgent(data) {
       sub: s.days_since_last === 999 ? "No deals" : (s.days_since_last > 30 ? "⚠ Follow up" : "✓ Active"),
       icon: "🗓️",
       highlight: s.days_since_last !== 999 && s.days_since_last > 30,
+    },
+    {
+      label: "Attendance",
+      value: `${s.attendance || 0} / ${s.attendance_total || 30} days`,
+      sub: (s.attendance_total > 0 ? (((s.attendance || 0) / s.attendance_total) * 100).toFixed(0) : "100") + "% present in period",
+      icon: "📅",
+      highlight: (s.attendance_total > 0 ? ((s.attendance || 0) / s.attendance_total) : 1) < 0.5,
     },
   ];
 
