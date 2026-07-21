@@ -1523,8 +1523,6 @@ function countActiveLeads($agentIds, $dateRange, $pipeline = null)
  */
 function countReshuffledLeads($agentIds, $dateRange)
 {
-    $pipelines = array(PIPELINE_OFFPLAN);
-    $in        = inClauseInt($pipelines);
     $from      = dbEsc($dateRange['from']);
     $to        = dbEsc($dateRange['to']);
 
@@ -1533,32 +1531,22 @@ function countReshuffledLeads($agentIds, $dateRange)
     }
 
     $inAgents = inClauseInt($agentIds);
-    $excludeStages = inClauseStr($GLOBALS['CFG_LEAD_JUNK_STAGES_OFFPLAN']);
 
     $row = dbQueryOne("
-        SELECT COUNT(DISTINCT d.ID) AS cnt
-        FROM b_crm_event_relations r
-        INNER JOIN b_crm_event e ON e.ID = r.EVENT_ID
-        INNER JOIN b_crm_deal d
-                ON d.ID          = r.ENTITY_ID
-               AND d.CATEGORY_ID IN {$in}
-               AND d.SOURCE_ID != '11'
+        SELECT COUNT(*) AS cnt
+        FROM bit_distribution_lead_assignment_log log
+        INNER JOIN b_crm_deal d ON d.ID = log.DEAL_ID
         INNER JOIN b_uts_crm_deal uts ON uts.VALUE_ID = d.ID
-        WHERE r.ENTITY_TYPE       = 'DEAL'
-          AND r.ENTITY_FIELD      = 'ASSIGNED_BY_ID'
-          AND e.CREATED_BY_ID     = 1
-          AND DATE(e.DATE_CREATE) >= '{$from}'
-          AND DATE(e.DATE_CREATE) <= '{$to}'
-          AND d.ASSIGNED_BY_ID IN {$inAgents}
+        WHERE log.EVENT_TYPE = 'ASSIGNED'
+          AND log.ASSIGNMENT_TYPE = 'REASSIGNED'
+          AND log.CREATED_AT >= '{$from} 00:00:00'
+          AND log.CREATED_AT <= '{$to} 23:59:59'
+          AND log.TO_USER_ID IN {$inAgents}
+          AND d.CATEGORY_ID = 1
+          AND d.SOURCE_ID != '11'
+          AND uts.UF_CRM_1766809458282 IS NOT NULL
+          AND TRIM(uts.UF_CRM_1766809458282) != ''
           AND (uts.UF_CRM_1774601088414 IS NULL OR uts.UF_CRM_1774601088414 != 1)
-          AND d.STAGE_ID NOT IN {$excludeStages}
-          AND (
-              SELECT COUNT(*)
-              FROM b_crm_event_relations r2
-              WHERE r2.ENTITY_ID    = r.ENTITY_ID
-                AND r2.ENTITY_TYPE  = 'DEAL'
-                AND r2.ENTITY_FIELD = 'ASSIGNED_BY_ID'
-          ) > 1
     ");
 
     return (int)($row['cnt'] ?? 0);
