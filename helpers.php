@@ -2512,9 +2512,8 @@ function countNoDealIn60Days($agentIds)
     $cutoff   = dbEsc(date('Y-m-d', strtotime('-60 days')));
     $inEligibleAgents = inClauseInt($eligibleAgentIds);
     $effectiveCreateExpr = getEffectiveDealCreateDateExpr('d', 'uts');
-    $effectiveCloseExpr = getEffectiveDealCloseDateExpr('d', 'uts');
 
-    // Agents who DO have a recent transaction-pipeline deal
+    // Agents who DO have a recent transaction-pipeline deal based on Booking Date
     $rows = dbQuery("
         SELECT DISTINCT ASSIGNED_BY_ID
         FROM b_crm_deal d
@@ -2522,10 +2521,7 @@ function countNoDealIn60Days($agentIds)
             ON uts.VALUE_ID = d.ID
         WHERE d.CATEGORY_ID    = {$catId}
           AND d.ASSIGNED_BY_ID IN {$inEligibleAgents}
-          AND (
-                DATE({$effectiveCloseExpr}) >= '{$cutoff}'
-             OR DATE({$effectiveCreateExpr}) >= '{$cutoff}'
-          )
+          AND DATE({$effectiveCreateExpr}) >= '{$cutoff}'
     ");
 
     $activeAgents = count($rows);
