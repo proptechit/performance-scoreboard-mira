@@ -1081,8 +1081,10 @@ function fetchWonDeals($agentIds, $dateRange, $dealType = 'All')
     $fDev     = FIELD_DEVELOPER;
     $fType    = FIELD_PROPERTY_TYPE;
     $fMgr     = FIELD_MANAGER_ID;
-    $fImportedClose = FIELD_IMPORTED_CLOSE_DATE;
-    $effectiveCloseExpr = getEffectiveDealCloseDateExpr('d', 'uts');
+    $fImportedCreate = FIELD_IMPORTED_CREATE_DATE;
+    $fImportedClose  = FIELD_IMPORTED_CLOSE_DATE;
+    $effectiveCreateExpr = getEffectiveDealCreateDateExpr('d', 'uts');
+    $effectiveCloseExpr  = getEffectiveDealCloseDateExpr('d', 'uts');
 
     $agentFilter = '';
     if (!empty($agentIds)) {
@@ -1095,7 +1097,10 @@ function fetchWonDeals($agentIds, $dateRange, $dealType = 'All')
         SELECT
             d.ID,
             d.ASSIGNED_BY_ID,
+            d.DATE_CREATE,
             d.CLOSEDATE,
+            uts.{$fImportedCreate}   AS imported_create_date,
+            {$effectiveCreateExpr}   AS effective_create_date,
             uts.{$fImportedClose}    AS imported_close_date,
             {$effectiveCloseExpr}    AS effective_close_date,
             d.{$fAmount}            AS sale_amount,
@@ -1112,12 +1117,12 @@ function fetchWonDeals($agentIds, $dateRange, $dealType = 'All')
 
         WHERE d.CATEGORY_ID = {$catId}
           AND d.STAGE_ID    = '{$stageWon}'
-          AND DATE({$effectiveCloseExpr}) >= '{$from}'
-          AND DATE({$effectiveCloseExpr}) <= '{$to}'
+          AND DATE({$effectiveCreateExpr}) >= '{$from}'
+          AND DATE({$effectiveCreateExpr}) <= '{$to}'
           {$agentFilter}
           {$typeFilter}
 
-        ORDER BY {$effectiveCloseExpr} ASC
+        ORDER BY {$effectiveCreateExpr} ASC
     ");
 }
 
