@@ -1052,6 +1052,15 @@ function getEffectiveDealCloseDateExpr($dealAlias = 'd', $utsAlias = 'uts')
     END";
 }
 
+/**
+ * Build SQL WHERE fragment to exclude deals where UF_CRM_1785767578527 is true / 1 / 'Y'.
+ */
+function getExcludeDealFilter($utsAlias = 'uts')
+{
+    $f = FIELD_EXCLUDE_DEAL;
+    return "AND ({$utsAlias}.{$f} IS NULL OR ({$utsAlias}.{$f} != 1 AND {$utsAlias}.{$f} != '1' AND {$utsAlias}.{$f} != 'Y' AND {$utsAlias}.{$f} != true))";
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // 4. DEAL QUERIES  (Transactions pipeline = PIPELINE_TRANSACTION = 3)
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1092,6 +1101,7 @@ function fetchWonDeals($agentIds, $dateRange, $dealType = 'All')
     }
 
     $typeFilter = buildPropertyTypeFilter($dealType, 'uts');
+    $excludeDealFilter = getExcludeDealFilter('uts');
 
     return dbQuery("
         SELECT
@@ -1121,6 +1131,7 @@ function fetchWonDeals($agentIds, $dateRange, $dealType = 'All')
           AND DATE({$effectiveCreateExpr}) <= '{$to}'
           {$agentFilter}
           {$typeFilter}
+          {$excludeDealFilter}
 
         ORDER BY {$effectiveCreateExpr} ASC
     ");
@@ -1147,6 +1158,7 @@ function fetchAllDeals($agentIds, $dateRange, $dealType = 'All')
     }
 
     $typeFilter = buildPropertyTypeFilter($dealType, 'uts');
+    $excludeDealFilter = getExcludeDealFilter('uts');
 
     return dbQuery("
         SELECT
@@ -1174,6 +1186,7 @@ function fetchAllDeals($agentIds, $dateRange, $dealType = 'All')
           AND DATE({$effectiveCreateExpr}) <= '{$to}'
           {$agentFilter}
           {$typeFilter}
+          {$excludeDealFilter}
 
         AND d.STAGE_ID IN {$stages}
 
@@ -1201,6 +1214,7 @@ function fetchTransactionPipelineDeals($agentIds = array())
     if (!empty($agentIds)) {
         $agentFilter = 'AND d.ASSIGNED_BY_ID IN ' . inClauseInt($agentIds);
     }
+    $excludeDealFilter = getExcludeDealFilter('uts');
 
     return dbQuery("
         SELECT
@@ -1221,6 +1235,7 @@ function fetchTransactionPipelineDeals($agentIds = array())
         WHERE d.CATEGORY_ID = {$catId}
           AND d.STAGE_ID IN {$stages}
           {$agentFilter}
+          {$excludeDealFilter}
         ORDER BY {$effectiveCreateExpr} ASC
     ");
 }
@@ -1247,6 +1262,7 @@ function fetchCommittedDeals($agentIds, $dateRange, $dealType = 'All')
     }
 
     $typeFilter = buildPropertyTypeFilter($dealType, 'uts');
+    $excludeDealFilter = getExcludeDealFilter('uts');
 
     return dbQuery("
         SELECT
@@ -1269,6 +1285,7 @@ function fetchCommittedDeals($agentIds, $dateRange, $dealType = 'All')
           AND DATE({$effectiveCreateExpr}) <= '{$to}'
           {$agentFilter}
           {$typeFilter}
+          {$excludeDealFilter}
 
         ORDER BY {$effectiveCreateExpr} ASC
     ");
@@ -1325,6 +1342,7 @@ function fetchLeadBreakdownRows($agentIds, $dateRange, $dealType = 'All')
     if (!empty($agentIds)) {
         $agentFilter = 'AND d.ASSIGNED_BY_ID IN ' . inClauseInt($agentIds);
     }
+    $excludeDealFilter = getExcludeDealFilter('uts');
 
     return dbQuery("
         SELECT
@@ -1333,10 +1351,12 @@ function fetchLeadBreakdownRows($agentIds, $dateRange, $dealType = 'All')
             d.{$source} AS source_id,
             COUNT(*) AS cnt
         FROM b_crm_deal d
+        LEFT JOIN b_uts_crm_deal uts ON uts.VALUE_ID = d.ID
         WHERE d.CATEGORY_ID IN {$catIn}
           AND DATE(d.DATE_CREATE) >= '{$from}'
           AND DATE(d.DATE_CREATE) <= '{$to}'
           {$agentFilter}
+          {$excludeDealFilter}
         GROUP BY d.CATEGORY_ID, d.STAGE_ID, d.{$source}
     ");
 }
@@ -1492,16 +1512,19 @@ function countActiveLeads($agentIds, $dateRange, $pipeline = null)
         $agentFilter = 'AND d.ASSIGNED_BY_ID IN ' . inClauseInt($agentIds);
     }
 
-    $excludeIn     = inClauseStr($excludeStages);
+    $excludeIn         = inClauseStr($excludeStages);
+    $excludeDealFilter = getExcludeDealFilter('uts');
 
     $row = dbQueryOne("
         SELECT COUNT(*) AS cnt
         FROM b_crm_deal d
+        LEFT JOIN b_uts_crm_deal uts ON uts.VALUE_ID = d.ID
         WHERE d.CATEGORY_ID IN {$in}
           AND d.STAGE_ID NOT IN {$excludeIn}
           AND DATE(d.DATE_CREATE) >= '{$from}'
           AND DATE(d.DATE_CREATE) <= '{$to}'
           {$agentFilter}
+          {$excludeDealFilter}
     ");
     return (int)($row['cnt'] ?? 0);
 }
@@ -1536,6 +1559,7 @@ function countReshuffledLeads($agentIds, $dateRange)
     }
 
     $inAgents = inClauseInt($agentIds);
+    $excludeDealFilter = getExcludeDealFilter('uts');
 
     $row = dbQueryOne("
         SELECT COUNT(*) AS cnt
@@ -1552,6 +1576,7 @@ function countReshuffledLeads($agentIds, $dateRange)
           AND uts.UF_CRM_1766809458282 IS NOT NULL
           AND TRIM(uts.UF_CRM_1766809458282) != ''
           AND (uts.UF_CRM_1774601088414 IS NULL OR uts.UF_CRM_1774601088414 != 1)
+          {$excludeDealFilter}
     ");
 
     return (int)($row['cnt'] ?? 0);
@@ -2318,6 +2343,7 @@ function daysSinceLastDeal($agentIds)
             ON uts.VALUE_ID = d.ID
         WHERE d.CATEGORY_ID = {$catId}
           {$agentFilter}
+          " . getExcludeDealFilter('uts') . "
     ");
 
     if (empty($row['last_date'])) {
@@ -2347,6 +2373,7 @@ function avgGapBetweenDeals($agentId, $dateRange)
     $from     = dbEsc($dateRange['from']);
     $to       = dbEsc($dateRange['to']);
     $effectiveCreateExpr = getEffectiveDealCreateDateExpr('d', 'uts');
+    $excludeDealFilter   = getExcludeDealFilter('uts');
 
     $rows = dbQuery("
         SELECT DATE({$effectiveCreateExpr}) AS booking_date
@@ -2358,6 +2385,7 @@ function avgGapBetweenDeals($agentId, $dateRange)
           AND d.ASSIGNED_BY_ID = {$uid}
           AND DATE({$effectiveCreateExpr}) >= '{$from}'
           AND DATE({$effectiveCreateExpr}) <= '{$to}'
+          {$excludeDealFilter}
         ORDER BY {$effectiveCreateExpr} ASC
     ");
 
@@ -2395,6 +2423,7 @@ function avgGapBetweenDealsForTeam($agentIds, $dateRange)
     $from     = dbEsc($dateRange['from']);
     $to       = dbEsc($dateRange['to']);
     $effectiveCreateExpr = getEffectiveDealCreateDateExpr('d', 'uts');
+    $excludeDealFilter   = getExcludeDealFilter('uts');
 
     $rows = dbQuery("
         SELECT d.ASSIGNED_BY_ID, DATE({$effectiveCreateExpr}) AS booking_date
@@ -2406,6 +2435,7 @@ function avgGapBetweenDealsForTeam($agentIds, $dateRange)
           AND d.ASSIGNED_BY_ID IN {$inAgents}
           AND DATE({$effectiveCreateExpr}) >= '{$from}'
           AND DATE({$effectiveCreateExpr}) <= '{$to}'
+          {$excludeDealFilter}
         ORDER BY d.ASSIGNED_BY_ID ASC, {$effectiveCreateExpr} ASC
     ");
 
@@ -2512,6 +2542,7 @@ function countNoDealIn60Days($agentIds)
     $cutoff   = dbEsc(date('Y-m-d', strtotime('-60 days')));
     $inEligibleAgents = inClauseInt($eligibleAgentIds);
     $effectiveCreateExpr = getEffectiveDealCreateDateExpr('d', 'uts');
+    $excludeDealFilter   = getExcludeDealFilter('uts');
 
     // Agents who DO have a recent transaction-pipeline deal based on Booking Date
     $rows = dbQuery("
@@ -2522,6 +2553,7 @@ function countNoDealIn60Days($agentIds)
         WHERE d.CATEGORY_ID    = {$catId}
           AND d.ASSIGNED_BY_ID IN {$inEligibleAgents}
           AND DATE({$effectiveCreateExpr}) >= '{$cutoff}'
+          {$excludeDealFilter}
     ");
 
     $activeAgents = count($rows);

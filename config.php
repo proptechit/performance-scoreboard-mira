@@ -102,6 +102,7 @@ define('FIELD_REASSIGNMENT_CNT',  'UF_CRM_1770111873652');     // Lead assignmen
 define('FIELD_IMPORTED_CREATE_DATE', 'UF_CRM_1769420802242');  // Imported/original deal create date
 define('FIELD_IMPORTED_CLOSE_DATE',  'UF_CRM_1775842990567');  // Imported/original deal close date
 define('FIELD_LEAD_SOURCE',       'SOURCE_ID');                // Standard Bitrix lead/deal source field
+define('FIELD_EXCLUDE_DEAL',      'UF_CRM_1785767578527');     // Excluded deals field (to be implemented later)
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 4. PROPERTY TYPE ENUM VALUES  (UF_CRM_1766811061237)
