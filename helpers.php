@@ -1011,7 +1011,7 @@ function filterDealsByReportDateRange($deals, $dateRange, $primaryField = 'DATE_
     $to   = new \DateTime($dateRange['to'] . ' 23:59:59');
 
     return array_values(array_filter($deals, function ($deal) use ($primaryField, $from, $to) {
-        $dateStr = $deal[$primaryField] ?? ($deal['CLOSEDATE'] ?? '');
+        $dateStr = $deal['effective_create_date'] ?? ($deal[$primaryField] ?? ($deal['CLOSEDATE'] ?? ''));
         $dt = parseReportDate($dateStr);
         if (!$dt) {
             echo json_encode(array('error' => 'Invalid date format', 'date' => $dateStr));
@@ -1337,6 +1337,7 @@ function fetchLeadBreakdownRows($agentIds, $dateRange, $dealType = 'All')
     $from   = dbEsc($dateRange['from']);
     $to     = dbEsc($dateRange['to']);
     $source = FIELD_LEAD_SOURCE;
+    $effectiveCreateExpr = getEffectiveDealCreateDateExpr('d', 'uts');
 
     $agentFilter = '';
     if (!empty($agentIds)) {
@@ -1353,8 +1354,8 @@ function fetchLeadBreakdownRows($agentIds, $dateRange, $dealType = 'All')
         FROM b_crm_deal d
         LEFT JOIN b_uts_crm_deal uts ON uts.VALUE_ID = d.ID
         WHERE d.CATEGORY_ID IN {$catIn}
-          AND DATE(d.DATE_CREATE) >= '{$from}'
-          AND DATE(d.DATE_CREATE) <= '{$to}'
+          AND DATE({$effectiveCreateExpr}) >= '{$from}'
+          AND DATE({$effectiveCreateExpr}) <= '{$to}'
           {$agentFilter}
           {$excludeDealFilter}
         GROUP BY d.CATEGORY_ID, d.STAGE_ID, d.{$source}
@@ -1514,6 +1515,7 @@ function countActiveLeads($agentIds, $dateRange, $pipeline = null)
 
     $excludeIn         = inClauseStr($excludeStages);
     $excludeDealFilter = getExcludeDealFilter('uts');
+    $effectiveCreateExpr = getEffectiveDealCreateDateExpr('d', 'uts');
 
     $row = dbQueryOne("
         SELECT COUNT(*) AS cnt
@@ -1521,8 +1523,8 @@ function countActiveLeads($agentIds, $dateRange, $pipeline = null)
         LEFT JOIN b_uts_crm_deal uts ON uts.VALUE_ID = d.ID
         WHERE d.CATEGORY_ID IN {$in}
           AND d.STAGE_ID NOT IN {$excludeIn}
-          AND DATE(d.DATE_CREATE) >= '{$from}'
-          AND DATE(d.DATE_CREATE) <= '{$to}'
+          AND DATE({$effectiveCreateExpr}) >= '{$from}'
+          AND DATE({$effectiveCreateExpr}) <= '{$to}'
           {$agentFilter}
           {$excludeDealFilter}
     ");

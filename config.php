@@ -99,7 +99,7 @@ define('FIELD_DEVELOPER',         'UF_CRM_1773307643');        // Developer (enu
 define('FIELD_PROPERTY_TYPE',     'UF_CRM_1766811061237');     // Offplan/Secondary/Rental (enum)
 define('FIELD_MANAGER_ID',        'UF_CRM_1766937679');        // Manager's Bitrix user ID
 define('FIELD_REASSIGNMENT_CNT',  'UF_CRM_1770111873652');     // Lead assignment count (reshuffled if > 0)
-define('FIELD_IMPORTED_CREATE_DATE', 'UF_CRM_1769420802242');  // Imported/original deal create date
+define('FIELD_IMPORTED_CREATE_DATE', 'UF_CRM_1769420802242');  // Booking date / Imported original deal create date
 define('FIELD_IMPORTED_CLOSE_DATE',  'UF_CRM_1775842990567');  // Imported/original deal close date
 define('FIELD_LEAD_SOURCE',       'SOURCE_ID');                // Standard Bitrix lead/deal source field
 define('FIELD_EXCLUDE_DEAL',      'UF_CRM_1785767578527');     // Excluded deals field (to be implemented later)
@@ -518,7 +518,7 @@ $GLOBALS['CFG_POSITION_TARGET'] = array(
 define('CACHE_DIR',     __DIR__ . '/cache/');   // Cache folder (must be writable)
 define('CACHE_TTL',     300);                    // Seconds – 5 minutes default
 define('CACHE_ENABLED', true);                   // Set false to disable during dev
-define('CACHE_VERSION', '2026-07-21-agent-attendance-and-reshuffled-v1');
+define('CACHE_VERSION', '2026-08-07-booking-date-filter-v1');
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 13. FILTER META  (returned to frontend for populating dropdowns)
