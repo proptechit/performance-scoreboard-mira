@@ -1048,14 +1048,18 @@ function getEffectiveDealCreateDateExpr($dealAlias = 'd', $utsAlias = 'uts')
         WHEN {$sub} LIKE '%/%/%' THEN STR_TO_DATE({$sub}, '%d/%m/%Y')
         WHEN {$sub} LIKE '%.%.%' THEN STR_TO_DATE({$sub}, '%d.%m.%Y')
         WHEN {$sub} LIKE '%-%-%' AND {$sub} NOT LIKE '20%' THEN STR_TO_DATE({$sub}, '%d-%m-%Y')
+        WHEN {$sub} LIKE '%-%-%' THEN STR_TO_DATE({$sub}, '%Y-%m-%d')
         ELSE {$utsAlias}.{$f}
     END";
 
-    return "CASE
-        WHEN {$utsAlias}.{$f} IS NULL THEN {$dealAlias}.DATE_CREATE
-        WHEN {$raw} IN ('', '0000-00-00', '0000-00-00 00:00:00') THEN {$dealAlias}.DATE_CREATE
-        ELSE COALESCE({$parsedImported}, {$dealAlias}.DATE_CREATE)
-    END";
+    return "COALESCE(
+        CASE
+            WHEN {$utsAlias}.{$f} IS NULL THEN NULL
+            WHEN {$raw} IN ('', '0000-00-00', '0000-00-00 00:00:00') THEN NULL
+            ELSE {$parsedImported}
+        END,
+        {$dealAlias}.DATE_CREATE
+    )";
 }
 
 function getEffectiveDealCloseDateExpr($dealAlias = 'd', $utsAlias = 'uts')
