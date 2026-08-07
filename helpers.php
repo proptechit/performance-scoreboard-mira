@@ -1043,12 +1043,11 @@ function getEffectiveDealCreateDateExpr($dealAlias = 'd', $utsAlias = 'uts')
     $raw = "CAST({$utsAlias}.{$f} AS CHAR)";
     $sub = "SUBSTRING_INDEX(TRIM({$raw}), ' ', 1)";
 
-    // Safely parse various string formats in MySQL so DATE() doesn't return NULL
+    // Safely parse custom string formats in MySQL so DATE() doesn't return NULL
     $parsedImported = "CASE 
         WHEN {$sub} LIKE '%/%/%' THEN STR_TO_DATE({$sub}, '%d/%m/%Y')
         WHEN {$sub} LIKE '%.%.%' THEN STR_TO_DATE({$sub}, '%d.%m.%Y')
         WHEN {$sub} LIKE '%-%-%' AND {$sub} NOT LIKE '20%' THEN STR_TO_DATE({$sub}, '%d-%m-%Y')
-        WHEN {$sub} LIKE '%-%-%' THEN STR_TO_DATE({$sub}, '%Y-%m-%d')
         ELSE {$utsAlias}.{$f}
     END";
 
