@@ -93,44 +93,35 @@ function buildDateRange($year, $quarter, $month)
     $currentYear = (int)date('Y');
 
     if ($year === 'All' || !is_numeric($year)) {
-        return array('from' => '2020-01-01', 'to' => $today);
+        return array('from' => '2020-01-01', 'to' => '2099-12-31');
     }
 
     $y = (int)$year;
-    $capToToday = function ($from, $to) use ($y, $today, $currentYear) {
-        if ($y !== $currentYear) {
-            return array('from' => $from, 'to' => $to);
-        }
-        if ($to > $today) {
-            $to = $today;
-        }
-        return array('from' => $from, 'to' => $to);
-    };
 
     // Specific month
     if ($month !== 'All' && isset($monthNames[$month])) {
-        $m      = $monthNames[$month];
+        $m       = $monthNames[$month];
         $lastDay = date('t', mktime(0, 0, 0, $m, 1, $y));
-        return $capToToday(
-            sprintf('%04d-%02d-01', $y, $m),
-            sprintf('%04d-%02d-%02d', $y, $m, $lastDay)
+        return array(
+            'from' => sprintf('%04d-%02d-01', $y, $m),
+            'to'   => sprintf('%04d-%02d-%02d', $y, $m, $lastDay)
         );
     }
 
     // Quarter
     if ($quarter !== 'All' && isset($quarterMap[$quarter])) {
-        $qm = $quarterMap[$quarter];
+        $qm      = $quarterMap[$quarter];
         $lastDay = date('t', mktime(0, 0, 0, $qm[1], 1, $y));
-        return $capToToday(
-            sprintf('%04d-%02d-01', $y, $qm[0]),
-            sprintf('%04d-%02d-%02d', $y, $qm[1], $lastDay)
+        return array(
+            'from' => sprintf('%04d-%02d-01', $y, $qm[0]),
+            'to'   => sprintf('%04d-%02d-%02d', $y, $qm[1], $lastDay)
         );
     }
 
     // Full year
-    return $capToToday(
-        $y . '-01-01',
-        $y . '-12-31'
+    return array(
+        'from' => $y . '-01-01',
+        'to'   => $y . '-12-31'
     );
 }
 
@@ -924,31 +915,35 @@ function parseReportDate($dateStr)
 
     $dateStr = trim((string)$dateStr);
 
-    $formats = array();
-
-    if (strpos($dateStr, '/') !== false) {
-        $formats = array(
-            'd/m/Y h:i:s a',
-            'd/m/Y h:i:s A',
-            'd/m/Y H:i:s',
-            'd/m/Y',
-        );
-    } elseif (strpos($dateStr, '-') !== false) {
-        $formats = array(
-            'Y-m-d H:i:s',
-            'Y-m-d',
-        );
-    } elseif (strpos($dateStr, '.') !== false) {
-        $formats = array(
-            'd.m.Y H:i:s',
-            'd.m.Y',
-        );
-    }
+    $formats = array(
+        'Y-m-d H:i:s',
+        'Y-m-d',
+        'd.m.Y H:i:s',
+        'd.m.Y h:i:s a',
+        'd.m.Y h:i:s A',
+        'd.m.Y',
+        'd/m/Y H:i:s',
+        'd/m/Y h:i:s a',
+        'd/m/Y h:i:s A',
+        'd/m/Y',
+        'd-m-Y H:i:s',
+        'd-m-Y',
+    );
 
     foreach ($formats as $format) {
-        $dt = \DateTime::createFromFormat($format, $format === 'd/m/Y h:i:s a' || $format === 'd/m/Y h:i:s A'
+        $dt = \DateTime::createFromFormat($format, (strpos($format, 'a') !== false || strpos($format, 'A') !== false)
             ? strtolower($dateStr)
             : $dateStr);
+        if ($dt instanceof \DateTime) {
+            return $dt;
+        }
+    }
+
+    // Try substring to 10 chars (date part only)
+    $datePart = substr($dateStr, 0, 10);
+    $datePartFormats = array('Y-m-d', 'd.m.Y', 'd/m/Y', 'd-m-Y');
+    foreach ($datePartFormats as $format) {
+        $dt = \DateTime::createFromFormat($format, $datePart);
         if ($dt instanceof \DateTime) {
             return $dt;
         }
@@ -1024,20 +1019,22 @@ function filterDealsByReportDateRange($deals, $dateRange, $primaryField = 'DATE_
 function getEffectiveDealCreateDateExpr($dealAlias = 'd', $utsAlias = 'uts')
 {
     $importedCreateField = FIELD_IMPORTED_CREATE_DATE;
-    $importedCreateExpr = "CAST({$utsAlias}.{$importedCreateField} AS CHAR)";
+    $rawExpr   = "CAST({$utsAlias}.{$importedCreateField} AS CHAR)";
+    $cleanExpr = "LEFT(TRIM({$rawExpr}), 10)";
 
     // Safely parse various string formats in MySQL so DATE() doesn't return NULL
     $parsedImported = "CASE 
-        WHEN {$importedCreateExpr} LIKE '%/%/%' THEN STR_TO_DATE({$importedCreateExpr}, '%d/%m/%Y')
-        WHEN {$importedCreateExpr} LIKE '%.%.%' THEN STR_TO_DATE({$importedCreateExpr}, '%d.%m.%Y')
-        WHEN {$importedCreateExpr} LIKE '%-%-%' AND LENGTH({$importedCreateExpr}) <= 10 AND {$importedCreateExpr} NOT LIKE '20%' THEN STR_TO_DATE({$importedCreateExpr}, '%d-%m-%Y')
-        ELSE {$importedCreateExpr}
+        WHEN {$cleanExpr} LIKE '%/%/%' THEN STR_TO_DATE({$cleanExpr}, '%d/%m/%Y')
+        WHEN {$cleanExpr} LIKE '%.%.%' THEN STR_TO_DATE({$cleanExpr}, '%d.%m.%Y')
+        WHEN {$cleanExpr} LIKE '%-%-%' AND LEFT({$cleanExpr}, 2) != '20' THEN STR_TO_DATE({$cleanExpr}, '%d-%m-%Y')
+        WHEN {$cleanExpr} LIKE '%-%-%' THEN STR_TO_DATE({$cleanExpr}, '%Y-%m-%d')
+        ELSE STR_TO_DATE({$cleanExpr}, '%Y-%m-%d')
     END";
 
     return "CASE
         WHEN {$utsAlias}.{$importedCreateField} IS NULL THEN {$dealAlias}.DATE_CREATE
-        WHEN {$importedCreateExpr} IN ('', '0000-00-00') THEN {$dealAlias}.DATE_CREATE
-        ELSE {$parsedImported}
+        WHEN {$rawExpr} IN ('', '0000-00-00', '0000-00-00 00:00:00') THEN {$dealAlias}.DATE_CREATE
+        ELSE COALESCE({$parsedImported}, {$dealAlias}.DATE_CREATE)
     END";
 }
 
