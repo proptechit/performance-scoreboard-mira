@@ -1039,22 +1039,21 @@ function filterDealsByReportDateRange($deals, $dateRange, $primaryField = 'DATE_
 
 function getEffectiveDealCreateDateExpr($dealAlias = 'd', $utsAlias = 'uts')
 {
-    $importedCreateField = FIELD_IMPORTED_CREATE_DATE;
-    $rawExpr   = "CAST({$utsAlias}.{$importedCreateField} AS CHAR)";
-    $subExpr   = "SUBSTRING_INDEX(TRIM({$rawExpr}), ' ', 1)";
+    $f   = FIELD_IMPORTED_CREATE_DATE;
+    $raw = "CAST({$utsAlias}.{$f} AS CHAR)";
+    $sub = "SUBSTRING_INDEX(TRIM({$raw}), ' ', 1)";
 
     // Safely parse various string formats in MySQL so DATE() doesn't return NULL
     $parsedImported = "CASE 
-        WHEN {$subExpr} LIKE '%/%/%' THEN STR_TO_DATE({$subExpr}, '%d/%m/%Y')
-        WHEN {$subExpr} LIKE '%.%.%' THEN STR_TO_DATE({$subExpr}, '%d.%m.%Y')
-        WHEN {$subExpr} LIKE '%-%-%' AND {$subExpr} NOT LIKE '20%' THEN STR_TO_DATE({$subExpr}, '%d-%m-%Y')
-        WHEN {$subExpr} LIKE '%-%-%' THEN STR_TO_DATE({$subExpr}, '%Y-%m-%d')
-        ELSE STR_TO_DATE({$subExpr}, '%Y-%m-%d')
+        WHEN {$sub} LIKE '%/%/%' THEN STR_TO_DATE({$sub}, '%d/%m/%Y')
+        WHEN {$sub} LIKE '%.%.%' THEN STR_TO_DATE({$sub}, '%d.%m.%Y')
+        WHEN {$sub} LIKE '%-%-%' AND {$sub} NOT LIKE '20%' THEN STR_TO_DATE({$sub}, '%d-%m-%Y')
+        ELSE {$utsAlias}.{$f}
     END";
 
     return "CASE
-        WHEN {$utsAlias}.{$importedCreateField} IS NULL THEN {$dealAlias}.DATE_CREATE
-        WHEN {$rawExpr} IN ('', '0000-00-00', '0000-00-00 00:00:00') THEN {$dealAlias}.DATE_CREATE
+        WHEN {$utsAlias}.{$f} IS NULL THEN {$dealAlias}.DATE_CREATE
+        WHEN {$raw} IN ('', '0000-00-00', '0000-00-00 00:00:00') THEN {$dealAlias}.DATE_CREATE
         ELSE COALESCE({$parsedImported}, {$dealAlias}.DATE_CREATE)
     END";
 }
@@ -3246,6 +3245,9 @@ function getAgentOriginalDeptAtDate($userId, $dateStr)
  */
 function isAgentInDeptAtDate($userId, $deptId, $dateStr)
 {
+    if ((int)$deptId <= 0) {
+        return true;
+    }
     $resolvedDept = getAgentDeptAtDate($userId, $dateStr);
     if ($resolvedDept === (int)$deptId) {
         return true;
@@ -3265,6 +3267,9 @@ function isAgentInDeptAtDate($userId, $deptId, $dateStr)
  */
 function isAgentInDept($userId, $deptId)
 {
+    if ((int)$deptId <= 0) {
+        return true;
+    }
     $currDept = getUserDeptId($userId);
     if ($currDept === (int)$deptId) {
         return true;
