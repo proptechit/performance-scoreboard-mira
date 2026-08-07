@@ -1078,7 +1078,7 @@ function getEffectiveDealCloseDateExpr($dealAlias = 'd', $utsAlias = 'uts')
 function getExcludeDealFilter($utsAlias = 'uts')
 {
     $f = FIELD_EXCLUDE_DEAL;
-    return "AND ({$utsAlias}.{$f} IS NULL OR ({$utsAlias}.{$f} != 1 AND {$utsAlias}.{$f} != '1' AND {$utsAlias}.{$f} != 'Y' AND {$utsAlias}.{$f} != true))";
+    return "AND ({$utsAlias}.{$f} IS NULL OR CAST({$utsAlias}.{$f} AS CHAR) NOT IN ('1', 'Y'))";
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
