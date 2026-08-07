@@ -1020,15 +1020,15 @@ function getEffectiveDealCreateDateExpr($dealAlias = 'd', $utsAlias = 'uts')
 {
     $importedCreateField = FIELD_IMPORTED_CREATE_DATE;
     $rawExpr   = "CAST({$utsAlias}.{$importedCreateField} AS CHAR)";
-    $cleanExpr = "LEFT(TRIM({$rawExpr}), 10)";
+    $subExpr   = "SUBSTRING_INDEX(TRIM({$rawExpr}), ' ', 1)";
 
     // Safely parse various string formats in MySQL so DATE() doesn't return NULL
     $parsedImported = "CASE 
-        WHEN {$cleanExpr} LIKE '%/%/%' THEN STR_TO_DATE({$cleanExpr}, '%d/%m/%Y')
-        WHEN {$cleanExpr} LIKE '%.%.%' THEN STR_TO_DATE({$cleanExpr}, '%d.%m.%Y')
-        WHEN {$cleanExpr} LIKE '%-%-%' AND LEFT({$cleanExpr}, 2) != '20' THEN STR_TO_DATE({$cleanExpr}, '%d-%m-%Y')
-        WHEN {$cleanExpr} LIKE '%-%-%' THEN STR_TO_DATE({$cleanExpr}, '%Y-%m-%d')
-        ELSE STR_TO_DATE({$cleanExpr}, '%Y-%m-%d')
+        WHEN {$subExpr} LIKE '%/%/%' THEN STR_TO_DATE({$subExpr}, '%d/%m/%Y')
+        WHEN {$subExpr} LIKE '%.%.%' THEN STR_TO_DATE({$subExpr}, '%d.%m.%Y')
+        WHEN {$subExpr} LIKE '%-%-%' AND {$subExpr} NOT LIKE '20%' THEN STR_TO_DATE({$subExpr}, '%d-%m-%Y')
+        WHEN {$subExpr} LIKE '%-%-%' THEN STR_TO_DATE({$subExpr}, '%Y-%m-%d')
+        ELSE STR_TO_DATE({$subExpr}, '%Y-%m-%d')
     END";
 
     return "CASE

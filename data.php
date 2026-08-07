@@ -590,9 +590,9 @@ if ($role === 'agent') {
     $allDealOwnerIds = array_values(array_unique(array_merge($allAgentIds, $allManagerIds)));
 
     // Company-wide won deals (no agent filter = all)
-    $allDeals       = empty($allDealOwnerIds) ? array() : fetchAllDeals($allDealOwnerIds, $dateRange, $dealType);
-    $wonDeals       = empty($allDealOwnerIds) ? array() : fetchWonDeals($allDealOwnerIds, $dateRange, $dealType);
-    $committedDeals = empty($allDealOwnerIds) ? array() : fetchCommittedDeals($allDealOwnerIds, $dateRange, $dealType);
+    $allDeals       = fetchAllDeals(array(), $dateRange, $dealType);
+    $wonDeals       = fetchWonDeals(array(), $dateRange, $dealType);
+    $committedDeals = fetchCommittedDeals(array(), $dateRange, $dealType);
     $agg            = aggregateDeals($allDeals);
     // CEO view intentionally remains company-wide.
     $monthlyDeals   = groupDealsByMonth($allDeals, $chartYear);
