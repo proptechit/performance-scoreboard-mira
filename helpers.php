@@ -913,7 +913,29 @@ function parseReportDate($dateStr)
         return null;
     }
 
+    if (is_object($dateStr)) {
+        if (method_exists($dateStr, 'format')) {
+            try {
+                return new \DateTime($dateStr->format('Y-m-d H:i:s'));
+            } catch (\Exception $e) {
+                return null;
+            }
+        }
+        if (method_exists($dateStr, 'getTimestamp')) {
+            $ts = $dateStr->getTimestamp();
+            if ($ts > 0) {
+                $dt = new \DateTime();
+                $dt->setTimestamp($ts);
+                return $dt;
+            }
+        }
+        $dateStr = (string)$dateStr;
+    }
+
     $dateStr = trim((string)$dateStr);
+    if ($dateStr === '' || $dateStr === '0000-00-00' || $dateStr === '0000-00-00 00:00:00') {
+        return null;
+    }
 
     $formats = array(
         'Y-m-d H:i:s',
@@ -1009,7 +1031,6 @@ function filterDealsByReportDateRange($deals, $dateRange, $primaryField = 'DATE_
         $dateStr = $deal['effective_create_date'] ?? ($deal[$primaryField] ?? ($deal['CLOSEDATE'] ?? ''));
         $dt = parseReportDate($dateStr);
         if (!$dt) {
-            echo json_encode(array('error' => 'Invalid date format', 'date' => $dateStr));
             return false;
         }
         return $dt >= $from && $dt <= $to;
@@ -2579,7 +2600,6 @@ function groupDealsByMonth($deals, $year)
         $dateStr = $d['effective_create_date'] ?? ($d['DATE_CREATE'] ?? ($d['CLOSEDATE'] ?? ''));
         $dt = parseReportDate($dateStr);
         if (!$dt) {
-            echo json_encode(array('error' => 'Invalid date format in deal', 'date' => $dateStr));
             continue;
         }
 
@@ -2718,7 +2738,6 @@ function buildSalesByDealType($deals, $year)
         $dateStr = $d['effective_create_date'] ?? ($d['DATE_CREATE'] ?? ($d['CLOSEDATE'] ?? ''));
         $dt = parseReportDate($dateStr);
         if (!$dt) {
-            echo json_encode(array('error' => 'Invalid date format in deal', 'date' => $dateStr));
             continue;
         }
 
