@@ -2779,8 +2779,8 @@ async function downloadReportPdf() {
     // Allow UI to render the overlay
     await new Promise((resolve) => setTimeout(resolve, 80));
 
-    if (typeof html2pdf === "undefined") {
-      alert("PDF generation library is loading. Please try again in a moment.");
+    if (typeof html2canvas === "undefined" || !window.jspdf) {
+      alert("PDF generation libraries are loading. Please try again in a moment.");
       return;
     }
 
@@ -2832,19 +2832,25 @@ async function downloadReportPdf() {
     });
     const dateFileStr = now.toISOString().slice(0, 10);
 
-    // Create temporary export container positioned at (0, 0) under the overlay
+    // Create temporary export container attached to DOM in-flow behind overlay
     const exportWrapper = document.createElement("div");
+    exportWrapper.id = "pdfReportExportContainer";
     exportWrapper.className = "pdf-export-container";
-    exportWrapper.style.width = "1100px";
-    exportWrapper.style.position = "fixed";
-    exportWrapper.style.left = "0";
+    exportWrapper.style.width = "1120px";
+    exportWrapper.style.maxWidth = "1120px";
+    exportWrapper.style.minWidth = "1120px";
+    exportWrapper.style.position = "absolute";
     exportWrapper.style.top = "0";
-    exportWrapper.style.zIndex = "10000";
+    exportWrapper.style.left = "0";
+    exportWrapper.style.zIndex = "-9999";
+    exportWrapper.style.opacity = "1";
+    exportWrapper.style.visibility = "visible";
     exportWrapper.style.backgroundColor = "#ffffff";
     exportWrapper.style.color = "#0f1e35";
     exportWrapper.style.overflow = "visible";
     exportWrapper.style.boxSizing = "border-box";
-    exportWrapper.style.padding = "20px";
+    exportWrapper.style.padding = "24px";
+    exportWrapper.style.pointerEvents = "none";
 
     // Header with dark navy branding banner
     const headerHtml = `
@@ -3057,45 +3063,63 @@ async function downloadReportPdf() {
       el.remove();
     });
 
-    // Add CSS break avoidance classes
-    viewClone.querySelectorAll(".kpi-card, .chart-card, tr, .profile-banner").forEach((el) => {
-      el.classList.add("pdf-avoid-break");
-    });
-
     exportWrapper.innerHTML = headerHtml;
     exportWrapper.appendChild(viewClone);
     document.body.appendChild(exportWrapper);
 
-    // Wait a frame for DOM layout to settle
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    // Wait a brief moment for DOM layout to settle
+    await new Promise((resolve) => setTimeout(resolve, 150));
 
     const fileName = `Mira_Scorecard_${filePrefix}_${dateFileStr}.pdf`;
 
-    const opt = {
-      margin: [8, 8, 8, 8],
-      filename: fileName,
-      image: { type: "jpeg", quality: 0.98 },
-      html2canvas: {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        letterRendering: true,
-        backgroundColor: "#ffffff",
-        scrollX: 0,
-        scrollY: 0,
-        windowWidth: 1150,
-      },
-      jsPDF: {
-        unit: "mm",
-        format: "a4",
-        orientation: "landscape",
-      },
-      pagebreak: { mode: ["css", "legacy"] },
-    };
+    // Render export container to canvas using html2canvas
+    const canvas = await html2canvas(exportWrapper, {
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      logging: false,
+      backgroundColor: "#ffffff",
+      width: 1120,
+      windowWidth: 1120,
+      scrollX: 0,
+      scrollY: 0,
+      x: 0,
+      y: 0,
+    });
 
-    await html2pdf().set(opt).from(exportWrapper).save();
+    // Create jsPDF multi-page landscape document
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({
+      orientation: "landscape",
+      unit: "mm",
+      format: "a4",
+      compress: true,
+    });
 
-    // Clean up
+    const pageWidth = 297; // A4 landscape width in mm
+    const pageHeight = 210; // A4 landscape height in mm
+    const imgWidth = pageWidth;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    const imgData = canvas.toDataURL("image/jpeg", 0.95);
+
+    let heightLeft = imgHeight;
+    let position = 0;
+
+    // First page
+    pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight, undefined, "FAST");
+    heightLeft -= pageHeight;
+
+    // Subsequent pages
+    while (heightLeft > 0) {
+      position -= pageHeight;
+      pdf.addPage();
+      pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight, undefined, "FAST");
+      heightLeft -= pageHeight;
+    }
+
+    pdf.save(fileName);
+
+    // Clean up temporary DOM element
     if (exportWrapper.parentNode) {
       exportWrapper.parentNode.removeChild(exportWrapper);
     }
