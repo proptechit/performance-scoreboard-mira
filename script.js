@@ -2832,30 +2832,34 @@ async function downloadReportPdf() {
     });
     const dateFileStr = now.toISOString().slice(0, 10);
 
-    // Create temporary export container
+    // Create temporary export container positioned at (0, 0) under the overlay
     const exportWrapper = document.createElement("div");
     exportWrapper.className = "pdf-export-container";
-    exportWrapper.style.width = "1180px";
-    exportWrapper.style.position = "absolute";
-    exportWrapper.style.left = "-99999px";
+    exportWrapper.style.width = "1100px";
+    exportWrapper.style.position = "fixed";
+    exportWrapper.style.left = "0";
     exportWrapper.style.top = "0";
-    exportWrapper.style.background = "#ffffff";
+    exportWrapper.style.zIndex = "10000";
+    exportWrapper.style.backgroundColor = "#ffffff";
     exportWrapper.style.color = "#0f1e35";
+    exportWrapper.style.overflow = "visible";
+    exportWrapper.style.boxSizing = "border-box";
+    exportWrapper.style.padding = "20px";
 
-    // Header
+    // Header with dark navy branding banner
     const headerHtml = `
-      <div class="pdf-header">
-        <div class="pdf-brand">
-          <img src="logo.svg" alt="Mira International" style="height:32px;width:auto;" />
-          <div class="pdf-title-block">
-            <h1>Performance Scorecard</h1>
-            <p>${subtitle}</p>
+      <div class="pdf-header" style="background:#0f1e35;padding:16px 24px;border-radius:8px;display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;border-bottom:3px solid #c9a84c;">
+        <div style="display:flex;align-items:center;gap:14px;">
+          <img src="logo.svg" alt="Mira International" style="height:34px;width:auto;display:block;" />
+          <div>
+            <div style="font-size:18px;font-weight:700;color:#c9a84c;letter-spacing:0.5px;">Performance Scorecard</div>
+            <div style="font-size:12px;color:#94a3b8;margin-top:2px;">${subtitle}</div>
           </div>
         </div>
-        <div class="pdf-meta-pills">
-          <span class="pdf-meta-pill">Period: <strong>${periodLabel}</strong></span>
-          <span class="pdf-meta-pill">Deal Type: <strong>${dealTypeLabel}</strong></span>
-          <span class="pdf-meta-pill">Generated: ${generatedDateStr}</span>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span style="background:rgba(201,168,76,0.15);border:1px solid rgba(201,168,76,0.3);color:#f1f5f9;padding:4px 10px;border-radius:4px;font-size:11px;font-weight:600;">Period: ${periodLabel}</span>
+          <span style="background:rgba(201,168,76,0.15);border:1px solid rgba(201,168,76,0.3);color:#f1f5f9;padding:4px 10px;border-radius:4px;font-size:11px;font-weight:600;">Deal Type: ${dealTypeLabel}</span>
+          <span style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#94a3b8;padding:4px 10px;border-radius:4px;font-size:11px;">${generatedDateStr}</span>
         </div>
       </div>
     `;
@@ -2874,9 +2878,9 @@ async function downloadReportPdf() {
         const img = document.createElement("img");
         try {
           img.src = liveCanvas.toDataURL("image/png", 1.0);
+          const h = liveCanvas.offsetHeight || liveCanvas.height || 220;
           img.style.width = "100%";
-          img.style.height = "100%";
-          img.style.maxHeight = cloneCanvas.style.height || "220px";
+          img.style.height = (h > 0 ? h + "px" : "220px");
           img.style.objectFit = "contain";
           img.style.display = "block";
           img.style.margin = "0 auto";
@@ -3062,10 +3066,13 @@ async function downloadReportPdf() {
     exportWrapper.appendChild(viewClone);
     document.body.appendChild(exportWrapper);
 
+    // Wait a frame for DOM layout to settle
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
     const fileName = `Mira_Scorecard_${filePrefix}_${dateFileStr}.pdf`;
 
     const opt = {
-      margin: [10, 10, 10, 10],
+      margin: [8, 8, 8, 8],
       filename: fileName,
       image: { type: "jpeg", quality: 0.98 },
       html2canvas: {
@@ -3074,16 +3081,19 @@ async function downloadReportPdf() {
         logging: false,
         letterRendering: true,
         backgroundColor: "#ffffff",
+        scrollX: 0,
+        scrollY: 0,
+        windowWidth: 1150,
       },
       jsPDF: {
         unit: "mm",
         format: "a4",
         orientation: "landscape",
       },
-      pagebreak: { mode: ["avoid-all", "css", "legacy"] },
+      pagebreak: { mode: ["css", "legacy"] },
     };
 
-    await html2pdf().from(exportWrapper).set(opt).save();
+    await html2pdf().set(opt).from(exportWrapper).save();
 
     // Clean up
     if (exportWrapper.parentNode) {
