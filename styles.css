@@ -1655,3 +1655,41 @@ body {
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+/* ── STATUS TOGGLE (Active / Dismissed) ──────────────────────────────────── */
+.status-toggle-wrapper {
+  display: flex;
+  align-items: center;
+}
+
+.status-toggle {
+  display: inline-flex;
+  background: var(--off-white);
+  border: 1px solid var(--grey-200);
+  border-radius: var(--radius-sm);
+  padding: 3px;
+  gap: 2px;
+}
+
+.status-tab {
+  border: none;
+  background: transparent;
+  padding: 5px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: 'DM Sans', sans-serif;
+  color: var(--grey-500);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.status-tab:hover {
+  color: var(--navy);
+}
+
+.status-tab.active {
+  background: var(--navy);
+  color: var(--white);
+  box-shadow: 0 1px 3px rgba(15, 30, 53, 0.15);
+}

@@ -318,7 +318,19 @@ function isUserInAllowedSalesDepartments($userId)
         LIMIT 1
     ");
 
-    return !empty($row['match_found']);
+    if (!empty($row['match_found'])) {
+        return true;
+    }
+
+    $histRow = dbQueryOne("
+        SELECT 1 AS match_found
+        FROM b_agent_dept_history
+        WHERE USER_ID = {$uid}
+          AND DEPT_ID IN " . inClauseInt($allowedDeptIds) . "
+        LIMIT 1
+    ");
+
+    return !empty($histRow['match_found']);
 }
 
 /**
@@ -501,6 +513,7 @@ function getAgentsByDept($deptIds, $applyPrivateOfficeOverride = true, $dateRang
         $sql = "
             SELECT DISTINCT
                 u.ID,
+                u.ACTIVE,
                 u.NAME,
                 u.LAST_NAME,
                 u.WORK_POSITION,
@@ -532,6 +545,7 @@ function getAgentsByDept($deptIds, $applyPrivateOfficeOverride = true, $dateRang
         $sql = "
             SELECT DISTINCT
                 u.ID,
+                u.ACTIVE,
                 u.NAME,
                 u.LAST_NAME,
                 u.WORK_POSITION,
@@ -547,6 +561,97 @@ function getAgentsByDept($deptIds, $applyPrivateOfficeOverride = true, $dateRang
             WHERE u.ACTIVE = 'Y'
               AND (u.WORK_POSITION IS NULL OR (LOWER(TRIM(u.WORK_POSITION)) NOT LIKE '%pa liaison%' AND LOWER(TRIM(u.WORK_POSITION)) NOT LIKE '%listing admin%'))
               AND {$deptExpr}
+              {$excludeNonAgents}
+            ORDER BY u.LAST_NAME ASC, u.NAME ASC
+        ";
+    }
+
+    return dbQuery($sql);
+}
+
+/**
+ * Fetch dismissed agents (ACTIVE = 'N') who were in a given department.
+ */
+function getDismissedAgentsByDept($deptIds, $applyPrivateOfficeOverride = true, $dateRange = null)
+{
+    $deptIds = filterAllowedSalesDepartmentIds($deptIds, true);
+    if (empty($deptIds)) {
+        return array();
+    }
+
+    $in = inClauseInt($deptIds);
+
+    $nonAgentIds = getNonAgentUserIds();
+    $excludeNonAgents = !empty($nonAgentIds)
+        ? 'AND u.ID NOT IN ' . inClauseInt($nonAgentIds)
+        : '';
+
+    $deptExpr = $applyPrivateOfficeOverride
+        ? "(ud.VALUE_INT IN {$in} OR (23 IN {$in} AND TRIM(LOWER(u.WORK_POSITION)) = 'private office') OR (u.ID = 168 AND 30 IN {$in}) OR (u.ID = 156 AND 26 IN {$in}))"
+        : "(ud.VALUE_INT IN {$in} OR (u.ID = 168 AND 30 IN {$in}) OR (u.ID = 156 AND 26 IN {$in}))";
+
+    if ($dateRange && isset($dateRange['from']) && isset($dateRange['to'])) {
+        $from = dbEsc($dateRange['from']);
+        $to   = dbEsc($dateRange['to']);
+
+        $sql = "
+            SELECT DISTINCT
+                u.ID,
+                u.ACTIVE,
+                u.NAME,
+                u.LAST_NAME,
+                u.WORK_POSITION,
+                u.DATE_REGISTER,
+                u.PERSONAL_PHOTO,
+                uts_u.UF_USR_1778656838068
+            FROM b_user u
+            LEFT JOIN b_utm_user ud
+                ON ud.VALUE_ID = u.ID
+               AND ud.FIELD_ID = 40   -- UF_DEPARTMENT
+            LEFT JOIN b_uts_user uts_u
+                ON uts_u.VALUE_ID = u.ID
+            WHERE u.ACTIVE = 'N'
+              AND (u.WORK_POSITION IS NULL OR (LOWER(TRIM(u.WORK_POSITION)) NOT LIKE '%pa liaison%' AND LOWER(TRIM(u.WORK_POSITION)) NOT LIKE '%listing admin%'))
+              AND (
+                  {$deptExpr}
+                  OR u.ID IN (
+                      SELECT h.USER_ID 
+                      FROM b_agent_dept_history h 
+                      WHERE h.DEPT_ID IN {$in}
+                        AND h.EFFECTIVE_FROM <= '{$to}'
+                        AND (h.EFFECTIVE_TO IS NULL OR h.EFFECTIVE_TO >= '{$from}')
+                  )
+              )
+              {$excludeNonAgents}
+            ORDER BY u.LAST_NAME ASC, u.NAME ASC
+        ";
+    } else {
+        $sql = "
+            SELECT DISTINCT
+                u.ID,
+                u.ACTIVE,
+                u.NAME,
+                u.LAST_NAME,
+                u.WORK_POSITION,
+                u.DATE_REGISTER,
+                u.PERSONAL_PHOTO,
+                uts_u.UF_USR_1778656838068
+            FROM b_user u
+            LEFT JOIN b_utm_user ud
+                ON ud.VALUE_ID = u.ID
+               AND ud.FIELD_ID = 40   -- UF_DEPARTMENT
+            LEFT JOIN b_uts_user uts_u
+                ON uts_u.VALUE_ID = u.ID
+            WHERE u.ACTIVE = 'N'
+              AND (u.WORK_POSITION IS NULL OR (LOWER(TRIM(u.WORK_POSITION)) NOT LIKE '%pa liaison%' AND LOWER(TRIM(u.WORK_POSITION)) NOT LIKE '%listing admin%'))
+              AND (
+                  {$deptExpr}
+                  OR u.ID IN (
+                      SELECT h.USER_ID 
+                      FROM b_agent_dept_history h 
+                      WHERE h.DEPT_ID IN {$in}
+                  )
+              )
               {$excludeNonAgents}
             ORDER BY u.LAST_NAME ASC, u.NAME ASC
         ";
@@ -630,6 +735,7 @@ function getUserProfile($userId)
     return dbQueryOne("
         SELECT 
             u.ID,
+            u.ACTIVE,
             u.NAME,
             u.LAST_NAME,
             u.WORK_POSITION,
@@ -685,7 +791,24 @@ function getManagerForAgent($userId)
         LIMIT 1
     ");
 
-    return $row ? $row['FULL_NAME'] : '';
+    if ($row && !empty($row['FULL_NAME'])) {
+        return $row['FULL_NAME'];
+    }
+
+    // Fallback for dismissed users from history table
+    $allowedDeptIds = getSalesReportDepartmentIds(false);
+    $histRow = dbQueryOne("
+        SELECT CONCAT(m.NAME, ' ', m.LAST_NAME) AS FULL_NAME
+        FROM b_agent_dept_history h
+        JOIN b_uts_iblock_3_section uts ON uts.VALUE_ID = h.DEPT_ID
+        JOIN b_user m ON m.ID = uts.UF_HEAD
+        WHERE h.USER_ID = {$uid}
+          AND h.DEPT_ID IN " . inClauseInt($allowedDeptIds) . "
+        ORDER BY h.EFFECTIVE_FROM DESC
+        LIMIT 1
+    ");
+
+    return $histRow ? $histRow['FULL_NAME'] : '';
 }
 
 /**
@@ -720,7 +843,21 @@ function getUserDeptId($userId)
         LIMIT 1
     ");
 
-    return (int)($row['VALUE_INT'] ?? 0);
+    if (!empty($row['VALUE_INT'])) {
+        return (int)$row['VALUE_INT'];
+    }
+
+    // Fallback for dismissed users from history table
+    $histRow = dbQueryOne("
+        SELECT DEPT_ID
+        FROM b_agent_dept_history
+        WHERE USER_ID = {$uid}
+          AND DEPT_ID IN " . inClauseInt($allowedDeptIds) . "
+        ORDER BY EFFECTIVE_FROM DESC
+        LIMIT 1
+    ");
+
+    return (int)($histRow['DEPT_ID'] ?? 0);
 }
 
 function getUserOriginalDeptId($userId)
@@ -748,7 +885,21 @@ function getUserOriginalDeptId($userId)
         LIMIT 1
     ");
 
-    return (int)($row['VALUE_INT'] ?? 0);
+    if (!empty($row['VALUE_INT'])) {
+        return (int)$row['VALUE_INT'];
+    }
+
+    // Fallback from history table
+    $histRow = dbQueryOne("
+        SELECT DEPT_ID
+        FROM b_agent_dept_history
+        WHERE USER_ID = {$uid}
+          AND DEPT_ID IN " . inClauseInt($allowedDeptIds) . "
+        ORDER BY EFFECTIVE_FROM DESC
+        LIMIT 1
+    ");
+
+    return (int)($histRow['DEPT_ID'] ?? 0);
 }
 
 function getListingBranchCodeForDeptId($deptId)
@@ -866,6 +1017,90 @@ function getAgentIdsByManager($managerId, $applyPrivateOfficeOverride = true, $d
             WHERE u.ACTIVE = 'Y'
               AND (u.WORK_POSITION IS NULL OR (LOWER(TRIM(u.WORK_POSITION)) NOT LIKE '%pa liaison%' AND LOWER(TRIM(u.WORK_POSITION)) NOT LIKE '%listing admin%'))
               AND {$deptExpr}
+              {$excludeNonAgents}
+        ";
+    }
+
+    $rows = dbQuery($sql);
+
+    return array_map(function ($r) {
+        return (int)$r['ID'];
+    }, $rows);
+}
+
+/**
+ * Get dismissed agent user IDs (ACTIVE = 'N') managed by a given manager.
+ */
+function getDismissedAgentIdsByManager($managerId, $applyPrivateOfficeOverride = true, $dateRange = null)
+{
+    $mid = dbInt($managerId);
+    $nonAgentIds = getNonAgentUserIds();
+    $excludeNonAgents = !empty($nonAgentIds)
+        ? 'AND u.ID NOT IN ' . inClauseInt($nonAgentIds)
+        : '';
+
+    $managerDepts = array();
+    if ($mid === 156) {
+        $managerDepts[] = 26; // ST3 branch
+    }
+    $salesTeams = getSalesTeams();
+    foreach ($salesTeams as $team) {
+        if ((int)$team['UF_HEAD'] === $mid) {
+            $managerDepts[] = (int)$team['ID'];
+        }
+    }
+
+    if (empty($managerDepts)) {
+        return array();
+    }
+
+    $deptIn = inClauseInt($managerDepts);
+
+    $deptExpr = $applyPrivateOfficeOverride
+        ? "(ud.VALUE_INT IN {$deptIn} OR (23 IN {$deptIn} AND TRIM(LOWER(u.WORK_POSITION)) = 'private office') OR (u.ID = 168 AND 30 IN {$deptIn}) OR (u.ID = 156 AND 26 IN {$deptIn}))"
+        : "(ud.VALUE_INT IN {$deptIn} OR (u.ID = 168 AND 30 IN {$deptIn}) OR (u.ID = 156 AND 26 IN {$deptIn}))";
+
+    if ($dateRange && isset($dateRange['from']) && isset($dateRange['to'])) {
+        $from = dbEsc($dateRange['from']);
+        $to   = dbEsc($dateRange['to']);
+
+        $sql = "
+            SELECT DISTINCT u.ID
+            FROM b_user u
+            LEFT JOIN b_utm_user ud
+                ON ud.VALUE_ID = u.ID
+               AND ud.FIELD_ID = 40
+            WHERE u.ACTIVE = 'N'
+              AND (u.WORK_POSITION IS NULL OR (LOWER(TRIM(u.WORK_POSITION)) NOT LIKE '%pa liaison%' AND LOWER(TRIM(u.WORK_POSITION)) NOT LIKE '%listing admin%'))
+              AND (
+                  {$deptExpr}
+                  OR u.ID IN (
+                      SELECT h.USER_ID 
+                      FROM b_agent_dept_history h 
+                      WHERE h.DEPT_ID IN {$deptIn}
+                        AND h.EFFECTIVE_FROM <= '{$to}'
+                        AND (h.EFFECTIVE_TO IS NULL OR h.EFFECTIVE_TO >= '{$from}')
+                  )
+              )
+              {$excludeNonAgents}
+        ";
+    } else {
+        $sql = "
+            SELECT DISTINCT u.ID
+            FROM b_user u
+            LEFT JOIN b_utm_user ud
+                ON ud.VALUE_ID = u.ID
+               AND ud.FIELD_ID = 40
+            WHERE u.ACTIVE = 'N'
+              AND (u.WORK_POSITION IS NULL OR (LOWER(TRIM(u.WORK_POSITION)) NOT LIKE '%pa liaison%' AND LOWER(TRIM(u.WORK_POSITION)) NOT LIKE '%listing admin%'))
+              AND (
+                  {$deptExpr}
+                  OR u.ID IN (
+                      SELECT h.USER_ID 
+                      FROM b_agent_dept_history h 
+                      WHERE h.DEPT_ID IN {$deptIn}
+                  )
+              )
               {$excludeNonAgents}
         ";
     }
@@ -1127,6 +1362,7 @@ function fetchWonDeals($agentIds, $dateRange, $dealType = 'All')
         SELECT
             d.ID,
             d.ASSIGNED_BY_ID,
+            d.SOURCE_ID             AS deal_source_id,
             d.DATE_CREATE,
             d.CLOSEDATE,
             uts.{$fImportedCreate}   AS imported_create_date,
@@ -1184,6 +1420,7 @@ function fetchAllDeals($agentIds, $dateRange, $dealType = 'All')
         SELECT
             d.ID,
             d.ASSIGNED_BY_ID,
+            d.SOURCE_ID             AS deal_source_id,
             d.DATE_CREATE,
             d.CLOSEDATE,
             uts.{$fImportedCreate}   AS imported_create_date,
@@ -1240,6 +1477,7 @@ function fetchTransactionPipelineDeals($agentIds = array())
         SELECT
             d.ID,
             d.ASSIGNED_BY_ID,
+            d.SOURCE_ID             AS deal_source_id,
             d.DATE_CREATE,
             d.CLOSEDATE,
             uts.{$fImportedCreate}   AS imported_create_date,
@@ -1288,6 +1526,7 @@ function fetchCommittedDeals($agentIds, $dateRange, $dealType = 'All')
         SELECT
             d.ID,
             d.ASSIGNED_BY_ID,
+            d.SOURCE_ID             AS deal_source_id,
             d.DATE_CREATE,
             uts.{$fImportedCreate}   AS imported_create_date,
             {$effectiveCreateExpr}   AS effective_create_date,
@@ -1446,6 +1685,30 @@ function buildLeadSourceBreakdown($rows, $pipelineIdFilter = null)
         }
         $grouped[$label] += $count;
         $total += $count;
+    }
+
+    return formatLeadBreakdownItems($grouped, $total);
+}
+
+function buildDealClosureSourceBreakdown($deals, $propertyTypeIdFilter = null)
+{
+    $sourceMap = $GLOBALS['CFG_LEAD_SOURCE_MAP'];
+    $grouped   = array();
+    $total     = 0;
+
+    foreach ($deals as $d) {
+        $typeId = (int)($d['property_type_id'] ?? 0);
+        if ($propertyTypeIdFilter !== null && $typeId !== (int)$propertyTypeIdFilter) {
+            continue;
+        }
+        $sourceId = trim((string)($d['deal_source_id'] ?? ($d['SOURCE_ID'] ?? '')));
+        $label    = $sourceMap[$sourceId] ?? ($sourceId !== '' ? $sourceId : 'Unknown');
+
+        if (!isset($grouped[$label])) {
+            $grouped[$label] = 0;
+        }
+        $grouped[$label]++;
+        $total++;
     }
 
     return formatLeadBreakdownItems($grouped, $total);
@@ -3120,6 +3383,7 @@ function buildAgentPerformanceRow($userRow, $allDeals, $wonDeals, $committedDeal
         'attendance_total' => $attendanceTotal,
         'is_transferred'   => $isTransferred,
         'transferred_at'   => $transferredAt,
+        'is_dismissed'     => (($userRow['ACTIVE'] ?? 'Y') === 'N'),
     );
 }
 

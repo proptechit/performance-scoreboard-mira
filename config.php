@@ -222,6 +222,7 @@ $GLOBALS['CFG_LISTING_BRANCH_BY_DEPT'] = array(
     32 => 'st5',
     23 => 'po',
     30 => 'main',
+    61 => 'hs',
     3  => 'main',
 );
 
@@ -248,6 +249,7 @@ $GLOBALS['CFG_SALES_REPORT_DEPARTMENT_IDS'] = array(
     32,  // Sales Team 5
     23,  // Private Office
     30,  // Tamara Getigezheva
+    61,  // Homesence
 );
 
 $GLOBALS['CFG_SALES_TEAM_CODE_BY_DEPT'] = array(
@@ -258,6 +260,7 @@ $GLOBALS['CFG_SALES_TEAM_CODE_BY_DEPT'] = array(
     32 => 'ST5',
     23 => 'PO',
     30 => 'TG',
+    61 => 'HS',
 );
 
 $GLOBALS['CFG_SALES_TEAM_HEAD_BY_DEPT'] = array(
@@ -268,6 +271,7 @@ $GLOBALS['CFG_SALES_TEAM_HEAD_BY_DEPT'] = array(
     32 => 157,
     23 => 123,
     30 => 168,
+    61 => 1208,
 );
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -298,6 +302,7 @@ $GLOBALS['CFG_MANAGER_USER_IDS'] = array(
     20,   // REZUAN SHOKUEV (ST4)
     157,  // Alex Jordan Devenport (ST5)
     123,  // Aldo De Jager (Private Office)
+    1208, // Homesence Manager
 );
 
 $GLOBALS['CFG_ALLOWED_AGENT_POSITIONS'] = array(
@@ -518,7 +523,7 @@ $GLOBALS['CFG_POSITION_TARGET'] = array(
 define('CACHE_DIR',     __DIR__ . '/cache/');   // Cache folder (must be writable)
 define('CACHE_TTL',     300);                    // Seconds – 5 minutes default
 define('CACHE_ENABLED', true);                   // Set false to disable during dev
-define('CACHE_VERSION', '2026-08-07-booking-date-filter-v8');
+define('CACHE_VERSION', '2026-08-14-homesence-deal-source-v1');
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 13. FILTER META  (returned to frontend for populating dropdowns)

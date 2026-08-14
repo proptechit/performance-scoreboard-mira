@@ -227,6 +227,8 @@ if ($role === 'agent') {
     $leadsByStageSecondary  = buildLeadStageBreakdown($leadRows, PIPELINE_SECONDARY);
     $leadsBySource          = buildLeadSourceBreakdown($leadRows, PIPELINE_OFFPLAN);
     $leadsBySourceSecondary = buildLeadSourceBreakdown($leadRows, PIPELINE_SECONDARY);
+    $dealClosureSourceOffplan   = buildDealClosureSourceBreakdown($allDeals, 76);
+    $dealClosureSourceSecondary = buildDealClosureSourceBreakdown($allDeals, 75);
 
     $commissionTrend = array();
     foreach ($monthlyDeals as $m) {
@@ -282,6 +284,8 @@ if ($role === 'agent') {
         'leads_by_stage_secondary' => $leadsByStageSecondary,
         'leads_by_source'    => $leadsBySource,
         'leads_by_source_secondary' => $leadsBySourceSecondary,
+        'deal_closure_source_offplan'   => $dealClosureSourceOffplan,
+        'deal_closure_source_secondary' => $dealClosureSourceSecondary,
     );
     $response['listing_details'] = $listingDetails;
 
@@ -314,19 +318,26 @@ if ($role === 'agent') {
 
     // All agents in this manager's department(s)
     $agentRows = array();
+    $activeAgentCount = 0;
     if ($deptId > 0) {
         // Manager-view: use each agent's real department, so a Private Office
         // agent still shows up normally under this manager's team (no CEO-only override).
         $deptAgents = getAgentsByDept(array($deptId), false, $dateRange);
+        $dismissedAgents = getDismissedAgentsByDept(array($deptId), false, $dateRange);
+        $activeAgentCount = count($deptAgents);
+        $allDeptAgents = array_merge($deptAgents, $dismissedAgents);
         $agentIds = array_map(function ($row) {
             return (int)$row['ID'];
-        }, $deptAgents);
-        foreach ($deptAgents as $row) {
+        }, $allDeptAgents);
+        foreach ($allDeptAgents as $row) {
             $agentRows[(int)$row['ID']] = $row;
         }
     } else {
         // Manager-view: same rationale as above — no CEO-only PO override here.
-        $agentIds = getAgentIdsByManager($managerId, false, $dateRange);
+        $activeIds = getAgentIdsByManager($managerId, false, $dateRange);
+        $dismissedIds = getDismissedAgentIdsByManager($managerId, false, $dateRange);
+        $activeAgentCount = count($activeIds);
+        $agentIds = array_values(array_unique(array_merge($activeIds, $dismissedIds)));
         foreach ($agentIds as $aid) {
             $row = getUserProfile($aid);
             if (!empty($row)) {
@@ -443,6 +454,8 @@ if ($role === 'agent') {
     $leadsByStageSecondary  = buildLeadStageBreakdown($leadRows, PIPELINE_SECONDARY);
     $leadsBySource          = buildLeadSourceBreakdown($leadRows, PIPELINE_OFFPLAN);
     $leadsBySourceSecondary = buildLeadSourceBreakdown($leadRows, PIPELINE_SECONDARY);
+    $dealClosureSourceOffplan   = buildDealClosureSourceBreakdown($filteredAllDeals, 76);
+    $dealClosureSourceSecondary = buildDealClosureSourceBreakdown($filteredAllDeals, 75);
 
     $commissionTrend = array();
     foreach ($monthlyDeals as $m) {
@@ -500,6 +513,10 @@ if ($role === 'agent') {
         $allAgentRows[] = buildAgentPerformanceRow($agentRows[$aid], $agentDeals, $agentWonDeals, $agentCommittedDeals, $dateRange, $targetDeptId);
     }
 
+    usort($allAgentRows, function ($a, $b) {
+        return $b['commission'] - $a['commission'];
+    });
+
     $response['view']    = 'manager';
     $response['manager'] = array(
         'profile' => array(
@@ -510,7 +527,7 @@ if ($role === 'agent') {
             'team_name'   => ($teamRow['DISPLAY_NAME'] ?? '') ?: ($teamRow['NAME'] ?? ''),
         ),
         'summary' => array(
-            'active_agents'          => count($agentIds),
+            'active_agents'          => $activeAgentCount,
             'no_deal_60_days'        => $noDeal60,
             'deal_count'             => $agg['deal_count'],
             'lead_count_offplan'     => $leadCountOffplan,
@@ -543,6 +560,8 @@ if ($role === 'agent') {
         'leads_by_stage_secondary' => $leadsByStageSecondary,
         'leads_by_source'   => $leadsBySource,
         'leads_by_source_secondary' => $leadsBySourceSecondary,
+        'deal_closure_source_offplan'   => $dealClosureSourceOffplan,
+        'deal_closure_source_secondary' => $dealClosureSourceSecondary,
     );
     $response['all_agents'] = $allAgentRows;
     $response['listing_details'] = $listingDetails;
@@ -632,6 +651,8 @@ if ($role === 'agent') {
     $leadsByStageSecondary  = buildLeadStageBreakdown($leadRows, PIPELINE_SECONDARY);
     $leadsBySource          = buildLeadSourceBreakdown($leadRows, PIPELINE_OFFPLAN);
     $leadsBySourceSecondary = buildLeadSourceBreakdown($leadRows, PIPELINE_SECONDARY);
+    $dealClosureSourceOffplan   = buildDealClosureSourceBreakdown($allDeals, 76);
+    $dealClosureSourceSecondary = buildDealClosureSourceBreakdown($allDeals, 75);
 
     $commissionTrend = array();
     foreach ($monthlyDeals as $m) {
@@ -677,7 +698,7 @@ if ($role === 'agent') {
     }
 
     usort($agentPerformance, function ($a, $b) {
-        return $b['sales'] - $a['sales'];
+        return $b['commission'] - $a['commission'];
     });
 
     // ── TEAM PERFORMANCE TABLE ───────────────────────────────────────────
@@ -772,6 +793,10 @@ if ($role === 'agent') {
         );
     }
 
+    usort($teamPerformance, function ($a, $b) {
+        return $b['commission'] - $a['commission'];
+    });
+
     // ── YEAR COMPARISON ──────────────────────────────────────────────────
     $year1Monthly = empty($allAgentIds) ? groupDealsByMonth(array(), $year1) : fetchYearMonthly($year1, $allAgentIds);
     $year2Monthly = empty($allAgentIds) ? groupDealsByMonth(array(), $year2) : fetchYearMonthly($year2, $allAgentIds);
@@ -828,6 +853,8 @@ if ($role === 'agent') {
     $response['leads_by_stage_secondary'] = $leadsByStageSecondary;
     $response['leads_by_source']    = $leadsBySource;
     $response['leads_by_source_secondary'] = $leadsBySourceSecondary;
+    $response['deal_closure_source_offplan']   = $dealClosureSourceOffplan;
+    $response['deal_closure_source_secondary'] = $dealClosureSourceSecondary;
     $response['listing_details']    = $listingDetails;
     $response['agent_performance']  = $agentPerformance;
     $response['team_performance']   = $teamPerformance;

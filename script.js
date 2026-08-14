@@ -2,8 +2,14 @@
 let currentData = null;
 let compareMetric = "sales";
 let charts = {};
-const tableSortState = {};
+const tableSortState = {
+  agentTable: { key: "commission", dir: "desc" },
+  agentPrivateOfficeTable: { key: "commission", dir: "desc" },
+  teamTable: { key: "commission", dir: "desc" },
+  managerAgentTable: { key: "commission", dir: "desc" },
+};
 let listingModalLastFocus = null;
+let managerAgentStatusFilter = "active";
 
 let currentViewRole = null;
 let currentViewDeptId = null;
@@ -690,6 +696,20 @@ function renderCEO(data) {
     "ceoLeadSourceSecondaryLegend",
     "ceoLeadSourceSecondaryVal",
     "Leads",
+  );
+  renderBreakdownDonut(
+    data.deal_closure_source_offplan,
+    "ceoDealClosureSourceOffplanChart",
+    "ceoDealClosureSourceOffplanLegend",
+    "ceoDealClosureSourceOffplanVal",
+    "Transactions",
+  );
+  renderBreakdownDonut(
+    data.deal_closure_source_secondary,
+    "ceoDealClosureSourceSecondaryChart",
+    "ceoDealClosureSourceSecondaryLegend",
+    "ceoDealClosureSourceSecondaryVal",
+    "Transactions",
   );
   renderTargetActual(data.target_vs_actual);
   // renderDeveloperTable(data.top_developers);
@@ -1612,11 +1632,29 @@ function handleTableFilter() {
   }
 }
 
+function toggleManagerAgentStatus(status) {
+  managerAgentStatusFilter = status;
+  document.querySelectorAll("#managerAgentStatusToggle .status-tab").forEach((tab) => {
+    tab.classList.toggle("active", tab.dataset.status === status);
+  });
+  renderManagerAgentTable(currentData?.all_agents);
+}
+
 function renderManagerAgentTable(agents) {
   const tbody = document.getElementById("managerAgentTableBody");
-  if (!tbody || !agents) return;
+  if (!tbody) return;
 
-  const sortedAgents = sortCollection(agents, "managerAgentTable", {
+  const isDismissedTab = managerAgentStatusFilter === "dismissed";
+  const statusFilteredAgents = (agents || []).filter((a) =>
+    isDismissedTab ? a.is_dismissed === true : a.is_dismissed !== true,
+  );
+
+  const countBadge = document.getElementById("managerAgentCountBadge");
+  if (countBadge) {
+    countBadge.textContent = `${statusFilteredAgents.length} ${isDismissedTab ? "dismissed" : "active"} agent${statusFilteredAgents.length === 1 ? "" : "s"}`;
+  }
+
+  const sortedAgents = sortCollection(statusFilteredAgents, "managerAgentTable", {
     name: { type: "string", get: (a) => a.name },
     leads_offplan: { type: "number", get: (a) => a.leads_offplan },
     leads_secondary: { type: "number", get: (a) => a.leads_secondary },
@@ -1632,12 +1670,21 @@ function renderManagerAgentTable(agents) {
     attendance: { type: "number", get: (a) => a.attendance },
   });
 
+  if (!sortedAgents.length) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="13" class="table-empty-state">No ${isDismissedTab ? "dismissed" : "active"} agents found for this team.</td>
+      </tr>
+    `;
+    return;
+  }
+
   tbody.innerHTML = sortedAgents
     .map((a) => {
       const { daysClass, daysLabel } = getDaysBadgeMeta(a.last_deal_days);
       const ac = getAttendanceBadgeClass(a.attendance, a.attendance_total);
       return `<tr onclick="drillToAgent(${a.id})">
-        <td><div class="agent-name-cell"><div class="agent-mini-avatar">${initials(a.name)}</div><div><div style="font-weight:600">${a.name} ${a.is_transferred ? `<span class="days-badge warn" style="font-size:9px;padding:2px 4px;margin-left:6px;display:inline-flex;">No longer in dept${a.transferred_at ? ' (since ' + a.transferred_at + ')' : ''}</span>` : ''}</div><div style="font-size:10px;color:var(--grey-400)">${a.designation}</div></div></div></td>
+        <td><div class="agent-name-cell"><div class="agent-mini-avatar">${initials(a.name)}</div><div><div style="font-weight:600">${a.name} ${a.is_dismissed ? `<span class="days-badge crit" style="font-size:9px;padding:2px 4px;margin-left:6px;display:inline-flex;">Dismissed</span>` : (a.is_transferred ? `<span class="days-badge warn" style="font-size:9px;padding:2px 4px;margin-left:6px;display:inline-flex;">No longer in dept${a.transferred_at ? ' (since ' + a.transferred_at + ')' : ''}</span>` : '')}</div><div style="font-size:10px;color:var(--grey-400)">${a.designation}</div></div></div></td>
         <td>${a.leads_offplan}</td>
         <td>${a.leads_secondary}</td>
         <td>${a.reshuffled_leads}</td>
@@ -2177,6 +2224,20 @@ function renderManager(data) {
     "managerLeadSourceSecondaryVal",
     "Leads",
   );
+  renderBreakdownDonut(
+    mgr.deal_closure_source_offplan,
+    "managerDealClosureSourceOffplanChart",
+    "managerDealClosureSourceOffplanLegend",
+    "managerDealClosureSourceOffplanVal",
+    "Transactions",
+  );
+  renderBreakdownDonut(
+    mgr.deal_closure_source_secondary,
+    "managerDealClosureSourceSecondaryChart",
+    "managerDealClosureSourceSecondaryLegend",
+    "managerDealClosureSourceSecondaryVal",
+    "Transactions",
+  );
 
   // Comm split
   document.getElementById("managerCommSplit").innerHTML = `
@@ -2465,6 +2526,20 @@ function renderAgent(data) {
     "agentLeadSourceSecondaryLegend",
     "agentLeadSourceSecondaryVal",
     "Leads",
+  );
+  renderBreakdownDonut(
+    ag.deal_closure_source_offplan,
+    "agentDealClosureSourceOffplanChart",
+    "agentDealClosureSourceOffplanLegend",
+    "agentDealClosureSourceOffplanVal",
+    "Transactions",
+  );
+  renderBreakdownDonut(
+    ag.deal_closure_source_secondary,
+    "agentDealClosureSourceSecondaryChart",
+    "agentDealClosureSourceSecondaryLegend",
+    "agentDealClosureSourceSecondaryVal",
+    "Transactions",
   );
 
   // Ticket size

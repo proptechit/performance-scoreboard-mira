@@ -280,6 +280,40 @@
                     </div>
                     <div class="chart-legend" id="ceoLeadSourceSecondaryLegend"></div>
                 </div>
+
+                <div class="chart-card">
+                    <div class="chart-card-header">
+                        <div>
+                            <div class="chart-card-title">Offplan Deal Closure by Source</div>
+                            <div class="chart-card-subtitle">Source breakdown for closed transactions (Offplan)</div>
+                        </div>
+                    </div>
+                    <div class="donut-wrapper" style="height:220px;">
+                        <canvas id="ceoDealClosureSourceOffplanChart"></canvas>
+                        <div class="donut-center">
+                            <div class="donut-center-value" id="ceoDealClosureSourceOffplanVal">–</div>
+                            <div class="donut-center-label">Transactions</div>
+                        </div>
+                    </div>
+                    <div class="chart-legend" id="ceoDealClosureSourceOffplanLegend"></div>
+                </div>
+
+                <div class="chart-card">
+                    <div class="chart-card-header">
+                        <div>
+                            <div class="chart-card-title">Secondary Deal Closure by Source</div>
+                            <div class="chart-card-subtitle">Source breakdown for closed transactions (Secondary)</div>
+                        </div>
+                    </div>
+                    <div class="donut-wrapper" style="height:220px;">
+                        <canvas id="ceoDealClosureSourceSecondaryChart"></canvas>
+                        <div class="donut-center">
+                            <div class="donut-center-value" id="ceoDealClosureSourceSecondaryVal">–</div>
+                            <div class="donut-center-label">Transactions</div>
+                        </div>
+                    </div>
+                    <div class="chart-legend" id="ceoDealClosureSourceSecondaryLegend"></div>
+                </div>
             </div>
 
             <!-- Sales & Commission by Deal Type -->
@@ -569,11 +603,54 @@
                     </div>
                     <div class="chart-legend" id="managerLeadSourceSecondaryLegend"></div>
                 </div>
+
+                <div class="chart-card">
+                    <div class="chart-card-header">
+                        <div>
+                            <div class="chart-card-title">Offplan Deal Closure by Source</div>
+                            <div class="chart-card-subtitle">Source breakdown for closed transactions (Offplan)</div>
+                        </div>
+                    </div>
+                    <div class="donut-wrapper" style="height:220px;">
+                        <canvas id="managerDealClosureSourceOffplanChart"></canvas>
+                        <div class="donut-center">
+                            <div class="donut-center-value" id="managerDealClosureSourceOffplanVal">–</div>
+                            <div class="donut-center-label">Transactions</div>
+                        </div>
+                    </div>
+                    <div class="chart-legend" id="managerDealClosureSourceOffplanLegend"></div>
+                </div>
+
+                <div class="chart-card">
+                    <div class="chart-card-header">
+                        <div>
+                            <div class="chart-card-title">Secondary Deal Closure by Source</div>
+                            <div class="chart-card-subtitle">Source breakdown for closed transactions (Secondary)</div>
+                        </div>
+                    </div>
+                    <div class="donut-wrapper" style="height:220px;">
+                        <canvas id="managerDealClosureSourceSecondaryChart"></canvas>
+                        <div class="donut-center">
+                            <div class="donut-center-value" id="managerDealClosureSourceSecondaryVal">–</div>
+                            <div class="donut-center-label">Transactions</div>
+                        </div>
+                    </div>
+                    <div class="chart-legend" id="managerDealClosureSourceSecondaryLegend"></div>
+                </div>
             </div>
 
             <div class="chart-card mb-24">
                 <div class="chart-card-header">
-                    <div class="chart-card-title">Team Agents</div>
+                    <div>
+                        <div class="chart-card-title">Team Agents</div>
+                        <div class="chart-card-subtitle" id="managerAgentCountBadge"></div>
+                    </div>
+                    <div class="status-toggle-wrapper">
+                        <div class="status-toggle" id="managerAgentStatusToggle">
+                            <button type="button" class="status-tab active" data-status="active" onclick="toggleManagerAgentStatus('active')">Active</button>
+                            <button type="button" class="status-tab" data-status="dismissed" onclick="toggleManagerAgentStatus('dismissed')">Dismissed</button>
+                        </div>
+                    </div>
                 </div>
                 <div class="agent-table-wrapper">
                     <table class="agent-table">
@@ -732,6 +809,40 @@
                         </div>
                     </div>
                     <div class="chart-legend" id="agentLeadSourceSecondaryLegend"></div>
+                </div>
+
+                <div class="chart-card">
+                    <div class="chart-card-header">
+                        <div>
+                            <div class="chart-card-title">Offplan Deal Closure by Source</div>
+                            <div class="chart-card-subtitle">Source breakdown for closed transactions (Offplan)</div>
+                        </div>
+                    </div>
+                    <div class="donut-wrapper" style="height:220px;">
+                        <canvas id="agentDealClosureSourceOffplanChart"></canvas>
+                        <div class="donut-center">
+                            <div class="donut-center-value" id="agentDealClosureSourceOffplanVal">–</div>
+                            <div class="donut-center-label">Transactions</div>
+                        </div>
+                    </div>
+                    <div class="chart-legend" id="agentDealClosureSourceOffplanLegend"></div>
+                </div>
+
+                <div class="chart-card">
+                    <div class="chart-card-header">
+                        <div>
+                            <div class="chart-card-title">Secondary Deal Closure by Source</div>
+                            <div class="chart-card-subtitle">Source breakdown for closed transactions (Secondary)</div>
+                        </div>
+                    </div>
+                    <div class="donut-wrapper" style="height:220px;">
+                        <canvas id="agentDealClosureSourceSecondaryChart"></canvas>
+                        <div class="donut-center">
+                            <div class="donut-center-value" id="agentDealClosureSourceSecondaryVal">–</div>
+                            <div class="donut-center-label">Transactions</div>
+                        </div>
+                    </div>
+                    <div class="chart-legend" id="agentDealClosureSourceSecondaryLegend"></div>
                 </div>
             </div>
 
