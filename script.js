@@ -2750,3 +2750,361 @@ function renderPagination(containerId, currentPage, totalItems, pageSize, onPage
     </div>
   `;
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PDF EXPORT
+// ═══════════════════════════════════════════════════════════════════════════
+async function downloadReportPdf() {
+  if (!currentData) {
+    alert("No report data loaded to export.");
+    return;
+  }
+
+  const btn = document.getElementById("btnDownloadPdf");
+  const overlay = document.getElementById("pdfGeneratingOverlay");
+
+  try {
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = `
+        <svg class="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10" stroke-opacity="0.25" />
+          <path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round" />
+        </svg>
+        <span>Generating...</span>
+      `;
+    }
+    if (overlay) overlay.classList.remove("hidden");
+
+    // Allow UI to render the overlay
+    await new Promise((resolve) => setTimeout(resolve, 80));
+
+    if (typeof html2pdf === "undefined") {
+      alert("PDF generation library is loading. Please try again in a moment.");
+      return;
+    }
+
+    const role = currentData.view || "ceo";
+    let activeViewEl = null;
+    let subtitle = "Company Executive Overview";
+    let filePrefix = "CEO_Overview";
+
+    if (role === "ceo") {
+      activeViewEl = document.getElementById("view-ceo");
+      subtitle = "Executive Company-Wide Overview";
+      filePrefix = "CEO_Overview";
+    } else if (role === "manager") {
+      activeViewEl = document.getElementById("view-manager");
+      const mgrName = currentData.manager?.profile?.name || "Manager";
+      const teamName = currentData.manager?.profile?.team_name || "Team";
+      subtitle = `Sales Team: ${teamName} | Manager: ${mgrName}`;
+      filePrefix = `Manager_${teamName.replace(/[^a-zA-Z0-9_-]/g, "_")}_${mgrName.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
+    } else if (role === "agent") {
+      activeViewEl = document.getElementById("view-agent");
+      const agentName = currentData.agent?.profile?.name || "Agent";
+      const desig = currentData.agent?.profile?.designation || "";
+      subtitle = `Agent: ${agentName} ${desig ? `(${desig})` : ""} | Manager: ${currentData.agent?.profile?.manager || "N/A"}`;
+      filePrefix = `Agent_${agentName.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
+    }
+
+    if (!activeViewEl || activeViewEl.classList.contains("hidden")) {
+      alert("Active report view not found.");
+      return;
+    }
+
+    const filters = getFilterParams();
+    const periodParts = [];
+    if (filters.year && filters.year !== "All") periodParts.push(filters.year);
+    if (filters.quarter && filters.quarter !== "All") periodParts.push(filters.quarter);
+    if (filters.month && filters.month !== "All") periodParts.push(filters.month);
+    const periodLabel = periodParts.length > 0 ? periodParts.join(" - ") : "All Time";
+    const dealTypeLabel = filters.deal_type || "All";
+
+    const now = new Date();
+    const generatedDateStr = now.toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    }) + " " + now.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+    const dateFileStr = now.toISOString().slice(0, 10);
+
+    // Create temporary export container
+    const exportWrapper = document.createElement("div");
+    exportWrapper.className = "pdf-export-container";
+    exportWrapper.style.width = "1180px";
+    exportWrapper.style.position = "absolute";
+    exportWrapper.style.left = "-99999px";
+    exportWrapper.style.top = "0";
+    exportWrapper.style.background = "#ffffff";
+    exportWrapper.style.color = "#0f1e35";
+
+    // Header
+    const headerHtml = `
+      <div class="pdf-header">
+        <div class="pdf-brand">
+          <img src="logo.svg" alt="Mira International" style="height:32px;width:auto;" />
+          <div class="pdf-title-block">
+            <h1>Performance Scorecard</h1>
+            <p>${subtitle}</p>
+          </div>
+        </div>
+        <div class="pdf-meta-pills">
+          <span class="pdf-meta-pill">Period: <strong>${periodLabel}</strong></span>
+          <span class="pdf-meta-pill">Deal Type: <strong>${dealTypeLabel}</strong></span>
+          <span class="pdf-meta-pill">Generated: ${generatedDateStr}</span>
+        </div>
+      </div>
+    `;
+
+    // Clone the active view
+    const viewClone = activeViewEl.cloneNode(true);
+    viewClone.classList.remove("hidden");
+    viewClone.style.display = "block";
+
+    // Convert live canvases to high-res images in clone
+    const liveCanvases = activeViewEl.querySelectorAll("canvas");
+    const cloneCanvases = viewClone.querySelectorAll("canvas");
+    cloneCanvases.forEach((cloneCanvas, idx) => {
+      const liveCanvas = liveCanvases[idx];
+      if (liveCanvas && liveCanvas.width > 0 && liveCanvas.height > 0) {
+        const img = document.createElement("img");
+        try {
+          img.src = liveCanvas.toDataURL("image/png", 1.0);
+          img.style.width = "100%";
+          img.style.height = "100%";
+          img.style.maxHeight = cloneCanvas.style.height || "220px";
+          img.style.objectFit = "contain";
+          img.style.display = "block";
+          img.style.margin = "0 auto";
+          cloneCanvas.parentNode.replaceChild(img, cloneCanvas);
+        } catch (e) {
+          console.warn("Could not export canvas image:", e);
+        }
+      }
+    });
+
+    // Handle full table data export (remove pagination slicing for PDF export)
+    if (role === "ceo" && currentData.agent_performance) {
+      // 1. Full Regular Agents table
+      const regularAgents = currentData.agent_performance.filter(
+        (a) =>
+          !((a.designation || "").trim().toLowerCase().startsWith("private office") || a.department_id === 23) ||
+          (a.original_department_id && a.original_department_id > 0),
+      );
+      const sortedRegular = sortCollection(regularAgents, "agentTable", {
+        name: { type: "string", get: (a) => a.name },
+        reshuffled_leads: { type: "number", get: (a) => a.reshuffled_leads },
+        deals: { type: "number", get: (a) => a.deals },
+        total_listings: { type: "number", get: (a) => a.total_listings },
+        active_listings: { type: "number", get: (a) => a.active_listings },
+        pocket_listings: { type: "number", get: (a) => a.pocket_listings },
+        sales: { type: "number", get: (a) => a.sales },
+        commission: { type: "number", get: (a) => a.commission },
+        top_deal: { type: "number", get: (a) => a.top_deal },
+        avg_gap: { type: "number", get: (a) => a.avg_gap },
+        last_deal_days: { type: "number", get: (a) => a.last_deal_days },
+        attendance: { type: "number", get: (a) => a.attendance },
+      });
+
+      const cloneAgentTbody = viewClone.querySelector("#agentTableBody");
+      if (cloneAgentTbody && sortedRegular.length > 0) {
+        cloneAgentTbody.innerHTML = sortedRegular
+          .map((a) => {
+            const { daysClass, daysLabel } = getDaysBadgeMeta(a.last_deal_days);
+            const ac = getAttendanceBadgeClass(a.attendance, a.attendance_total);
+            return `
+            <tr>
+              <td>
+                <div class="agent-name-cell">
+                  <div class="agent-mini-avatar">${initials(a.name)}</div>
+                  <div>
+                    <div style="font-weight:600;">${a.name} ${a.is_transferred ? `<span class="days-badge warn" style="font-size:9px;padding:2px 4px;margin-left:6px;display:inline-flex;">No longer in dept</span>` : ''}</div>
+                    <div style="font-size:10px;color:var(--grey-400);">${a.designation}</div>
+                  </div>
+                </div>
+              </td>
+              <td>${a.reshuffled_leads}</td>
+              <td style="font-weight:600;">${a.deals}</td>
+              <td style="font-weight:600;">${a.total_listings}</td>
+              <td>${a.active_listings}</td>
+              <td>${a.pocket_listings}</td>
+              <td>AED ${fmtCurrency(a.sales)}</td>
+              <td>AED ${fmtCurrency(a.commission)}</td>
+              <td>AED ${fmtCurrency(a.top_deal, true)}</td>
+              <td>${a.avg_gap === 999 ? '–' : a.avg_gap + ' days'}</td>
+              <td><span class="days-badge ${daysClass}">${daysLabel}</span></td>
+              <td><span class="days-badge ${ac}">${a.attendance} / ${a.attendance_total || 30} days</span></td>
+            </tr>
+            `;
+          })
+          .join("");
+      }
+
+      // 2. Full PO Agents table
+      const poAgents = currentData.agent_performance.filter(
+        (a) => (a.designation || "").trim().toLowerCase().startsWith("private office") || a.department_id === 23,
+      );
+      const sortedPo = sortCollection(poAgents, "agentPrivateOfficeTable", {
+        name: { type: "string", get: (a) => a.name },
+        reshuffled_leads: { type: "number", get: (a) => a.reshuffled_leads },
+        leads_offplan: { type: "number", get: (a) => a.leads_offplan },
+        leads_secondary: { type: "number", get: (a) => a.leads_secondary },
+        deals: { type: "number", get: (a) => a.deals },
+        total_listings: { type: "number", get: (a) => a.total_listings },
+        active_listings: { type: "number", get: (a) => a.active_listings },
+        pocket_listings: { type: "number", get: (a) => a.pocket_listings },
+        sales: { type: "number", get: (a) => a.sales },
+        commission: { type: "number", get: (a) => a.commission },
+        top_deal: { type: "number", get: (a) => a.top_deal },
+        avg_gap: { type: "number", get: (a) => a.avg_gap },
+        last_deal_days: { type: "number", get: (a) => a.last_deal_days },
+        attendance: { type: "number", get: (a) => a.attendance },
+      });
+
+      const clonePoTbody = viewClone.querySelector("#agentPrivateOfficeTableBody");
+      if (clonePoTbody && sortedPo.length > 0) {
+        clonePoTbody.innerHTML = sortedPo
+          .map((a) => {
+            const { daysClass, daysLabel } = getDaysBadgeMeta(a.last_deal_days);
+            const ac = getAttendanceBadgeClass(a.attendance, a.attendance_total);
+            return `
+            <tr>
+              <td>
+                <div class="agent-name-cell">
+                  <div class="agent-mini-avatar">${initials(a.name)}</div>
+                  <div>
+                    <div style="font-weight:600;">${a.name}</div>
+                    <div style="font-size:10px;color:var(--grey-400);">${a.designation}</div>
+                  </div>
+                </div>
+              </td>
+              <td>${a.reshuffled_leads}</td>
+              <td style="font-weight:600;">${a.deals}</td>
+              <td>${a.leads_offplan}</td>
+              <td>${a.leads_secondary}</td>
+              <td style="font-weight:600;">${a.total_listings}</td>
+              <td>${a.active_listings}</td>
+              <td>${a.pocket_listings}</td>
+              <td>AED ${fmtCurrency(a.sales)}</td>
+              <td>AED ${fmtCurrency(a.commission)}</td>
+              <td>AED ${fmtCurrency(a.top_deal, true)}</td>
+              <td>${a.avg_gap === 999 ? '–' : a.avg_gap + ' days'}</td>
+              <td><span class="days-badge ${daysClass}">${daysLabel}</span></td>
+              <td><span class="days-badge ${ac}">${a.attendance} / ${a.attendance_total || 30} days</span></td>
+            </tr>
+            `;
+          })
+          .join("");
+      }
+    } else if (role === "manager" && currentData.all_agents) {
+      // Full manager agents table (matching current tab filter)
+      const isDismissedTab = managerAgentStatusFilter === "dismissed";
+      const statusFilteredAgents = (currentData.all_agents || []).filter((a) =>
+        isDismissedTab ? a.is_dismissed === true : a.is_dismissed !== true,
+      );
+      const sortedMgrAgents = sortCollection(statusFilteredAgents, "managerAgentTable", {
+        name: { type: "string", get: (a) => a.name },
+        leads_offplan: { type: "number", get: (a) => a.leads_offplan },
+        leads_secondary: { type: "number", get: (a) => a.leads_secondary },
+        reshuffled_leads: { type: "number", get: (a) => a.reshuffled_leads },
+        deals: { type: "number", get: (a) => a.deals },
+        active_listings: { type: "number", get: (a) => a.active_listings },
+        pocket_listings: { type: "number", get: (a) => a.pocket_listings },
+        total_listings: { type: "number", get: (a) => a.total_listings },
+        sales: { type: "number", get: (a) => a.sales },
+        commission: { type: "number", get: (a) => a.commission },
+        top_deal: { type: "number", get: (a) => a.top_deal },
+        last_deal_days: { type: "number", get: (a) => a.last_deal_days },
+        attendance: { type: "number", get: (a) => a.attendance },
+      });
+
+      const cloneMgrTbody = viewClone.querySelector("#managerAgentTableBody");
+      if (cloneMgrTbody && sortedMgrAgents.length > 0) {
+        cloneMgrTbody.innerHTML = sortedMgrAgents
+          .map((a) => {
+            const { daysClass, daysLabel } = getDaysBadgeMeta(a.last_deal_days);
+            const ac = getAttendanceBadgeClass(a.attendance, a.attendance_total);
+            return `<tr>
+              <td><div class="agent-name-cell"><div class="agent-mini-avatar">${initials(a.name)}</div><div><div style="font-weight:600">${a.name} ${a.is_dismissed ? `<span class="days-badge crit" style="font-size:9px;padding:2px 4px;margin-left:6px;display:inline-flex;">Dismissed</span>` : (a.is_transferred ? `<span class="days-badge warn" style="font-size:9px;padding:2px 4px;margin-left:6px;display:inline-flex;">No longer in dept</span>` : '')}</div><div style="font-size:10px;color:var(--grey-400)">${a.designation}</div></div></div></td>
+              <td>${a.leads_offplan}</td>
+              <td>${a.leads_secondary}</td>
+              <td>${a.reshuffled_leads}</td>
+              <td>${a.deals}</td>
+              <td>${a.active_listings}</td>
+              <td>${a.pocket_listings}</td>
+              <td>${a.total_listings}</td>
+              <td>AED ${fmtCurrency(a.sales)}</td>
+              <td>AED ${fmtCurrency(a.commission)}</td>
+              <td>AED ${fmtCurrency(a.top_deal, true)}</td>
+              <td><span class="days-badge ${daysClass}">${daysLabel}</span></td>
+              <td><span class="days-badge ${ac}">${a.attendance} / ${a.attendance_total || 30} days</span></td>
+            </tr>`;
+          })
+          .join("");
+      }
+    }
+
+    // Clean up UI-only elements in clone
+    viewClone.querySelectorAll(".view-back-button, .table-pagination-container, .agent-search-wrapper, .status-toggle-wrapper, .year-compare-controls").forEach((el) => {
+      el.remove();
+    });
+
+    // Add CSS break avoidance classes
+    viewClone.querySelectorAll(".kpi-card, .chart-card, tr, .profile-banner").forEach((el) => {
+      el.classList.add("pdf-avoid-break");
+    });
+
+    exportWrapper.innerHTML = headerHtml;
+    exportWrapper.appendChild(viewClone);
+    document.body.appendChild(exportWrapper);
+
+    const fileName = `Mira_Scorecard_${filePrefix}_${dateFileStr}.pdf`;
+
+    const opt = {
+      margin: [10, 10, 10, 10],
+      filename: fileName,
+      image: { type: "jpeg", quality: 0.98 },
+      html2canvas: {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        letterRendering: true,
+        backgroundColor: "#ffffff",
+      },
+      jsPDF: {
+        unit: "mm",
+        format: "a4",
+        orientation: "landscape",
+      },
+      pagebreak: { mode: ["avoid-all", "css", "legacy"] },
+    };
+
+    await html2pdf().from(exportWrapper).set(opt).save();
+
+    // Clean up
+    if (exportWrapper.parentNode) {
+      exportWrapper.parentNode.removeChild(exportWrapper);
+    }
+  } catch (err) {
+    console.error("Failed to generate PDF report:", err);
+    alert("An error occurred while generating the PDF report: " + (err?.message || err));
+  } finally {
+    if (overlay) overlay.classList.add("hidden");
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        <span>Download PDF</span>
+      `;
+    }
+  }
+}
+

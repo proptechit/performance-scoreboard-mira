@@ -8,6 +8,7 @@
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
 
@@ -84,10 +85,27 @@
 
         <button class="btn-apply" onclick="applyFilters()">Apply</button>
         <button class="btn-secondary" onclick="resetFilters()">Reset</button>
+        <button class="btn-pdf" id="btnDownloadPdf" onclick="downloadReportPdf()" title="Download report as PDF">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            <span>Download PDF</span>
+        </button>
     </div>
 
     <!-- ── MAIN CONTENT ────────────────────────────────────────────────────────── -->
     <div class="main-content">
+
+        <!-- PDF Generating Indicator -->
+        <div id="pdfGeneratingOverlay" class="hidden pdf-generating-overlay">
+            <div class="pdf-modal-card">
+                <div class="pdf-spinner"></div>
+                <div style="font-weight:600;font-size:16px;color:var(--navy);margin-bottom:4px;">Generating PDF Report</div>
+                <div style="font-size:12px;color:var(--grey-500);">Preparing high-resolution charts and formatting data...</div>
+            </div>
+        </div>
 
         <!-- Loading Indicator -->
         <div id="loadingOverlay" class="hidden" style="text-align:center;padding:60px;color:var(--grey-400);font-size:14px;">
