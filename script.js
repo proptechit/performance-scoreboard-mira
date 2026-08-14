@@ -2752,7 +2752,7 @@ function renderPagination(containerId, currentPage, totalItems, pageSize, onPage
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// PDF EXPORT
+// PDF EXPORT (EXECUTIVE MULTI-PAGE REPORT ENGINE)
 // ═══════════════════════════════════════════════════════════════════════════
 async function downloadReportPdf() {
   if (!currentData) {
@@ -2785,31 +2785,22 @@ async function downloadReportPdf() {
     }
 
     const role = currentData.view || "ceo";
-    let activeViewEl = null;
     let subtitle = "Company Executive Overview";
     let filePrefix = "CEO_Overview";
 
     if (role === "ceo") {
-      activeViewEl = document.getElementById("view-ceo");
       subtitle = "Executive Company-Wide Overview";
       filePrefix = "CEO_Overview";
     } else if (role === "manager") {
-      activeViewEl = document.getElementById("view-manager");
       const mgrName = currentData.manager?.profile?.name || "Manager";
       const teamName = currentData.manager?.profile?.team_name || "Team";
       subtitle = `Sales Team: ${teamName} | Manager: ${mgrName}`;
       filePrefix = `Manager_${teamName.replace(/[^a-zA-Z0-9_-]/g, "_")}_${mgrName.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
     } else if (role === "agent") {
-      activeViewEl = document.getElementById("view-agent");
       const agentName = currentData.agent?.profile?.name || "Agent";
       const desig = currentData.agent?.profile?.designation || "";
       subtitle = `Agent: ${agentName} ${desig ? `(${desig})` : ""} | Manager: ${currentData.agent?.profile?.manager || "N/A"}`;
       filePrefix = `Agent_${agentName.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
-    }
-
-    if (!activeViewEl || activeViewEl.classList.contains("hidden")) {
-      alert("Active report view not found.");
-      return;
     }
 
     const filters = getFilterParams();
@@ -2832,75 +2823,321 @@ async function downloadReportPdf() {
     });
     const dateFileStr = now.toISOString().slice(0, 10);
 
-    // Create temporary export container attached to DOM in-flow behind overlay
-    const exportWrapper = document.createElement("div");
-    exportWrapper.id = "pdfReportExportContainer";
-    exportWrapper.className = "pdf-export-container";
-    exportWrapper.style.width = "1120px";
-    exportWrapper.style.maxWidth = "1120px";
-    exportWrapper.style.minWidth = "1120px";
-    exportWrapper.style.position = "absolute";
-    exportWrapper.style.top = "0";
-    exportWrapper.style.left = "0";
-    exportWrapper.style.zIndex = "-9999";
-    exportWrapper.style.opacity = "1";
-    exportWrapper.style.visibility = "visible";
-    exportWrapper.style.backgroundColor = "#ffffff";
-    exportWrapper.style.color = "#0f1e35";
-    exportWrapper.style.overflow = "visible";
-    exportWrapper.style.boxSizing = "border-box";
-    exportWrapper.style.padding = "24px";
-    exportWrapper.style.pointerEvents = "none";
+    // Helpers for rendering charts and components
+    const getChartImg = (canvasId, height = 180) => {
+      const canvas = document.getElementById(canvasId);
+      if (!canvas || canvas.width === 0 || canvas.height === 0) {
+        return `<div style="height:${height}px;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:11px;background:#f8fafc;border-radius:6px;">No chart data</div>`;
+      }
+      try {
+        const dataUrl = canvas.toDataURL("image/png", 1.0);
+        return `<img src="${dataUrl}" style="width:100%;height:${height}px;object-fit:contain;display:block;margin:0 auto;" />`;
+      } catch (e) {
+        return `<div style="height:${height}px;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:11px;background:#f8fafc;border-radius:6px;">Chart unavailable</div>`;
+      }
+    };
 
-    // Header with dark navy branding banner
-    const headerHtml = `
-      <div class="pdf-header" style="background:#0f1e35;padding:16px 24px;border-radius:8px;display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;border-bottom:3px solid #c9a84c;">
-        <div style="display:flex;align-items:center;gap:14px;">
-          <img src="logo.svg" alt="Mira International" style="height:34px;width:auto;display:block;" />
+    const getDonutCard = (title, subtitleText, canvasId, valId, valLabel, legendId, height = 120) => {
+      const chartImg = getChartImg(canvasId, height);
+      const totalVal = document.getElementById(valId)?.textContent || "–";
+      const legendHtml = document.getElementById(legendId)?.innerHTML || "";
+      return `
+        <div class="pdf-card" style="display:flex;flex-direction:column;justify-content:space-between;padding:10px 12px;height:100%;">
           <div>
-            <div style="font-size:18px;font-weight:700;color:#c9a84c;letter-spacing:0.5px;">Performance Scorecard</div>
-            <div style="font-size:12px;color:#94a3b8;margin-top:2px;">${subtitle}</div>
+            <div class="pdf-card-title">${title}</div>
+            <div class="pdf-card-subtitle">${subtitleText}</div>
+          </div>
+          <div style="position:relative;margin:4px 0;">
+            ${chartImg}
+            <div style="text-align:center;margin-top:-14px;font-size:10px;font-weight:700;color:#0f1e35;">${totalVal} <span style="font-size:9px;color:#64748b;font-weight:500;">${valLabel}</span></div>
+          </div>
+          <div style="max-height:46px;overflow:hidden;font-size:8.5px;">
+            ${legendHtml}
+          </div>
+        </div>
+      `;
+    };
+
+    const getHeaderMain = (subText) => `
+      <div class="pdf-header-main">
+        <div style="display:flex;align-items:center;gap:14px;">
+          <img src="logo.svg" alt="Mira International" style="height:32px;width:auto;display:block;" />
+          <div>
+            <div style="font-size:17px;font-weight:700;color:#c9a84c;letter-spacing:0.5px;">Performance Scorecard</div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:2px;">${subText}</div>
           </div>
         </div>
         <div style="display:flex;gap:8px;align-items:center;">
-          <span style="background:rgba(201,168,76,0.15);border:1px solid rgba(201,168,76,0.3);color:#f1f5f9;padding:4px 10px;border-radius:4px;font-size:11px;font-weight:600;">Period: ${periodLabel}</span>
-          <span style="background:rgba(201,168,76,0.15);border:1px solid rgba(201,168,76,0.3);color:#f1f5f9;padding:4px 10px;border-radius:4px;font-size:11px;font-weight:600;">Deal Type: ${dealTypeLabel}</span>
-          <span style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#94a3b8;padding:4px 10px;border-radius:4px;font-size:11px;">${generatedDateStr}</span>
+          <span style="background:rgba(201,168,76,0.15);border:1px solid rgba(201,168,76,0.3);color:#f1f5f9;padding:4px 9px;border-radius:4px;font-size:10px;font-weight:600;">Period: ${periodLabel}</span>
+          <span style="background:rgba(201,168,76,0.15);border:1px solid rgba(201,168,76,0.3);color:#f1f5f9;padding:4px 9px;border-radius:4px;font-size:10px;font-weight:600;">Deal Type: ${dealTypeLabel}</span>
+          <span style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#94a3b8;padding:4px 9px;border-radius:4px;font-size:10px;">${generatedDateStr}</span>
         </div>
       </div>
     `;
 
-    // Clone the active view
-    const viewClone = activeViewEl.cloneNode(true);
-    viewClone.classList.remove("hidden");
-    viewClone.style.display = "block";
+    const getHeaderSub = (sectionTitle, subText) => `
+      <div class="pdf-header-sub">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <img src="logo.svg" alt="Mira" style="height:18px;width:auto;display:block;filter:brightness(0.2);" />
+          <div style="font-size:13px;font-weight:700;color:#0f1e35;text-transform:uppercase;letter-spacing:0.5px;">${sectionTitle}</div>
+          <div style="font-size:11px;color:#64748b;">| ${subText}</div>
+        </div>
+        <div style="font-size:10px;color:#64748b;font-weight:600;">Period: ${periodLabel} • ${dealTypeLabel}</div>
+      </div>
+    `;
 
-    // Convert live canvases to high-res images in clone
-    const liveCanvases = activeViewEl.querySelectorAll("canvas");
-    const cloneCanvases = viewClone.querySelectorAll("canvas");
-    cloneCanvases.forEach((cloneCanvas, idx) => {
-      const liveCanvas = liveCanvases[idx];
-      if (liveCanvas && liveCanvas.width > 0 && liveCanvas.height > 0) {
-        const img = document.createElement("img");
-        try {
-          img.src = liveCanvas.toDataURL("image/png", 1.0);
-          const h = liveCanvas.offsetHeight || liveCanvas.height || 220;
-          img.style.width = "100%";
-          img.style.height = (h > 0 ? h + "px" : "220px");
-          img.style.objectFit = "contain";
-          img.style.display = "block";
-          img.style.margin = "0 auto";
-          cloneCanvas.parentNode.replaceChild(img, cloneCanvas);
-        } catch (e) {
-          console.warn("Could not export canvas image:", e);
-        }
-      }
-    });
+    const getFooter = () => `
+      <div class="pdf-page-footer">
+        <span>Mira Real Estate • Performance Scorecard</span>
+        <span class="pdf-footer-page-num" style="font-weight:700;">Page</span>
+        <span>Confidential Executive Report</span>
+      </div>
+    `;
 
-    // Handle full table data export (remove pagination slicing for PDF export)
-    if (role === "ceo" && currentData.agent_performance) {
-      // 1. Full Regular Agents table
-      const regularAgents = currentData.agent_performance.filter(
+    // Array of HTML strings for each page
+    const pagesHtmlList = [];
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 1. CEO VIEW REPORT PAGES
+    // ─────────────────────────────────────────────────────────────────────────
+    if (role === "ceo") {
+      const s = currentData.summary || {};
+      const devTableHtml = document.getElementById("developerTableBody")?.innerHTML || "";
+      const dealTypeRows = (currentData.sales_by_deal_type || [])
+        .map((r) => `
+          <tr>
+            <td style="font-weight:600;">${r.name}</td>
+            <td>AED ${fmtCurrency(r.amount)}</td>
+            <td>AED ${fmtCurrency(r.commission)}</td>
+            <td style="font-weight:600;">${r.deals}</td>
+          </tr>
+        `).join("");
+
+      // CEO Page 1: KPIs & Revenue Overview
+      pagesHtmlList.push(`
+        <div class="pdf-report-page">
+          ${getHeaderMain("Executive Company-Wide Overview")}
+          <div class="pdf-page-body">
+            <div class="pdf-kpi-grid">
+              <div class="pdf-kpi-card highlight">
+                <div class="pdf-kpi-label">Sales Volume</div>
+                <div class="pdf-kpi-value">AED ${fmtCurrency(s.total_sales_volume)}</div>
+                <div class="pdf-kpi-sub">${s.total_transactions || 0} transactions</div>
+              </div>
+              <div class="pdf-kpi-card highlight">
+                <div class="pdf-kpi-label">Commissions</div>
+                <div class="pdf-kpi-value">AED ${fmtCurrency(s.commissions)}</div>
+                <div class="pdf-kpi-sub">Total gross commission</div>
+              </div>
+              <div class="pdf-kpi-card">
+                <div class="pdf-kpi-label">Active Agents</div>
+                <div class="pdf-kpi-value">${s.active_agents || 0}</div>
+                <div class="pdf-kpi-sub">Current active staff</div>
+              </div>
+              <div class="pdf-kpi-card">
+                <div class="pdf-kpi-label">Inactive (60+ Days)</div>
+                <div class="pdf-kpi-value" style="color:#ef4444;">${s.agents_no_deal_60d || 0}</div>
+                <div class="pdf-kpi-sub">Need follow-up</div>
+              </div>
+              <div class="pdf-kpi-card">
+                <div class="pdf-kpi-label">Total Listings</div>
+                <div class="pdf-kpi-value">${s.total_listings || 0}</div>
+                <div class="pdf-kpi-sub">${s.active_listings || 0} active • ${s.pocket_listings || 0} pocket</div>
+              </div>
+              <div class="pdf-kpi-card">
+                <div class="pdf-kpi-label">Avg Sales / Trans</div>
+                <div class="pdf-kpi-value">AED ${fmtCurrency(s.avg_sales_volume)}</div>
+                <div class="pdf-kpi-sub">Per closed transaction</div>
+              </div>
+              <div class="pdf-kpi-card">
+                <div class="pdf-kpi-label">Avg Sales / Month</div>
+                <div class="pdf-kpi-value">AED ${fmtCurrency(s.avg_sales_volume_per_month)}</div>
+                <div class="pdf-kpi-sub">Monthly average</div>
+              </div>
+              <div class="pdf-kpi-card">
+                <div class="pdf-kpi-label">Highest Sale</div>
+                <div class="pdf-kpi-value">AED ${fmtCurrency(s.highest_sale)}</div>
+                <div class="pdf-kpi-sub">Deal #${s.highest_sale_deal_id || '–'}</div>
+              </div>
+              <div class="pdf-kpi-card">
+                <div class="pdf-kpi-label">Highest Commission</div>
+                <div class="pdf-kpi-value">AED ${fmtCurrency(s.highest_commission)}</div>
+                <div class="pdf-kpi-sub">Deal #${s.highest_commission_deal_id || '–'}</div>
+              </div>
+              <div class="pdf-kpi-card">
+                <div class="pdf-kpi-label">Reshuffled Leads</div>
+                <div class="pdf-kpi-value">${s.reshuffled_leads || 0}</div>
+                <div class="pdf-kpi-sub">Reallocated leads</div>
+              </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1.2fr 1fr 0.9fr;gap:12px;flex:1;min-height:0;">
+              <div class="pdf-card">
+                <div class="pdf-card-title">Commission Trend</div>
+                <div class="pdf-card-subtitle">Monthly gross commissions</div>
+                <div style="margin-top:10px;">
+                  ${getChartImg("commissionTrendChart", 190)}
+                </div>
+              </div>
+
+              ${getDonutCard("Deal Type Distribution", "By sales volume", "dealDonutChart", "donutTotalValue", "Total Sales", "dealLegend", 150)}
+
+              <div class="pdf-card" style="display:flex;flex-direction:column;justify-content:space-between;">
+                <div>
+                  <div class="pdf-card-title">Commission Split</div>
+                  <div class="pdf-card-subtitle">Committed vs Operational</div>
+                  <div style="margin-top:10px;">
+                    ${document.getElementById("commissionSplitTable")?.innerHTML || ""}
+                  </div>
+                </div>
+                <div style="padding:10px 12px;background:#0f1e35;border-radius:6px;margin-top:10px;">
+                  <div style="font-size:9px;color:#94a3b8;text-transform:uppercase;font-weight:700;">Top Deal Commission</div>
+                  <div style="font-size:18px;font-weight:700;color:#e6ca65;">${document.getElementById("topCommissionVal")?.textContent || "–"}</div>
+                  <div style="font-size:9px;color:#64748b;">${document.getElementById("topCommissionMeta")?.textContent || ""}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          ${getFooter()}
+        </div>
+      `);
+
+      // CEO Page 2: Leads by Stage & Source + Deal Closure Source
+      pagesHtmlList.push(`
+        <div class="pdf-report-page">
+          ${getHeaderSub("Leads & Deal Source Intelligence", "Pipeline breakdown & acquisition origins")}
+          <div class="pdf-page-body">
+            <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:10px;height:240px;">
+              ${getDonutCard("Offplan Leads by Stage", "Current lead mix (Offplan)", "ceoLeadStageOffplanChart", "ceoLeadStageOffplanVal", "Leads", "ceoLeadStageOffplanLegend", 110)}
+              ${getDonutCard("Secondary Leads by Stage", "Current lead mix (Secondary)", "ceoLeadStageSecondaryChart", "ceoLeadStageSecondaryVal", "Leads", "ceoLeadStageSecondaryLegend", 110)}
+              ${getDonutCard("Offplan Leads by Source", "Lead acquisition (Offplan)", "ceoLeadSourceChart", "ceoLeadSourceVal", "Leads", "ceoLeadSourceLegend", 110)}
+              ${getDonutCard("Secondary Leads by Source", "Lead acquisition (Secondary)", "ceoLeadSourceSecondaryChart", "ceoLeadSourceSecondaryVal", "Leads", "ceoLeadSourceSecondaryLegend", 110)}
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr 1.2fr;gap:10px;flex:1;min-height:0;">
+              ${getDonutCard("Offplan Deal Closure Source", "Closed deals origin (Offplan)", "ceoDealClosureSourceOffplanChart", "ceoDealClosureSourceOffplanVal", "Deals", "ceoDealClosureSourceOffplanLegend", 120)}
+              ${getDonutCard("Secondary Deal Closure Source", "Closed deals origin (Secondary)", "ceoDealClosureSourceSecondaryChart", "ceoDealClosureSourceSecondaryVal", "Deals", "ceoDealClosureSourceSecondaryLegend", 120)}
+
+              <div class="pdf-card" style="display:flex;flex-direction:column;">
+                <div class="pdf-card-title">Sales & Commission by Deal Type</div>
+                <div class="pdf-card-subtitle">Performance across deal categories</div>
+                <div style="margin-top:8px;overflow:hidden;flex:1;">
+                  <table class="pdf-table">
+                    <thead>
+                      <tr>
+                        <th>Deal Type</th>
+                        <th>Sales Volume</th>
+                        <th>Commission</th>
+                        <th>Deals</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${dealTypeRows}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+          ${getFooter()}
+        </div>
+      `);
+
+      // CEO Page 3: Target vs Actual + Top Developers
+      pagesHtmlList.push(`
+        <div class="pdf-report-page">
+          ${getHeaderSub("Target vs Actual & Developer Performance", "Revenue milestones and key developer partnerships")}
+          <div class="pdf-page-body">
+            <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:12px;flex:1;min-height:0;">
+              <div class="pdf-card" style="display:flex;flex-direction:column;justify-content:space-between;">
+                <div>
+                  <div class="pdf-card-title">Target vs Actual Performance</div>
+                  <div class="pdf-card-subtitle">Monthly sales targets vs achieved volume</div>
+                  <div style="margin-top:12px;">
+                    ${getChartImg("targetActualChart", 280)}
+                  </div>
+                </div>
+                <div style="padding:10px;background:#f8fafc;border-radius:6px;display:flex;gap:20px;margin-top:10px;">
+                  ${document.getElementById("targetActualStats")?.innerHTML || ""}
+                </div>
+              </div>
+
+              <div class="pdf-card" style="display:flex;flex-direction:column;">
+                <div class="pdf-card-title">Top Performing Developers</div>
+                <div class="pdf-card-subtitle">Volume and gross commission by partner</div>
+                <div style="margin-top:8px;overflow:hidden;flex:1;">
+                  <table class="pdf-table">
+                    <thead>
+                      <tr>
+                        <th>Developer</th>
+                        <th>Amount (AED)</th>
+                        <th>Commission</th>
+                        <th>Deals</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${devTableHtml}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+          ${getFooter()}
+        </div>
+      `);
+
+      // CEO Page 4: Team Performance Scoreboard
+      const teamRows = (currentData.team_performance || [])
+        .map((t, idx) => `
+          <tr>
+            <td style="font-weight:700;color:#0f1e35;">#${idx + 1}</td>
+            <td style="font-weight:600;">${t.name}</td>
+            <td style="color:#64748b;">${t.head_user_name || '–'}</td>
+            <td style="font-weight:600;text-align:center;">${t.deals}</td>
+            <td style="text-align:center;">${t.leads_offplan}</td>
+            <td style="text-align:center;">${t.leads_secondary}</td>
+            <td style="text-align:center;">${t.total_listings}</td>
+            <td>AED ${fmtCurrency(t.sales)}</td>
+            <td style="font-weight:600;color:#0f1e35;">AED ${fmtCurrency(t.commission)}</td>
+            <td>AED ${fmtCurrency(t.top_deal, true)}</td>
+            <td><span class="days-badge ${getDaysBadgeMeta(t.last_deal_days).daysClass}">${getDaysBadgeMeta(t.last_deal_days).daysLabel}</span></td>
+          </tr>
+        `).join("");
+
+      pagesHtmlList.push(`
+        <div class="pdf-report-page">
+          ${getHeaderSub("Sales Teams Performance Leaderboard", "Comparative ranking of all sales departments")}
+          <div class="pdf-page-body">
+            <div class="pdf-card" style="flex:1;overflow:hidden;">
+              <table class="pdf-table">
+                <thead>
+                  <tr>
+                    <th>Rank</th>
+                    <th>Team</th>
+                    <th>Head of Dept</th>
+                    <th style="text-align:center;">Deals</th>
+                    <th style="text-align:center;">Leads (Off)</th>
+                    <th style="text-align:center;">Leads (Sec)</th>
+                    <th style="text-align:center;">Listings</th>
+                    <th>Sales Volume</th>
+                    <th>Commissions</th>
+                    <th>Top Deal</th>
+                    <th>Last Deal</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${teamRows}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          ${getFooter()}
+        </div>
+      `);
+
+      // CEO Pages 5+: Agent Performance Tables (Chunked cleanly)
+      const regularAgents = (currentData.agent_performance || []).filter(
         (a) =>
           !((a.designation || "").trim().toLowerCase().startsWith("private office") || a.department_id === 23) ||
           (a.original_department_id && a.original_department_id > 0),
@@ -2920,98 +3157,263 @@ async function downloadReportPdf() {
         attendance: { type: "number", get: (a) => a.attendance },
       });
 
-      const cloneAgentTbody = viewClone.querySelector("#agentTableBody");
-      if (cloneAgentTbody && sortedRegular.length > 0) {
-        cloneAgentTbody.innerHTML = sortedRegular
-          .map((a) => {
-            const { daysClass, daysLabel } = getDaysBadgeMeta(a.last_deal_days);
-            const ac = getAttendanceBadgeClass(a.attendance, a.attendance_total);
-            return `
+      const chunkSize = 16;
+      for (let i = 0; i < sortedRegular.length; i += chunkSize) {
+        const chunk = sortedRegular.slice(i, i + chunkSize);
+        const agentChunkRows = chunk.map((a, cIdx) => {
+          const rank = i + cIdx + 1;
+          const { daysClass, daysLabel } = getDaysBadgeMeta(a.last_deal_days);
+          const ac = getAttendanceBadgeClass(a.attendance, a.attendance_total);
+          return `
             <tr>
+              <td style="font-weight:700;color:#0f1e35;">#${rank}</td>
               <td>
-                <div class="agent-name-cell">
-                  <div class="agent-mini-avatar">${initials(a.name)}</div>
-                  <div>
-                    <div style="font-weight:600;">${a.name} ${a.is_transferred ? `<span class="days-badge warn" style="font-size:9px;padding:2px 4px;margin-left:6px;display:inline-flex;">No longer in dept</span>` : ''}</div>
-                    <div style="font-size:10px;color:var(--grey-400);">${a.designation}</div>
-                  </div>
-                </div>
+                <div style="font-weight:600;font-size:10px;">${a.name}</div>
+                <div style="font-size:8.5px;color:#64748b;">${a.designation || ''}</div>
               </td>
-              <td>${a.reshuffled_leads}</td>
-              <td style="font-weight:600;">${a.deals}</td>
-              <td style="font-weight:600;">${a.total_listings}</td>
-              <td>${a.active_listings}</td>
-              <td>${a.pocket_listings}</td>
+              <td style="text-align:center;">${a.reshuffled_leads}</td>
+              <td style="font-weight:700;text-align:center;">${a.deals}</td>
+              <td style="text-align:center;">${a.total_listings}</td>
+              <td style="text-align:center;">${a.active_listings}</td>
               <td>AED ${fmtCurrency(a.sales)}</td>
-              <td>AED ${fmtCurrency(a.commission)}</td>
+              <td style="font-weight:700;color:#0f1e35;">AED ${fmtCurrency(a.commission)}</td>
               <td>AED ${fmtCurrency(a.top_deal, true)}</td>
-              <td>${a.avg_gap === 999 ? '–' : a.avg_gap + ' days'}</td>
               <td><span class="days-badge ${daysClass}">${daysLabel}</span></td>
-              <td><span class="days-badge ${ac}">${a.attendance} / ${a.attendance_total || 30} days</span></td>
+              <td><span class="days-badge ${ac}">${a.attendance} / ${a.attendance_total || 30}d</span></td>
             </tr>
-            `;
-          })
-          .join("");
+          `;
+        }).join("");
+
+        pagesHtmlList.push(`
+          <div class="pdf-report-page">
+            ${getHeaderSub("Agent Performance Leaderboard", `Rankings ${i + 1} to ${Math.min(i + chunkSize, sortedRegular.length)} of ${sortedRegular.length} agents`)}
+            <div class="pdf-page-body">
+              <div class="pdf-card" style="flex:1;overflow:hidden;">
+                <table class="pdf-table">
+                  <thead>
+                    <tr>
+                      <th>Rank</th>
+                      <th>Agent</th>
+                      <th style="text-align:center;">Reshuffled</th>
+                      <th style="text-align:center;">Deals</th>
+                      <th style="text-align:center;">Listings</th>
+                      <th style="text-align:center;">Active</th>
+                      <th>Sales Volume</th>
+                      <th>Commission</th>
+                      <th>Top Deal</th>
+                      <th>Last Deal</th>
+                      <th>Attendance</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${agentChunkRows}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            ${getFooter()}
+          </div>
+        `);
       }
 
-      // 2. Full PO Agents table
-      const poAgents = currentData.agent_performance.filter(
+      // CEO Page Final: Private Office Agents
+      const poAgents = (currentData.agent_performance || []).filter(
         (a) => (a.designation || "").trim().toLowerCase().startsWith("private office") || a.department_id === 23,
       );
-      const sortedPo = sortCollection(poAgents, "agentPrivateOfficeTable", {
-        name: { type: "string", get: (a) => a.name },
-        reshuffled_leads: { type: "number", get: (a) => a.reshuffled_leads },
-        leads_offplan: { type: "number", get: (a) => a.leads_offplan },
-        leads_secondary: { type: "number", get: (a) => a.leads_secondary },
-        deals: { type: "number", get: (a) => a.deals },
-        total_listings: { type: "number", get: (a) => a.total_listings },
-        active_listings: { type: "number", get: (a) => a.active_listings },
-        pocket_listings: { type: "number", get: (a) => a.pocket_listings },
-        sales: { type: "number", get: (a) => a.sales },
-        commission: { type: "number", get: (a) => a.commission },
-        top_deal: { type: "number", get: (a) => a.top_deal },
-        avg_gap: { type: "number", get: (a) => a.avg_gap },
-        last_deal_days: { type: "number", get: (a) => a.last_deal_days },
-        attendance: { type: "number", get: (a) => a.attendance },
-      });
+      if (poAgents.length > 0) {
+        const sortedPo = sortCollection(poAgents, "agentPrivateOfficeTable", {
+          name: { type: "string", get: (a) => a.name },
+          reshuffled_leads: { type: "number", get: (a) => a.reshuffled_leads },
+          leads_offplan: { type: "number", get: (a) => a.leads_offplan },
+          leads_secondary: { type: "number", get: (a) => a.leads_secondary },
+          deals: { type: "number", get: (a) => a.deals },
+          total_listings: { type: "number", get: (a) => a.total_listings },
+          sales: { type: "number", get: (a) => a.sales },
+          commission: { type: "number", get: (a) => a.commission },
+          top_deal: { type: "number", get: (a) => a.top_deal },
+          last_deal_days: { type: "number", get: (a) => a.last_deal_days },
+          attendance: { type: "number", get: (a) => a.attendance },
+        });
 
-      const clonePoTbody = viewClone.querySelector("#agentPrivateOfficeTableBody");
-      if (clonePoTbody && sortedPo.length > 0) {
-        clonePoTbody.innerHTML = sortedPo
-          .map((a) => {
-            const { daysClass, daysLabel } = getDaysBadgeMeta(a.last_deal_days);
-            const ac = getAttendanceBadgeClass(a.attendance, a.attendance_total);
-            return `
+        const poRows = sortedPo.map((a, idx) => {
+          const { daysClass, daysLabel } = getDaysBadgeMeta(a.last_deal_days);
+          const ac = getAttendanceBadgeClass(a.attendance, a.attendance_total);
+          return `
             <tr>
-              <td>
-                <div class="agent-name-cell">
-                  <div class="agent-mini-avatar">${initials(a.name)}</div>
-                  <div>
-                    <div style="font-weight:600;">${a.name}</div>
-                    <div style="font-size:10px;color:var(--grey-400);">${a.designation}</div>
+              <td style="font-weight:700;color:#0f1e35;">#${idx + 1}</td>
+              <td style="font-weight:600;">${a.name}</td>
+              <td style="text-align:center;">${a.deals}</td>
+              <td style="text-align:center;">${a.leads_offplan}</td>
+              <td style="text-align:center;">${a.leads_secondary}</td>
+              <td style="text-align:center;">${a.total_listings}</td>
+              <td>AED ${fmtCurrency(a.sales)}</td>
+              <td style="font-weight:700;color:#0f1e35;">AED ${fmtCurrency(a.commission)}</td>
+              <td>AED ${fmtCurrency(a.top_deal, true)}</td>
+              <td><span class="days-badge ${daysClass}">${daysLabel}</span></td>
+              <td><span class="days-badge ${ac}">${a.attendance} / ${a.attendance_total || 30}d</span></td>
+            </tr>
+          `;
+        }).join("");
+
+        pagesHtmlList.push(`
+          <div class="pdf-report-page">
+            ${getHeaderSub("Private Office Performance", "Dedicated high-net-worth sales advisory team")}
+            <div class="pdf-page-body">
+              <div class="pdf-card" style="flex:1;overflow:hidden;">
+                <table class="pdf-table">
+                  <thead>
+                    <tr>
+                      <th>Rank</th>
+                      <th>Private Office Advisor</th>
+                      <th style="text-align:center;">Deals</th>
+                      <th style="text-align:center;">Leads (Off)</th>
+                      <th style="text-align:center;">Leads (Sec)</th>
+                      <th style="text-align:center;">Listings</th>
+                      <th>Sales Volume</th>
+                      <th>Commission</th>
+                      <th>Top Deal</th>
+                      <th>Last Deal</th>
+                      <th>Attendance</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${poRows}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            ${getFooter()}
+          </div>
+        `);
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 2. MANAGER VIEW REPORT PAGES
+    // ─────────────────────────────────────────────────────────────────────────
+    else if (role === "manager") {
+      const mgr = currentData.manager || {};
+      const p = mgr.profile || {};
+      const s = mgr.summary || {};
+
+      // Manager Page 1: Team KPIs & Revenue
+      pagesHtmlList.push(`
+        <div class="pdf-report-page">
+          ${getHeaderMain(`Sales Team: ${p.team_name || 'Team'} | Manager: ${p.name || 'Manager'}`)}
+          <div class="pdf-page-body">
+            <div class="pdf-kpi-grid">
+              <div class="pdf-kpi-card highlight">
+                <div class="pdf-kpi-label">Sales Volume</div>
+                <div class="pdf-kpi-value">AED ${fmtCurrency(s.total_sales_volume)}</div>
+                <div class="pdf-kpi-sub">${s.total_transactions || 0} transactions</div>
+              </div>
+              <div class="pdf-kpi-card highlight">
+                <div class="pdf-kpi-label">Commissions</div>
+                <div class="pdf-kpi-value">AED ${fmtCurrency(s.commissions)}</div>
+                <div class="pdf-kpi-sub">Total team commission</div>
+              </div>
+              <div class="pdf-kpi-card">
+                <div class="pdf-kpi-label">Active Agents</div>
+                <div class="pdf-kpi-value">${s.active_agents || 0}</div>
+                <div class="pdf-kpi-sub">In team roster</div>
+              </div>
+              <div class="pdf-kpi-card">
+                <div class="pdf-kpi-label">Inactive (60+ Days)</div>
+                <div class="pdf-kpi-value" style="color:#ef4444;">${s.agents_no_deal_60d || 0}</div>
+                <div class="pdf-kpi-sub">Need deal closure</div>
+              </div>
+              <div class="pdf-kpi-card">
+                <div class="pdf-kpi-label">Total Listings</div>
+                <div class="pdf-kpi-value">${s.total_listings || 0}</div>
+                <div class="pdf-kpi-sub">${s.active_listings || 0} active</div>
+              </div>
+              <div class="pdf-kpi-card">
+                <div class="pdf-kpi-label">Avg Sales / Trans</div>
+                <div class="pdf-kpi-value">AED ${fmtCurrency(s.avg_sales_volume)}</div>
+                <div class="pdf-kpi-sub">Per transaction</div>
+              </div>
+              <div class="pdf-kpi-card">
+                <div class="pdf-kpi-label">Avg Sales / Month</div>
+                <div class="pdf-kpi-value">AED ${fmtCurrency(s.avg_sales_volume_per_month)}</div>
+                <div class="pdf-kpi-sub">Monthly run rate</div>
+              </div>
+              <div class="pdf-kpi-card">
+                <div class="pdf-kpi-label">Highest Sale</div>
+                <div class="pdf-kpi-value">AED ${fmtCurrency(s.highest_sale)}</div>
+                <div class="pdf-kpi-sub">Deal #${s.highest_sale_deal_id || '–'}</div>
+              </div>
+              <div class="pdf-kpi-card">
+                <div class="pdf-kpi-label">Highest Commission</div>
+                <div class="pdf-kpi-value">AED ${fmtCurrency(s.highest_commission)}</div>
+                <div class="pdf-kpi-sub">Deal #${s.highest_commission_deal_id || '–'}</div>
+              </div>
+              <div class="pdf-kpi-card">
+                <div class="pdf-kpi-label">Reshuffled Leads</div>
+                <div class="pdf-kpi-value">${s.reshuffled_leads || 0}</div>
+                <div class="pdf-kpi-sub">Team reshuffled</div>
+              </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1.2fr 1fr 0.9fr;gap:12px;flex:1;min-height:0;">
+              <div class="pdf-card">
+                <div class="pdf-card-title">Commission Trend</div>
+                <div class="pdf-card-subtitle">Monthly team commissions</div>
+                <div style="margin-top:10px;">
+                  ${getChartImg("managerCommissionTrendChart", 190)}
+                </div>
+              </div>
+
+              ${getDonutCard("Deal Type Distribution", "By sales volume", "managerDealDonutChart", "managerDonutVal", "Total Sales", "managerDealLegend", 150)}
+
+              <div class="pdf-card" style="display:flex;flex-direction:column;justify-content:space-between;">
+                <div>
+                  <div class="pdf-card-title">Commission Split</div>
+                  <div class="pdf-card-subtitle">Committed vs Operational</div>
+                  <div style="margin-top:10px;">
+                    ${document.getElementById("managerCommSplit")?.innerHTML || ""}
                   </div>
                 </div>
-              </td>
-              <td>${a.reshuffled_leads}</td>
-              <td style="font-weight:600;">${a.deals}</td>
-              <td>${a.leads_offplan}</td>
-              <td>${a.leads_secondary}</td>
-              <td style="font-weight:600;">${a.total_listings}</td>
-              <td>${a.active_listings}</td>
-              <td>${a.pocket_listings}</td>
-              <td>AED ${fmtCurrency(a.sales)}</td>
-              <td>AED ${fmtCurrency(a.commission)}</td>
-              <td>AED ${fmtCurrency(a.top_deal, true)}</td>
-              <td>${a.avg_gap === 999 ? '–' : a.avg_gap + ' days'}</td>
-              <td><span class="days-badge ${daysClass}">${daysLabel}</span></td>
-              <td><span class="days-badge ${ac}">${a.attendance} / ${a.attendance_total || 30} days</span></td>
-            </tr>
-            `;
-          })
-          .join("");
-      }
-    } else if (role === "manager" && currentData.all_agents) {
-      // Full manager agents table (matching current tab filter)
+                <div style="padding:10px 12px;background:#0f1e35;border-radius:6px;margin-top:10px;">
+                  <div style="font-size:9px;color:#94a3b8;text-transform:uppercase;font-weight:700;">Top Commission</div>
+                  <div style="font-size:18px;font-weight:700;color:#e6ca65;">${document.getElementById("managerTopCommissionVal")?.textContent || "–"}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          ${getFooter()}
+        </div>
+      `);
+
+      // Manager Page 2: Leads, Deal Closure Sources & Target vs Actual
+      pagesHtmlList.push(`
+        <div class="pdf-report-page">
+          ${getHeaderSub("Team Lead & Deal Intelligence", `${p.team_name} pipeline and performance targets`)}
+          <div class="pdf-page-body">
+            <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:10px;height:240px;">
+              ${getDonutCard("Offplan Leads by Stage", "Team leads (Offplan)", "managerLeadStageOffplanChart", "managerLeadStageOffplanVal", "Leads", "managerLeadStageOffplanLegend", 110)}
+              ${getDonutCard("Secondary Leads by Stage", "Team leads (Secondary)", "managerLeadStageSecondaryChart", "managerLeadStageSecondaryVal", "Leads", "managerLeadStageSecondaryLegend", 110)}
+              ${getDonutCard("Offplan Leads by Source", "Acquisition (Offplan)", "managerLeadSourceChart", "managerLeadSourceVal", "Leads", "managerLeadSourceLegend", 110)}
+              ${getDonutCard("Secondary Leads by Source", "Acquisition (Secondary)", "managerLeadSourceSecondaryChart", "managerLeadSourceSecondaryVal", "Leads", "managerLeadSourceSecondaryLegend", 110)}
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr 1.2fr;gap:10px;flex:1;min-height:0;">
+              ${getDonutCard("Offplan Deal Closure Source", "Closed deals (Offplan)", "managerDealClosureSourceOffplanChart", "managerDealClosureSourceOffplanVal", "Deals", "managerDealClosureSourceOffplanLegend", 120)}
+              ${getDonutCard("Secondary Deal Closure Source", "Closed deals (Secondary)", "managerDealClosureSourceSecondaryChart", "managerDealClosureSourceSecondaryVal", "Deals", "managerDealClosureSourceSecondaryLegend", 120)}
+
+              <div class="pdf-card" style="display:flex;flex-direction:column;">
+                <div class="pdf-card-title">Target vs Actual Performance</div>
+                <div class="pdf-card-subtitle">Monthly sales vs target quota</div>
+                <div style="margin-top:8px;flex:1;">
+                  ${getChartImg("managerTargetActualChart", 150)}
+                </div>
+              </div>
+            </div>
+          </div>
+          ${getFooter()}
+        </div>
+      `);
+
+      // Manager Page 3+: Team Agents Table
       const isDismissedTab = managerAgentStatusFilter === "dismissed";
       const statusFilteredAgents = (currentData.all_agents || []).filter((a) =>
         isDismissedTab ? a.is_dismissed === true : a.is_dismissed !== true,
@@ -3023,7 +3425,6 @@ async function downloadReportPdf() {
         reshuffled_leads: { type: "number", get: (a) => a.reshuffled_leads },
         deals: { type: "number", get: (a) => a.deals },
         active_listings: { type: "number", get: (a) => a.active_listings },
-        pocket_listings: { type: "number", get: (a) => a.pocket_listings },
         total_listings: { type: "number", get: (a) => a.total_listings },
         sales: { type: "number", get: (a) => a.sales },
         commission: { type: "number", get: (a) => a.commission },
@@ -3032,62 +3433,231 @@ async function downloadReportPdf() {
         attendance: { type: "number", get: (a) => a.attendance },
       });
 
-      const cloneMgrTbody = viewClone.querySelector("#managerAgentTableBody");
-      if (cloneMgrTbody && sortedMgrAgents.length > 0) {
-        cloneMgrTbody.innerHTML = sortedMgrAgents
-          .map((a) => {
-            const { daysClass, daysLabel } = getDaysBadgeMeta(a.last_deal_days);
-            const ac = getAttendanceBadgeClass(a.attendance, a.attendance_total);
-            return `<tr>
-              <td><div class="agent-name-cell"><div class="agent-mini-avatar">${initials(a.name)}</div><div><div style="font-weight:600">${a.name} ${a.is_dismissed ? `<span class="days-badge crit" style="font-size:9px;padding:2px 4px;margin-left:6px;display:inline-flex;">Dismissed</span>` : (a.is_transferred ? `<span class="days-badge warn" style="font-size:9px;padding:2px 4px;margin-left:6px;display:inline-flex;">No longer in dept</span>` : '')}</div><div style="font-size:10px;color:var(--grey-400)">${a.designation}</div></div></div></td>
-              <td>${a.leads_offplan}</td>
-              <td>${a.leads_secondary}</td>
-              <td>${a.reshuffled_leads}</td>
-              <td>${a.deals}</td>
-              <td>${a.active_listings}</td>
-              <td>${a.pocket_listings}</td>
-              <td>${a.total_listings}</td>
+      const chunkSize = 16;
+      for (let i = 0; i < Math.max(1, sortedMgrAgents.length); i += chunkSize) {
+        const chunk = sortedMgrAgents.slice(i, i + chunkSize);
+        const mgrAgentRows = chunk.map((a, cIdx) => {
+          const rank = i + cIdx + 1;
+          const { daysClass, daysLabel } = getDaysBadgeMeta(a.last_deal_days);
+          const ac = getAttendanceBadgeClass(a.attendance, a.attendance_total);
+          return `
+            <tr>
+              <td style="font-weight:700;color:#0f1e35;">#${rank}</td>
+              <td>
+                <div style="font-weight:600;font-size:10px;">${a.name} ${a.is_dismissed ? `<span class="days-badge crit" style="font-size:8px;padding:1px 3px;">Dismissed</span>` : ''}</div>
+                <div style="font-size:8.5px;color:#64748b;">${a.designation || ''}</div>
+              </td>
+              <td style="text-align:center;">${a.leads_offplan}</td>
+              <td style="text-align:center;">${a.leads_secondary}</td>
+              <td style="text-align:center;">${a.reshuffled_leads}</td>
+              <td style="font-weight:700;text-align:center;">${a.deals}</td>
+              <td style="text-align:center;">${a.total_listings}</td>
               <td>AED ${fmtCurrency(a.sales)}</td>
-              <td>AED ${fmtCurrency(a.commission)}</td>
+              <td style="font-weight:700;color:#0f1e35;">AED ${fmtCurrency(a.commission)}</td>
               <td>AED ${fmtCurrency(a.top_deal, true)}</td>
               <td><span class="days-badge ${daysClass}">${daysLabel}</span></td>
-              <td><span class="days-badge ${ac}">${a.attendance} / ${a.attendance_total || 30} days</span></td>
-            </tr>`;
-          })
-          .join("");
+              <td><span class="days-badge ${ac}">${a.attendance} / ${a.attendance_total || 30}d</span></td>
+            </tr>
+          `;
+        }).join("");
+
+        pagesHtmlList.push(`
+          <div class="pdf-report-page">
+            ${getHeaderSub("Team Agents Performance", `${p.team_name} • ${isDismissedTab ? 'Dismissed Agents' : 'Active Agents'} (${sortedMgrAgents.length} total)`)}
+            <div class="pdf-page-body">
+              <div class="pdf-card" style="flex:1;overflow:hidden;">
+                <table class="pdf-table">
+                  <thead>
+                    <tr>
+                      <th>Rank</th>
+                      <th>Agent</th>
+                      <th style="text-align:center;">Leads (Off)</th>
+                      <th style="text-align:center;">Leads (Sec)</th>
+                      <th style="text-align:center;">Reshuffled</th>
+                      <th style="text-align:center;">Deals</th>
+                      <th style="text-align:center;">Listings</th>
+                      <th>Sales Volume</th>
+                      <th>Commission</th>
+                      <th>Top Deal</th>
+                      <th>Last Deal</th>
+                      <th>Attendance</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${mgrAgentRows || `<tr><td colspan="12" style="text-align:center;padding:20px;color:#94a3b8;">No ${isDismissedTab ? 'dismissed' : 'active'} agents found.</td></tr>`}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            ${getFooter()}
+          </div>
+        `);
       }
     }
 
-    // Clean up UI-only elements in clone
-    viewClone.querySelectorAll(".view-back-button, .table-pagination-container, .agent-search-wrapper, .status-toggle-wrapper, .year-compare-controls").forEach((el) => {
-      el.remove();
-    });
+    // ─────────────────────────────────────────────────────────────────────────
+    // 3. AGENT VIEW REPORT PAGES
+    // ─────────────────────────────────────────────────────────────────────────
+    else if (role === "agent") {
+      const ag = currentData.agent || {};
+      const p = ag.profile || {};
+      const s = ag.summary || {};
+      const devRows = (ag.top_developers || [])
+        .map((d) => `
+          <tr>
+            <td style="font-weight:600;">${d.name}</td>
+            <td>AED ${fmtCurrency(d.amount)}</td>
+            <td>AED ${fmtCurrency(d.commission)}</td>
+            <td style="font-weight:700;text-align:center;">${d.deals}</td>
+          </tr>
+        `).join("");
 
-    exportWrapper.innerHTML = headerHtml;
-    exportWrapper.appendChild(viewClone);
+      // Agent Page 1: Profile, KPIs & Key Charts
+      pagesHtmlList.push(`
+        <div class="pdf-report-page">
+          ${getHeaderMain(`Agent: ${p.name || 'Agent'} (${p.designation || 'Sales Agent'})`)}
+          <div class="pdf-page-body">
+            <div class="pdf-kpi-grid" style="grid-template-columns:repeat(4, 1fr);">
+              <div class="pdf-kpi-card highlight">
+                <div class="pdf-kpi-label">Sales Volume</div>
+                <div class="pdf-kpi-value">AED ${fmtCurrency(s.total_sales_volume)}</div>
+                <div class="pdf-kpi-sub">${s.total_transactions || 0} transactions</div>
+              </div>
+              <div class="pdf-kpi-card highlight">
+                <div class="pdf-kpi-label">Commission Earned</div>
+                <div class="pdf-kpi-value">AED ${fmtCurrency(s.commissions)}</div>
+                <div class="pdf-kpi-sub">Total gross commission</div>
+              </div>
+              <div class="pdf-kpi-card">
+                <div class="pdf-kpi-label">Total Listings</div>
+                <div class="pdf-kpi-value">${s.total_listings || 0}</div>
+                <div class="pdf-kpi-sub">${s.active_listings || 0} active listings</div>
+              </div>
+              <div class="pdf-kpi-card">
+                <div class="pdf-kpi-label">Attendance Record</div>
+                <div class="pdf-kpi-value">${s.attendance || 0} / ${s.attendance_total || 30}</div>
+                <div class="pdf-kpi-sub">Days logged in period</div>
+              </div>
+              <div class="pdf-kpi-card">
+                <div class="pdf-kpi-label">Avg Sales / Trans</div>
+                <div class="pdf-kpi-value">AED ${fmtCurrency(s.avg_sales_volume)}</div>
+                <div class="pdf-kpi-sub">Per transaction</div>
+              </div>
+              <div class="pdf-kpi-card">
+                <div class="pdf-kpi-label">Highest Deal</div>
+                <div class="pdf-kpi-value">AED ${fmtCurrency(s.highest_sale)}</div>
+                <div class="pdf-kpi-sub">Deal #${s.highest_sale_deal_id || '–'}</div>
+              </div>
+              <div class="pdf-kpi-card">
+                <div class="pdf-kpi-label">Top Commission</div>
+                <div class="pdf-kpi-value">AED ${fmtCurrency(s.highest_commission)}</div>
+                <div class="pdf-kpi-sub">Single deal record</div>
+              </div>
+              <div class="pdf-kpi-card">
+                <div class="pdf-kpi-label">Reshuffled Leads</div>
+                <div class="pdf-kpi-value">${s.reshuffled_leads || 0}</div>
+                <div class="pdf-kpi-sub">Assigned leads</div>
+              </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:12px;flex:1;min-height:0;">
+              <div class="pdf-card">
+                <div class="pdf-card-title">Target vs Actual Performance</div>
+                <div class="pdf-card-subtitle">Monthly sales vs personal quota</div>
+                <div style="margin-top:10px;">
+                  ${getChartImg("agentTargetActualChart", 190)}
+                </div>
+              </div>
+
+              <div class="pdf-card">
+                <div class="pdf-card-title">Commission Trend</div>
+                <div class="pdf-card-subtitle">Monthly earnings profile</div>
+                <div style="margin-top:10px;">
+                  ${getChartImg("agentCommissionTrendChart", 190)}
+                </div>
+              </div>
+
+              ${getDonutCard("Deal Type Distribution", "By sales volume", "agentDonutChart", "agentDonutVal", "Total Sales", "agentDealLegend", 150)}
+            </div>
+          </div>
+          ${getFooter()}
+        </div>
+      `);
+
+      // Agent Page 2: Leads, Deal Sources, Ticket Size & Developers
+      pagesHtmlList.push(`
+        <div class="pdf-report-page">
+          ${getHeaderSub("Agent Pipeline & Developer Intelligence", `${p.name} • Lead conversion and partner breakdown`)}
+          <div class="pdf-page-body">
+            <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:10px;height:240px;">
+              ${getDonutCard("Offplan Leads by Stage", "Lead pipeline (Offplan)", "agentLeadStageOffplanChart", "agentLeadStageOffplanVal", "Leads", "agentLeadStageOffplanLegend", 110)}
+              ${getDonutCard("Secondary Leads by Stage", "Lead pipeline (Secondary)", "agentLeadStageSecondaryChart", "agentLeadStageSecondaryVal", "Leads", "agentLeadStageSecondaryLegend", 110)}
+              ${getDonutCard("Offplan Leads by Source", "Origin channel (Offplan)", "agentLeadSourceChart", "agentLeadSourceVal", "Leads", "agentLeadSourceLegend", 110)}
+              ${getDonutCard("Secondary Leads by Source", "Origin channel (Secondary)", "agentLeadSourceSecondaryChart", "agentLeadSourceSecondaryVal", "Leads", "agentLeadSourceSecondaryLegend", 110)}
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr 1.2fr;gap:10px;flex:1;min-height:0;">
+              ${getDonutCard("Offplan Deal Closure Source", "Closed deals (Offplan)", "agentDealClosureSourceOffplanChart", "agentDealClosureSourceOffplanVal", "Deals", "agentDealClosureSourceOffplanLegend", 120)}
+              ${getDonutCard("Secondary Deal Closure Source", "Closed deals (Secondary)", "agentDealClosureSourceSecondaryChart", "agentDealClosureSourceSecondaryVal", "Deals", "agentDealClosureSourceSecondaryLegend", 120)}
+
+              <div class="pdf-card" style="display:flex;flex-direction:column;">
+                <div class="pdf-card-title">Top Developer Partners</div>
+                <div class="pdf-card-subtitle">Volume and deals by developer</div>
+                <div style="margin-top:8px;overflow:hidden;flex:1;">
+                  <table class="pdf-table">
+                    <thead>
+                      <tr>
+                        <th>Developer</th>
+                        <th>Amount (AED)</th>
+                        <th>Commission</th>
+                        <th>Deals</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${devRows || `<tr><td colspan="4" style="text-align:center;padding:15px;color:#94a3b8;">No developer data</td></tr>`}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+          ${getFooter()}
+        </div>
+      `);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // RENDER PAGES TO jsPDF ONE BY ONE
+    // ─────────────────────────────────────────────────────────────────────────
+    const exportWrapper = document.createElement("div");
+    exportWrapper.id = "pdfReportExportContainer";
+    exportWrapper.className = "pdf-export-container";
+    exportWrapper.style.position = "absolute";
+    exportWrapper.style.top = "0";
+    exportWrapper.style.left = "0";
+    exportWrapper.style.zIndex = "-9999";
+    exportWrapper.style.opacity = "1";
+    exportWrapper.style.visibility = "visible";
+    exportWrapper.style.pointerEvents = "none";
+
+    exportWrapper.innerHTML = pagesHtmlList.join("");
     document.body.appendChild(exportWrapper);
 
-    // Wait a brief moment for DOM layout to settle
+    // Update total page count in footers
+    const pageElements = exportWrapper.querySelectorAll(".pdf-report-page");
+    const totalPages = pageElements.length;
+    pageElements.forEach((pageEl, idx) => {
+      const footerSpan = pageEl.querySelector(".pdf-footer-page-num");
+      if (footerSpan) {
+        footerSpan.textContent = `Page ${idx + 1} of ${totalPages}`;
+      }
+    });
+
+    // Wait for DOM layout to settle
     await new Promise((resolve) => setTimeout(resolve, 150));
 
     const fileName = `Mira_Scorecard_${filePrefix}_${dateFileStr}.pdf`;
 
-    // Render export container to canvas using html2canvas
-    const canvas = await html2canvas(exportWrapper, {
-      scale: 2,
-      useCORS: true,
-      allowTaint: true,
-      logging: false,
-      backgroundColor: "#ffffff",
-      width: 1120,
-      windowWidth: 1120,
-      scrollX: 0,
-      scrollY: 0,
-      x: 0,
-      y: 0,
-    });
-
-    // Create jsPDF multi-page landscape document
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({
       orientation: "landscape",
@@ -3096,30 +3666,30 @@ async function downloadReportPdf() {
       compress: true,
     });
 
-    const pageWidth = 297; // A4 landscape width in mm
-    const pageHeight = 210; // A4 landscape height in mm
-    const imgWidth = pageWidth;
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-    const imgData = canvas.toDataURL("image/jpeg", 0.95);
+    for (let i = 0; i < totalPages; i++) {
+      const pageEl = pageElements[i];
+      const pageCanvas = await html2canvas(pageEl, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        backgroundColor: "#ffffff",
+        width: 1120,
+        height: 790,
+        windowWidth: 1120,
+        windowHeight: 790,
+        scrollX: 0,
+        scrollY: 0,
+      });
 
-    let heightLeft = imgHeight;
-    let position = 0;
-
-    // First page
-    pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight, undefined, "FAST");
-    heightLeft -= pageHeight;
-
-    // Subsequent pages
-    while (heightLeft > 0) {
-      position -= pageHeight;
-      pdf.addPage();
-      pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight, undefined, "FAST");
-      heightLeft -= pageHeight;
+      const pageImgData = pageCanvas.toDataURL("image/jpeg", 0.95);
+      if (i > 0) pdf.addPage();
+      pdf.addImage(pageImgData, "JPEG", 0, 0, 297, 210, undefined, "FAST");
     }
 
     pdf.save(fileName);
 
-    // Clean up temporary DOM element
+    // Clean up temporary DOM container
     if (exportWrapper.parentNode) {
       exportWrapper.parentNode.removeChild(exportWrapper);
     }
@@ -3141,4 +3711,5 @@ async function downloadReportPdf() {
     }
   }
 }
+
 

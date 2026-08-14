@@ -1778,73 +1778,161 @@ body {
   background: #ffffff !important;
   color: #0f1e35 !important;
   font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
-  padding: 16px 20px !important;
-  width: 1100px !important;
-  max-width: 1100px !important;
-  min-width: 1100px !important;
+  width: 1120px !important;
   box-sizing: border-box !important;
 }
 
-.pdf-header {
+.pdf-report-page {
+  width: 1120px !important;
+  height: 790px !important;
+  max-height: 790px !important;
+  min-height: 790px !important;
+  padding: 20px 24px !important;
+  box-sizing: border-box !important;
+  background: #ffffff !important;
+  color: #0f1e35 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+  position: relative !important;
+  overflow: hidden !important;
+  margin-bottom: 20px !important;
+}
+
+.pdf-page-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.pdf-header-main {
+  background: #0f1e35;
+  padding: 14px 20px;
+  border-radius: 8px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 2px solid var(--gold);
-  padding-bottom: 12px;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
+  border-bottom: 3px solid #c9a84c;
 }
 
-.pdf-brand {
+.pdf-header-sub {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 12px;
+  border-bottom: 2px solid #0f1e35;
+  padding-bottom: 8px;
+  margin-bottom: 12px;
 }
 
-.pdf-brand img {
-  height: 28px;
-  width: auto;
+.pdf-page-footer {
+  border-top: 1px solid #e2e8f0;
+  padding-top: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 10px;
+  color: #64748b;
+  margin-top: 8px;
 }
 
-.pdf-title-block h1 {
-  font-size: 18px;
+.pdf-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px 14px;
+  box-sizing: border-box;
+}
+
+.pdf-card-title {
+  font-size: 13px;
   font-weight: 700;
-  color: var(--navy);
-  margin: 0;
+  color: #0f1e35;
+  margin-bottom: 2px;
+}
+
+.pdf-card-subtitle {
+  font-size: 10px;
+  color: #64748b;
+}
+
+.pdf-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+}
+
+.pdf-kpi-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 8px 10px;
+  box-sizing: border-box;
+}
+
+.pdf-kpi-card.highlight {
+  background: #0f1e35;
+  border-color: #c9a84c;
+  color: #ffffff;
+}
+
+.pdf-kpi-card.highlight .pdf-kpi-label {
+  color: #94a3b8;
+}
+
+.pdf-kpi-card.highlight .pdf-kpi-value {
+  color: #e6ca65;
+}
+
+.pdf-kpi-label {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 700;
+  color: #64748b;
+  margin-bottom: 2px;
+}
+
+.pdf-kpi-value {
+  font-size: 17px;
+  font-weight: 700;
+  color: #0f1e35;
+  font-variant-numeric: tabular-nums;
   line-height: 1.2;
 }
 
-.pdf-title-block p {
-  font-size: 11px;
-  color: var(--grey-500);
-  margin: 2px 0 0 0;
+.pdf-kpi-sub {
+  font-size: 9px;
+  color: #94a3b8;
+  margin-top: 1px;
 }
 
-.pdf-meta-pills {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-.pdf-meta-pill {
-  background: var(--off-white);
-  border: 1px solid var(--grey-200);
-  border-radius: 4px;
-  padding: 3px 8px;
+.pdf-table {
+  width: 100%;
+  border-collapse: collapse;
   font-size: 10px;
+}
+
+.pdf-table th {
+  background: #0f1e35;
+  color: #ffffff;
+  padding: 6px 8px;
+  text-align: left;
   font-weight: 600;
-  color: var(--navy);
+  font-size: 9.5px;
 }
 
-.pdf-page-break {
-  page-break-before: always !important;
-  break-before: page !important;
-  margin-top: 16px;
+.pdf-table td {
+  padding: 5px 8px;
+  border-bottom: 1px solid #e2e8f0;
+  color: #1e293b;
 }
 
-.pdf-avoid-break {
-  page-break-inside: avoid !important;
-  break-inside: avoid !important;
+.pdf-table tr:nth-child(even) {
+  background: #f8fafc;
 }
 
 /* Print Media Query */
