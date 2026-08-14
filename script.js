@@ -2902,16 +2902,52 @@ async function downloadReportPdf() {
     // ─────────────────────────────────────────────────────────────────────────
     if (role === "ceo") {
       const s = currentData.summary || {};
-      const devTableHtml = document.getElementById("developerTableBody")?.innerHTML || "";
-      const dealTypeRows = (currentData.sales_by_deal_type || [])
-        .map((r) => `
-          <tr>
-            <td style="font-weight:600;">${r.name}</td>
-            <td>AED ${fmtCurrency(r.amount)}</td>
-            <td>AED ${fmtCurrency(r.commission)}</td>
-            <td style="font-weight:600;">${r.deals}</td>
-          </tr>
-        `).join("");
+      const devs = currentData.top_developers || [];
+      const devTableHtml = devs.length > 0
+        ? devs.slice(0, 10).map((d) => `
+            <tr>
+              <td style="font-weight:600;">${d.name}</td>
+              <td>AED ${fmtCurrency(d.amount)}</td>
+              <td>AED ${fmtCurrency(d.commission)}</td>
+              <td style="font-weight:600;text-align:center;">${d.deals}</td>
+            </tr>
+          `).join("")
+        : (document.getElementById("developerTableBody")?.innerHTML || `<tr><td colspan="4" style="text-align:center;padding:15px;color:#94a3b8;">No developer data</td></tr>`);
+
+      let dealTypeRows = "";
+      if (currentData.sales_by_deal_type && typeof currentData.sales_by_deal_type === "object") {
+        if (Array.isArray(currentData.sales_by_deal_type)) {
+          dealTypeRows = currentData.sales_by_deal_type.map((r) => `
+            <tr>
+              <td style="font-weight:600;">${r.name || r.type || '–'}</td>
+              <td>AED ${fmtCurrency(r.amount || r.sales)}</td>
+              <td>AED ${fmtCurrency(r.commission)}</td>
+              <td style="font-weight:600;text-align:center;">${r.deals}</td>
+            </tr>
+          `).join("");
+        } else {
+          dealTypeRows = Object.entries(currentData.sales_by_deal_type).map(([type, monthArr]) => {
+            let totalSales = 0;
+            let totalComm = 0;
+            let totalDeals = 0;
+            if (Array.isArray(monthArr)) {
+              monthArr.forEach((m) => {
+                totalSales += Number(m.sales) || 0;
+                totalComm += Number(m.commission) || 0;
+                totalDeals += Number(m.deals) || 0;
+              });
+            }
+            return `
+              <tr>
+                <td style="font-weight:600;">${type}</td>
+                <td>AED ${fmtCurrency(totalSales)}</td>
+                <td>AED ${fmtCurrency(totalComm)}</td>
+                <td style="font-weight:600;text-align:center;">${totalDeals}</td>
+              </tr>
+            `;
+          }).join("");
+        }
+      }
 
       // CEO Page 1: KPIs & Revenue Overview
       pagesHtmlList.push(`
