@@ -102,7 +102,19 @@ define('FIELD_REASSIGNMENT_CNT',  'UF_CRM_1770111873652');     // Lead assignmen
 define('FIELD_IMPORTED_CREATE_DATE', 'UF_CRM_1769420802242');  // Booking date / Imported original deal create date
 define('FIELD_IMPORTED_CLOSE_DATE',  'UF_CRM_1775842990567');  // Imported/original deal close date
 define('FIELD_LEAD_SOURCE',       'SOURCE_ID');                // Standard Bitrix lead/deal source field
-define('FIELD_EXCLUDE_DEAL',      'UF_CRM_1785767578527');     // Excluded deals field (to be implemented later)
+define('FIELD_EXCLUDE_DEAL',      'UF_CRM_1785767578527');     // Excluded deals / Eva deal flag (1 = Eva, 0/null = Mira)
+
+// Company identifiers
+define('COMPANY_MIRA',            'mira');
+define('COMPANY_EVA',             'eva');
+
+// User profile company enumeration (UF_USR_1784813725054: 2206 = Mira, 2207 = Eva)
+define('FIELD_COMPANY_USER',       'UF_USR_1784813725054');
+define('COMPANY_USER_MIRA',        2206);
+define('COMPANY_USER_EVA',         2207);
+
+// Deal migration flag (UF_CRM_1785767578527: 1 / Y / true = Eva, 0 / NULL / false = Mira)
+define('FIELD_EVA_DEAL',           'UF_CRM_1785767578527');
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 4. PROPERTY TYPE ENUM VALUES  (UF_CRM_1766811061237)
@@ -236,11 +248,15 @@ define('ATTENDANCE_TYPE_IN',   'IN');
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 8. DEPARTMENT STRUCTURE
-//    Sales department ID = 3; all sub-departments (PARENT=3) are teams.
+//    Mira sales department ID = 3 (Parent=1)
+//    Eva sales department ID = 36 (Parent=35)
 // ═══════════════════════════════════════════════════════════════════════════
-define('DEPT_SALES_ROOT', 3);  // Parent department ID for all sales teams
+define('DEPT_SALES_ROOT_MIRA', 3);   // Mira sales root
+define('DEPT_SALES_ROOT_EVA',  36);  // Eva sales root
+define('DEPT_SALES_ROOT',      3);   // Default alias
 
-$GLOBALS['CFG_SALES_REPORT_DEPARTMENT_IDS'] = array(
+// Mira Sales Departments & Teams
+$GLOBALS['CFG_SALES_REPORT_DEPARTMENT_IDS_MIRA'] = array(
     3,   // Sales department (parent)
     22,  // Sales Team 1
     31,  // Sales Team 2
@@ -252,7 +268,7 @@ $GLOBALS['CFG_SALES_REPORT_DEPARTMENT_IDS'] = array(
     61,  // Homesence
 );
 
-$GLOBALS['CFG_SALES_TEAM_CODE_BY_DEPT'] = array(
+$GLOBALS['CFG_SALES_TEAM_CODE_BY_DEPT_MIRA'] = array(
     22 => 'ST1',
     31 => 'ST2',
     26 => 'ST3',
@@ -263,7 +279,7 @@ $GLOBALS['CFG_SALES_TEAM_CODE_BY_DEPT'] = array(
     61 => 'HS',
 );
 
-$GLOBALS['CFG_SALES_TEAM_HEAD_BY_DEPT'] = array(
+$GLOBALS['CFG_SALES_TEAM_HEAD_BY_DEPT_MIRA'] = array(
     22 => 25,
     31 => 12,
     26 => 134,
@@ -274,16 +290,49 @@ $GLOBALS['CFG_SALES_TEAM_HEAD_BY_DEPT'] = array(
     61 => 1208,
 );
 
+// Eva Sales Departments & Teams
+$GLOBALS['CFG_SALES_REPORT_DEPARTMENT_IDS_EVA'] = array(
+    36,  // Sales Department (parent)
+    37,  // Off Plan Market Department
+    38,  // Secondary Market Department
+    41,  // Independent H Team
+    42,  // Freelance Sales Team
+    43,  // Scott's Team
+    44,  // Mario's Team
+    40,  // Wagdy Team
+    46,  // Telesales
+    39,  // Adilet Team
+    45,  // Telesales admins
+);
+
+$GLOBALS['CFG_SALES_TEAM_CODE_BY_DEPT_EVA'] = array(
+    41 => 'IH',
+    43 => 'ST',
+    44 => 'MT',
+    40 => 'WT',
+    42 => 'FT',
+    46 => 'TS',
+);
+
+$GLOBALS['CFG_SALES_TEAM_HEAD_BY_DEPT_EVA'] = array(
+    41 => 581,  // Anastasiya Kouzan (Independent H Team)
+    43 => 670,  // Scott McGeachy (Scott's Team)
+    44 => 669,  // Mario Volpi (Mario's Team)
+    40 => 619,  // Mohamed Wagdy (Wagdy Team)
+);
+
+// Backward-compatibility references pointing to Mira
+$GLOBALS['CFG_SALES_REPORT_DEPARTMENT_IDS'] = &$GLOBALS['CFG_SALES_REPORT_DEPARTMENT_IDS_MIRA'];
+$GLOBALS['CFG_SALES_TEAM_CODE_BY_DEPT']      = &$GLOBALS['CFG_SALES_TEAM_CODE_BY_DEPT_MIRA'];
+$GLOBALS['CFG_SALES_TEAM_HEAD_BY_DEPT']      = &$GLOBALS['CFG_SALES_TEAM_HEAD_BY_DEPT_MIRA'];
+
 // ═══════════════════════════════════════════════════════════════════════════
 // 9. ROLE DEFINITIONS
 //    Map Bitrix user IDs to roles.
 //    Everyone NOT listed here is treated as 'agent'.
 //    Roles: 'ceo' | 'manager' | 'agent'
-//
-//    WORK_POSITION values that map to monthly targets (see section 11).
 // ═══════════════════════════════════════════════════════════════════════════
 $GLOBALS['CFG_CEO_USER_IDS'] = array(
-    // TODO: Add Bitrix user IDs for CEO/GM users
     1,     // Mira International (Admin)
     5,     // Kristina Boeva
     7,     // Abinas Subair
@@ -293,9 +342,10 @@ $GLOBALS['CFG_CEO_USER_IDS'] = array(
     156,   // Jaymee Javin
     104,   // Bitrix Support
     38,    // Vladislav Tikholaz
+    897,   // Elvira Sharshenalieva (CEO Eva)
 );
 
-$GLOBALS['CFG_MANAGER_USER_IDS'] = array(
+$GLOBALS['CFG_MANAGER_USER_IDS_MIRA'] = array(
     25,   // STANISLAV MALTSEV (ST1)
     12,   // JULIA KRAVCHENKO (ST2)
     134,  // Moh'D Barakat (ST3)
@@ -304,6 +354,18 @@ $GLOBALS['CFG_MANAGER_USER_IDS'] = array(
     123,  // Aldo De Jager (Private Office)
     1208, // Homesence Manager
 );
+
+$GLOBALS['CFG_MANAGER_USER_IDS_EVA'] = array(
+    581,  // Anastasiya Kouzan (Independent H Team)
+    670,  // Scott McGeachy (Scott's Team)
+    669,  // Mario Volpi (Mario's Team)
+    619,  // Mohamed Wagdy (Wagdy Team)
+);
+
+$GLOBALS['CFG_MANAGER_USER_IDS'] = array_values(array_unique(array_merge(
+    $GLOBALS['CFG_MANAGER_USER_IDS_MIRA'],
+    $GLOBALS['CFG_MANAGER_USER_IDS_EVA']
+)));
 
 $GLOBALS['CFG_ALLOWED_AGENT_POSITIONS'] = array(
     'PC',
@@ -479,6 +541,45 @@ $GLOBALS['CFG_LEAD_SOURCE_MAP'] = array(
 // ═══════════════════════════════════════════════════════════════════════════
 $GLOBALS['CFG_MONTHLY_TARGETS'] = array(
 
+    'mira' => array(
+        'company' => array(
+            'Jan' => 4724901,
+            'Feb' => 5915231,
+            'Mar' => 6000000,
+            'Apr' => 6500000,
+            'May' => 7000000,
+            'Jun' => 7500000,
+            'Jul' => 7750000,
+            'Aug' => 8000000,
+            'Sep' => 9000000,
+            'Oct' => 9500000,
+            'Nov' => 10000000,
+            'Dec' => 10500000,
+        ),
+        'teams' => array(),
+        'agents' => array(),
+    ),
+
+    'eva' => array(
+        'company' => array(
+            'Jan' => 0,
+            'Feb' => 0,
+            'Mar' => 0,
+            'Apr' => 0,
+            'May' => 0,
+            'Jun' => 0,
+            'Jul' => 0,
+            'Aug' => 0,
+            'Sep' => 0,
+            'Oct' => 0,
+            'Nov' => 0,
+            'Dec' => 0,
+        ),
+        'teams' => array(),
+        'agents' => array(),
+    ),
+
+    // Legacy fallback structure
     'company' => array(
         'Jan' => 4724901,
         'Feb' => 5915231,
@@ -494,13 +595,8 @@ $GLOBALS['CFG_MONTHLY_TARGETS'] = array(
         'Dec' => 10500000,
     ),
 
-    'teams' => array(
-        // dept_id => array('Jan' => ..., 'Feb' => ..., ...)
-    ),
-
-    'agents' => array(
-        // bitrix_user_id => AED flat monthly target
-    ),
+    'teams' => array(),
+    'agents' => array(),
 
 );
 
@@ -523,7 +619,7 @@ $GLOBALS['CFG_POSITION_TARGET'] = array(
 define('CACHE_DIR',     __DIR__ . '/cache/');   // Cache folder (must be writable)
 define('CACHE_TTL',     300);                    // Seconds – 5 minutes default
 define('CACHE_ENABLED', true);                   // Set false to disable during dev
-define('CACHE_VERSION', '2026-08-14-homesence-deal-source-v1');
+define('CACHE_VERSION', '2026-08-19-eva-integration-v1');
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 13. FILTER META  (returned to frontend for populating dropdowns)

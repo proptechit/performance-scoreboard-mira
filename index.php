@@ -28,12 +28,15 @@
             <span class="brand-title">Performance Scorecard</span>
         </div>
 
-        <!-- <div class="header-right">
-            <div class="role-badge">
-                <div class="role-avatar" id="roleAvatar">C</div>
-                <span class="role-badge-text" id="roleLabel">CEO</span>
+        <div class="header-right">
+            <div class="company-toggle-container hidden" id="companyToggleContainer">
+                <div class="company-toggle-label">Company</div>
+                <div class="company-toggle-pill" id="companyTogglePill">
+                    <button type="button" class="company-toggle-btn active" id="btnCompanyMira" onclick="switchCompany('mira')">Mira</button>
+                    <button type="button" class="company-toggle-btn" id="btnCompanyEva" onclick="switchCompany('eva')">Eva DXB</button>
+                </div>
             </div>
-        </div> -->
+        </div>
     </header>
 
     <!-- ── FILTER BAR ──────────────────────────────────────────────────────────── -->

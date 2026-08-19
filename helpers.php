@@ -222,6 +222,53 @@ function inClauseStr($arr)
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
+ * Determine company for a Bitrix user ID.
+ * Returns 'mira' | 'eva'
+ */
+function getUserCompany($userId)
+{
+    $uid = dbInt($userId);
+    if ($uid <= 0) {
+        return COMPANY_MIRA;
+    }
+
+    $row = dbQueryOne("
+        SELECT uts_u." . FIELD_COMPANY_USER . " AS company_enum
+        FROM b_user u
+        LEFT JOIN b_uts_user uts_u ON uts_u.VALUE_ID = u.ID
+        WHERE u.ID = {$uid}
+        LIMIT 1
+    ");
+
+    if (!empty($row['company_enum'])) {
+        $enumVal = (int)$row['company_enum'];
+        if ($enumVal === COMPANY_USER_EVA) {
+            return COMPANY_EVA;
+        }
+        if ($enumVal === COMPANY_USER_MIRA) {
+            return COMPANY_MIRA;
+        }
+    }
+
+    // Fallback: check if user is in any Eva department (root 35 or sub-depts)
+    $evaDeptIds = $GLOBALS['CFG_SALES_REPORT_DEPARTMENT_IDS_EVA'] ?? array(36);
+    $deptRow = dbQueryOne("
+        SELECT 1 AS match_found
+        FROM b_utm_user
+        WHERE VALUE_ID = {$uid}
+          AND FIELD_ID = 40
+          AND VALUE_INT IN " . inClauseInt($evaDeptIds) . "
+        LIMIT 1
+    ");
+
+    if (!empty($deptRow['match_found'])) {
+        return COMPANY_EVA;
+    }
+
+    return COMPANY_MIRA;
+}
+
+/**
  * Determine the role of a Bitrix user ID.
  * Returns 'ceo' | 'manager' | 'agent'
  */
@@ -260,51 +307,54 @@ function getNonAgentUserIds()
     )));
 }
 
-function getSalesReportDepartmentIds($includeRoot = true)
+function getSalesReportDepartmentIds($includeRoot = true, $company = 'mira')
 {
-    $deptIds = array_map('intval', $GLOBALS['CFG_SALES_REPORT_DEPARTMENT_IDS'] ?? array(DEPT_SALES_ROOT));
+    $root = ($company === COMPANY_EVA) ? DEPT_SALES_ROOT_EVA : DEPT_SALES_ROOT_MIRA;
+    $cfgKey = ($company === COMPANY_EVA) ? 'CFG_SALES_REPORT_DEPARTMENT_IDS_EVA' : 'CFG_SALES_REPORT_DEPARTMENT_IDS_MIRA';
+    $deptIds = array_map('intval', $GLOBALS[$cfgKey] ?? array($root));
     $deptIds = array_values(array_unique(array_filter($deptIds, function ($id) {
         return $id > 0;
     })));
 
     if (!$includeRoot) {
-        $deptIds = array_values(array_filter($deptIds, function ($id) {
-            return $id !== (int)DEPT_SALES_ROOT;
+        $deptIds = array_values(array_filter($deptIds, function ($id) use ($root) {
+            return $id !== (int)$root;
         }));
     }
 
     return $deptIds;
 }
 
-function filterAllowedSalesDepartmentIds($deptIds, $includeRoot = true)
+function filterAllowedSalesDepartmentIds($deptIds, $includeRoot = true, $company = 'mira')
 {
     if (!is_array($deptIds)) {
         $deptIds = array($deptIds);
     }
 
-    $allowedIds = getSalesReportDepartmentIds($includeRoot);
+    $allowedIds = getSalesReportDepartmentIds($includeRoot, $company);
     return array_values(array_unique(array_intersect(
         array_map('intval', $deptIds),
         $allowedIds
     )));
 }
 
-function isUserInAllowedSalesDepartments($userId)
+function isUserInAllowedSalesDepartments($userId, $company = 'mira')
 {
     $uid = (int)$userId;
-    if ($uid === 168 || $uid === 156) {
+    if ($company === COMPANY_MIRA && ($uid === 168 || $uid === 156)) {
         return true;
     }
     $uid = dbInt($userId);
 
-    // If user's WORK_POSITION is "Private Office", they belong to PO team (dept 23)
-    // which is one of the allowed sales departments.
-    $userRow = dbQueryOne("SELECT WORK_POSITION FROM b_user WHERE ID = {$uid} LIMIT 1");
-    if ($userRow && trim(strtolower($userRow['WORK_POSITION'] ?? '')) === 'private office') {
-        return true;
+    // If user's WORK_POSITION is "Private Office", they belong to PO team (dept 23) in Mira
+    if ($company === COMPANY_MIRA) {
+        $userRow = dbQueryOne("SELECT WORK_POSITION FROM b_user WHERE ID = {$uid} LIMIT 1");
+        if ($userRow && trim(strtolower($userRow['WORK_POSITION'] ?? '')) === 'private office') {
+            return true;
+        }
     }
 
-    $allowedDeptIds = getSalesReportDepartmentIds(true);
+    $allowedDeptIds = getSalesReportDepartmentIds(true, $company);
     if (empty($allowedDeptIds)) {
         return false;
     }
@@ -334,12 +384,12 @@ function isUserInAllowedSalesDepartments($userId)
 }
 
 /**
- * Fetch all sub-departments under DEPT_SALES_ROOT.
- * Returns array of ['ID', 'NAME', 'UF_HEAD'] rows.
+ * Fetch all sales sub-departments for the specified company.
+ * Returns array of ['ID', 'NAME', 'UF_HEAD', 'DISPLAY_NAME'] rows.
  */
-function getSalesTeams()
+function getSalesTeams($company = 'mira')
 {
-    $teamIds = getSalesReportDepartmentIds(false);
+    $teamIds = getSalesReportDepartmentIds(false, $company);
     if (empty($teamIds)) {
         return array();
     }
@@ -359,8 +409,8 @@ function getSalesTeams()
     ");
 
     foreach ($rows as &$row) {
-        $row['UF_HEAD'] = resolveSalesTeamHeadId($row);
-        $row['DISPLAY_NAME'] = getSalesTeamDisplayName($row);
+        $row['UF_HEAD'] = resolveSalesTeamHeadId($row, $company);
+        $row['DISPLAY_NAME'] = getSalesTeamDisplayName($row, $company);
     }
     unset($row);
 
@@ -380,11 +430,16 @@ function getSalesTeamHeadIds($teams)
     return array_values(array_unique($headIds));
 }
 
-function getSalesTeamById($deptId)
+function getSalesTeamById($deptId, $company = 'mira')
 {
     $deptId = dbInt($deptId);
-    if (!in_array($deptId, getSalesReportDepartmentIds(false), true)) {
-        return array();
+    if (!in_array($deptId, getSalesReportDepartmentIds(false, $company), true)) {
+        // Try resolving company if not found
+        $detectedCompany = ($company === COMPANY_MIRA) ? COMPANY_EVA : COMPANY_MIRA;
+        if (!in_array($deptId, getSalesReportDepartmentIds(false, $detectedCompany), true)) {
+            return array();
+        }
+        $company = $detectedCompany;
     }
 
     $row = dbQueryOne("
@@ -402,17 +457,18 @@ function getSalesTeamById($deptId)
     ");
 
     if (!empty($row)) {
-        $row['UF_HEAD'] = resolveSalesTeamHeadId($row);
-        $row['DISPLAY_NAME'] = getSalesTeamDisplayName($row);
+        $row['UF_HEAD'] = resolveSalesTeamHeadId($row, $company);
+        $row['DISPLAY_NAME'] = getSalesTeamDisplayName($row, $company);
     }
 
     return $row;
 }
 
-function resolveSalesTeamHeadId($teamRow)
+function resolveSalesTeamHeadId($teamRow, $company = 'mira')
 {
     $deptId = (int)($teamRow['ID'] ?? 0);
-    $headsByDept = $GLOBALS['CFG_SALES_TEAM_HEAD_BY_DEPT'] ?? array();
+    $cfgKey = ($company === COMPANY_EVA) ? 'CFG_SALES_TEAM_HEAD_BY_DEPT_EVA' : 'CFG_SALES_TEAM_HEAD_BY_DEPT_MIRA';
+    $headsByDept = $GLOBALS[$cfgKey] ?? array();
     if ($deptId > 0 && isset($headsByDept[$deptId])) {
         return (int)$headsByDept[$deptId];
     }
@@ -420,11 +476,12 @@ function resolveSalesTeamHeadId($teamRow)
     return (int)($teamRow['UF_HEAD'] ?? 0);
 }
 
-function getSalesTeamCode($teamRow)
+function getSalesTeamCode($teamRow, $company = 'mira')
 {
     $deptId = (int)($teamRow['ID'] ?? 0);
     $teamName = trim((string)($teamRow['NAME'] ?? ''));
-    $codesByDept = $GLOBALS['CFG_SALES_TEAM_CODE_BY_DEPT'] ?? array();
+    $cfgKey = ($company === COMPANY_EVA) ? 'CFG_SALES_TEAM_CODE_BY_DEPT_EVA' : 'CFG_SALES_TEAM_CODE_BY_DEPT_MIRA';
+    $codesByDept = $GLOBALS[$cfgKey] ?? array();
 
     if ($deptId > 0 && !empty($codesByDept[$deptId])) {
         return strtoupper(trim((string)$codesByDept[$deptId]));
@@ -447,13 +504,13 @@ function getSalesTeamCode($teamRow)
     return $code !== '' ? $code : strtoupper($teamName);
 }
 
-function getSalesTeamDisplayName($teamRow)
+function getSalesTeamDisplayName($teamRow, $company = 'mira')
 {
     static $headProfileCache = array();
 
     $teamName = trim((string)($teamRow['NAME'] ?? ''));
-    $code = getSalesTeamCode($teamRow);
-    $headId = resolveSalesTeamHeadId($teamRow);
+    $code = getSalesTeamCode($teamRow, $company);
+    $headId = resolveSalesTeamHeadId($teamRow, $company);
     $headFirstName = '';
 
     if ($headId > 0) {
@@ -475,22 +532,9 @@ function getSalesTeamDisplayName($teamRow)
     return $teamName;
 }
 
-/**
- * Fetch all active agents in a given department (and its sub-departments).
- * Returns array of user rows: ID, NAME, LAST_NAME, WORK_POSITION, UF_DEPARTMENT.
- *
- * @param  int|array $deptIds  Single dept ID or array of dept IDs
- * @param  bool      $applyPrivateOfficeOverride  When true (default), users whose
- *                    WORK_POSITION is "Private Office" are grouped under dept 23 (PO team)
- *                    instead of their actual assigned department. This is CEO-view
- *                    behavior. Pass false to use each user's real UF_DEPARTMENT instead
- *                    (manager-view behavior), so Private Office agents show up normally
- *                    under their actual department for their own manager.
- * @return array
- */
-function getAgentsByDept($deptIds, $applyPrivateOfficeOverride = true, $dateRange = null)
+function getAgentsByDept($deptIds, $applyPrivateOfficeOverride = true, $dateRange = null, $company = 'mira')
 {
-    $deptIds = filterAllowedSalesDepartmentIds($deptIds, true);
+    $deptIds = filterAllowedSalesDepartmentIds($deptIds, true, $company);
     if (empty($deptIds)) {
         return array();
     }
@@ -502,9 +546,11 @@ function getAgentsByDept($deptIds, $applyPrivateOfficeOverride = true, $dateRang
         ? 'AND u.ID NOT IN ' . inClauseInt($nonAgentIds)
         : '';
 
-    $deptExpr = $applyPrivateOfficeOverride
-        ? "(ud.VALUE_INT IN {$in} OR (23 IN {$in} AND TRIM(LOWER(u.WORK_POSITION)) = 'private office') OR (u.ID = 168 AND 30 IN {$in}) OR (u.ID = 156 AND 26 IN {$in}))"
-        : "(ud.VALUE_INT IN {$in} OR (u.ID = 168 AND 30 IN {$in}) OR (u.ID = 156 AND 26 IN {$in}))";
+    $deptExpr = ($company === COMPANY_EVA)
+        ? "ud.VALUE_INT IN {$in}"
+        : ($applyPrivateOfficeOverride
+            ? "(ud.VALUE_INT IN {$in} OR (23 IN {$in} AND TRIM(LOWER(u.WORK_POSITION)) = 'private office') OR (u.ID = 168 AND 30 IN {$in}) OR (u.ID = 156 AND 26 IN {$in}))"
+            : "(ud.VALUE_INT IN {$in} OR (u.ID = 168 AND 30 IN {$in}) OR (u.ID = 156 AND 26 IN {$in}))");
 
     if ($dateRange && isset($dateRange['from']) && isset($dateRange['to'])) {
         $from = dbEsc($dateRange['from']);
@@ -572,9 +618,9 @@ function getAgentsByDept($deptIds, $applyPrivateOfficeOverride = true, $dateRang
 /**
  * Fetch dismissed agents (ACTIVE = 'N') who were in a given department.
  */
-function getDismissedAgentsByDept($deptIds, $applyPrivateOfficeOverride = true, $dateRange = null)
+function getDismissedAgentsByDept($deptIds, $applyPrivateOfficeOverride = true, $dateRange = null, $company = 'mira')
 {
-    $deptIds = filterAllowedSalesDepartmentIds($deptIds, true);
+    $deptIds = filterAllowedSalesDepartmentIds($deptIds, true, $company);
     if (empty($deptIds)) {
         return array();
     }
@@ -586,9 +632,11 @@ function getDismissedAgentsByDept($deptIds, $applyPrivateOfficeOverride = true, 
         ? 'AND u.ID NOT IN ' . inClauseInt($nonAgentIds)
         : '';
 
-    $deptExpr = $applyPrivateOfficeOverride
-        ? "(ud.VALUE_INT IN {$in} OR (23 IN {$in} AND TRIM(LOWER(u.WORK_POSITION)) = 'private office') OR (u.ID = 168 AND 30 IN {$in}) OR (u.ID = 156 AND 26 IN {$in}))"
-        : "(ud.VALUE_INT IN {$in} OR (u.ID = 168 AND 30 IN {$in}) OR (u.ID = 156 AND 26 IN {$in}))";
+    $deptExpr = ($company === COMPANY_EVA)
+        ? "ud.VALUE_INT IN {$in}"
+        : ($applyPrivateOfficeOverride
+            ? "(ud.VALUE_INT IN {$in} OR (23 IN {$in} AND TRIM(LOWER(u.WORK_POSITION)) = 'private office') OR (u.ID = 168 AND 30 IN {$in}) OR (u.ID = 156 AND 26 IN {$in}))"
+            : "(ud.VALUE_INT IN {$in} OR (u.ID = 168 AND 30 IN {$in}) OR (u.ID = 156 AND 26 IN {$in}))");
 
     if ($dateRange && isset($dateRange['from']) && isset($dateRange['to'])) {
         $from = dbEsc($dateRange['from']);
@@ -667,20 +715,23 @@ function getDismissedAgentsByDept($deptIds, $applyPrivateOfficeOverride = true, 
  * @param  bool      $applyPrivateOfficeOverride  See getAgentsByDept(). Default true (CEO-view
  *                    grouping); pass false for manager-view (real department) behavior.
  * @param  array|null $dateRange Optional date range filter to include historical members.
+ * @param  string    $company 'mira' | 'eva'
  * @return array
  */
-function getDeptUserIds($deptIds, $applyPrivateOfficeOverride = true, $dateRange = null)
+function getDeptUserIds($deptIds, $applyPrivateOfficeOverride = true, $dateRange = null, $company = 'mira')
 {
-    $deptIds = filterAllowedSalesDepartmentIds($deptIds, true);
+    $deptIds = filterAllowedSalesDepartmentIds($deptIds, true, $company);
     if (empty($deptIds)) {
         return array();
     }
 
     $in = inClauseInt($deptIds);
 
-    $deptExpr = $applyPrivateOfficeOverride
-        ? "(ud.VALUE_INT IN {$in} OR (23 IN {$in} AND TRIM(LOWER(u.WORK_POSITION)) = 'private office') OR (u.ID = 168 AND 30 IN {$in}) OR (u.ID = 156 AND 26 IN {$in}))"
-        : "(ud.VALUE_INT IN {$in} OR (u.ID = 168 AND 30 IN {$in}) OR (u.ID = 156 AND 26 IN {$in}))";
+    $deptExpr = ($company === COMPANY_EVA)
+        ? "ud.VALUE_INT IN {$in}"
+        : ($applyPrivateOfficeOverride
+            ? "(ud.VALUE_INT IN {$in} OR (23 IN {$in} AND TRIM(LOWER(u.WORK_POSITION)) = 'private office') OR (u.ID = 168 AND 30 IN {$in}) OR (u.ID = 156 AND 26 IN {$in}))"
+            : "(ud.VALUE_INT IN {$in} OR (u.ID = 168 AND 30 IN {$in}) OR (u.ID = 156 AND 26 IN {$in}))");
 
     if ($dateRange && isset($dateRange['from']) && isset($dateRange['to'])) {
         $from = dbEsc($dateRange['from']);
@@ -741,7 +792,8 @@ function getUserProfile($userId)
             u.WORK_POSITION,
             u.DATE_REGISTER,
             u.EMAIL,
-            uts_u.UF_USR_1778656838068
+            uts_u.UF_USR_1778656838068,
+            uts_u." . FIELD_COMPANY_USER . " AS company_enum
         FROM b_user u
         LEFT JOIN b_uts_user uts_u
             ON uts_u.VALUE_ID = u.ID
@@ -753,28 +805,33 @@ function getUserProfile($userId)
 /**
  * Get manager's name for an agent by UF_HEAD of their department.
  */
-function getManagerForAgent($userId)
+function getManagerForAgent($userId, $company = null)
 {
     $uid = dbInt($userId);
+    if ($company === null) {
+        $company = getUserCompany($userId);
+    }
 
-    // If user's WORK_POSITION is "Private Office", their manager is the head of department 23 (Aldo De Jager)
-    $userRow = dbQueryOne("SELECT WORK_POSITION FROM b_user WHERE ID = {$uid} LIMIT 1");
-    if ($userRow && trim(strtolower($userRow['WORK_POSITION'] ?? '')) === 'private office') {
-        $poHeadRow = dbQueryOne("
-            SELECT m.NAME, m.LAST_NAME
-            FROM b_uts_iblock_3_section uts
-            JOIN b_user m ON m.ID = uts.UF_HEAD
-            WHERE uts.VALUE_ID = 23
-            LIMIT 1
-        ");
-        if ($poHeadRow) {
-            return trim($poHeadRow['NAME'] . ' ' . $poHeadRow['LAST_NAME']);
+    // If user's WORK_POSITION is "Private Office" in Mira, their manager is the head of department 23 (Aldo De Jager)
+    if ($company === COMPANY_MIRA) {
+        $userRow = dbQueryOne("SELECT WORK_POSITION FROM b_user WHERE ID = {$uid} LIMIT 1");
+        if ($userRow && trim(strtolower($userRow['WORK_POSITION'] ?? '')) === 'private office') {
+            $poHeadRow = dbQueryOne("
+                SELECT m.NAME, m.LAST_NAME
+                FROM b_uts_iblock_3_section uts
+                JOIN b_user m ON m.ID = uts.UF_HEAD
+                WHERE uts.VALUE_ID = 23
+                LIMIT 1
+            ");
+            if ($poHeadRow) {
+                return trim($poHeadRow['NAME'] . ' ' . $poHeadRow['LAST_NAME']);
+            }
+            return '';
         }
-        return '';
     }
 
     $row = dbQueryOne("
-        SELECT CONCAT(m.NAME, ' ', m.LAST_NAME) AS FULL_NAME
+        SELECT s.ID AS DEPT_ID, uts.UF_HEAD, CONCAT(m.NAME, ' ', m.LAST_NAME) AS FULL_NAME
         FROM b_utm_user ud
 
         JOIN b_iblock_section s 
@@ -783,7 +840,7 @@ function getManagerForAgent($userId)
         LEFT JOIN b_uts_iblock_3_section uts 
             ON uts.VALUE_ID = s.ID
 
-        JOIN b_user m 
+        LEFT JOIN b_user m 
             ON m.ID = uts.UF_HEAD
 
         WHERE ud.VALUE_ID = {$uid}
@@ -791,24 +848,46 @@ function getManagerForAgent($userId)
         LIMIT 1
     ");
 
-    if ($row && !empty($row['FULL_NAME'])) {
-        return $row['FULL_NAME'];
+    if ($row) {
+        $deptId = (int)($row['DEPT_ID'] ?? 0);
+        $headId = resolveSalesTeamHeadId(array('ID' => $deptId, 'UF_HEAD' => $row['UF_HEAD']), $company);
+        if ($headId > 0) {
+            $headProf = getUserProfile($headId);
+            if (!empty($headProf)) {
+                return fullName($headProf);
+            }
+        }
+        if (!empty($row['FULL_NAME'])) {
+            return trim($row['FULL_NAME']);
+        }
     }
 
     // Fallback for dismissed users from history table
-    $allowedDeptIds = getSalesReportDepartmentIds(false);
+    $allowedDeptIds = getSalesReportDepartmentIds(false, $company);
     $histRow = dbQueryOne("
-        SELECT CONCAT(m.NAME, ' ', m.LAST_NAME) AS FULL_NAME
+        SELECT h.DEPT_ID, uts.UF_HEAD, CONCAT(m.NAME, ' ', m.LAST_NAME) AS FULL_NAME
         FROM b_agent_dept_history h
         JOIN b_uts_iblock_3_section uts ON uts.VALUE_ID = h.DEPT_ID
-        JOIN b_user m ON m.ID = uts.UF_HEAD
+        LEFT JOIN b_user m ON m.ID = uts.UF_HEAD
         WHERE h.USER_ID = {$uid}
           AND h.DEPT_ID IN " . inClauseInt($allowedDeptIds) . "
         ORDER BY h.EFFECTIVE_FROM DESC
         LIMIT 1
     ");
 
-    return $histRow ? $histRow['FULL_NAME'] : '';
+    if ($histRow) {
+        $deptId = (int)($histRow['DEPT_ID'] ?? 0);
+        $headId = resolveSalesTeamHeadId(array('ID' => $deptId, 'UF_HEAD' => $histRow['UF_HEAD']), $company);
+        if ($headId > 0) {
+            $headProf = getUserProfile($headId);
+            if (!empty($headProf)) {
+                return fullName($headProf);
+            }
+        }
+        return trim((string)($histRow['FULL_NAME'] ?? ''));
+    }
+
+    return '';
 }
 
 /**
@@ -816,23 +895,29 @@ function getManagerForAgent($userId)
  * UF_DEPARTMENT in b_user is stored as JSON array in modern Bitrix.
  * Returns first department ID as int.
  */
-function getUserDeptId($userId)
+function getUserDeptId($userId, $company = null)
 {
     $uid = dbInt($userId);
-    if ($uid === 156) {
-        return 26; // ST3 branch
-    }
-    if ($uid === 168) {
-        return 30; // TG department
+    if ($company === null) {
+        $company = getUserCompany($userId);
     }
 
-    // Check if the user is in Private Office via WORK_POSITION
-    $userRow = dbQueryOne("SELECT WORK_POSITION FROM b_user WHERE ID = {$uid} LIMIT 1");
-    if ($userRow && trim(strtolower($userRow['WORK_POSITION'] ?? '')) === 'private office') {
-        return 23; // Private Office department ID
+    if ($company === COMPANY_MIRA) {
+        if ($uid === 156) {
+            return 26; // ST3 branch
+        }
+        if ($uid === 168) {
+            return 30; // TG department
+        }
+
+        // Check if the user is in Private Office via WORK_POSITION
+        $userRow = dbQueryOne("SELECT WORK_POSITION FROM b_user WHERE ID = {$uid} LIMIT 1");
+        if ($userRow && trim(strtolower($userRow['WORK_POSITION'] ?? '')) === 'private office') {
+            return 23; // Private Office department ID
+        }
     }
 
-    $allowedDeptIds = getSalesReportDepartmentIds(true);
+    $allowedDeptIds = getSalesReportDepartmentIds(true, $company);
 
     $row = dbQueryOne("
         SELECT VALUE_INT
@@ -860,20 +945,28 @@ function getUserDeptId($userId)
     return (int)($histRow['DEPT_ID'] ?? 0);
 }
 
-function getUserOriginalDeptId($userId)
+function getUserOriginalDeptId($userId, $company = null)
 {
     $uid = dbInt($userId);
-    if ($uid === 156) {
-        return 26; // ST3 branch
+    if ($company === null) {
+        $company = getUserCompany($userId);
     }
-    if ($uid === 168) {
-        return 30; // TG department
-    }
-    $allowedDeptIds = getSalesReportDepartmentIds(true);
 
-    // Exclude Private Office (23) and Sales Root (3) to get the agent's actual sales team department
-    $allowedDeptIds = array_values(array_filter($allowedDeptIds, function($id) {
-        return (int)$id !== 23 && (int)$id !== 3;
+    if ($company === COMPANY_MIRA) {
+        if ($uid === 156) {
+            return 26; // ST3 branch
+        }
+        if ($uid === 168) {
+            return 30; // TG department
+        }
+    }
+
+    $root = ($company === COMPANY_EVA) ? DEPT_SALES_ROOT_EVA : DEPT_SALES_ROOT_MIRA;
+    $allowedDeptIds = getSalesReportDepartmentIds(true, $company);
+
+    // Exclude Private Office (23) and Sales Root to get the agent's actual sales team department
+    $allowedDeptIds = array_values(array_filter($allowedDeptIds, function($id) use ($root) {
+        return (int)$id !== 23 && (int)$id !== (int)$root;
     }));
 
     $row = dbQueryOne("
@@ -925,7 +1018,7 @@ function getListingBranchCodesForDeptIds($deptIds)
     return array_values(array_unique($codes));
 }
 
-function getListingBranchCodesForUserIds($userIds)
+function getListingBranchCodesForUserIds($userIds, $company = 'mira')
 {
     if (!is_array($userIds)) {
         $userIds = array($userIds);
@@ -933,7 +1026,7 @@ function getListingBranchCodesForUserIds($userIds)
 
     $codes = array();
     foreach ($userIds as $userId) {
-        $deptId = getUserDeptId($userId);
+        $deptId = getUserDeptId($userId, $company);
         $code = getListingBranchCodeForDeptId($deptId);
         if ($code !== '') {
             $codes[] = $code;
@@ -952,10 +1045,15 @@ function getListingBranchCodesForUserIds($userIds)
  *              grouping); pass false for manager-view (real department) behavior, so a
  *              Private Office agent shows up normally under their actual manager/department.
  * @param  array|null $dateRange Optional date range filter to include historical members.
+ * @param  string|null $company
  */
-function getAgentIdsByManager($managerId, $applyPrivateOfficeOverride = true, $dateRange = null)
+function getAgentIdsByManager($managerId, $applyPrivateOfficeOverride = true, $dateRange = null, $company = null)
 {
     $mid = dbInt($managerId);
+    if ($company === null) {
+        $company = getUserCompany($managerId);
+    }
+
     $nonAgentIds = getNonAgentUserIds();
     $excludeNonAgents = !empty($nonAgentIds)
         ? 'AND u.ID NOT IN ' . inClauseInt($nonAgentIds)
@@ -963,10 +1061,10 @@ function getAgentIdsByManager($managerId, $applyPrivateOfficeOverride = true, $d
 
     // Find all departments this manager heads using fallback-aware logic
     $managerDepts = array();
-    if ($mid === 156) {
+    if ($company === COMPANY_MIRA && $mid === 156) {
         $managerDepts[] = 26; // ST3 branch
     }
-    $salesTeams = getSalesTeams();
+    $salesTeams = getSalesTeams($company);
     foreach ($salesTeams as $team) {
         if ((int)$team['UF_HEAD'] === $mid) {
             $managerDepts[] = (int)$team['ID'];
@@ -979,9 +1077,11 @@ function getAgentIdsByManager($managerId, $applyPrivateOfficeOverride = true, $d
 
     $deptIn = inClauseInt($managerDepts);
 
-    $deptExpr = $applyPrivateOfficeOverride
-        ? "(ud.VALUE_INT IN {$deptIn} OR (23 IN {$deptIn} AND TRIM(LOWER(u.WORK_POSITION)) = 'private office') OR (u.ID = 168 AND 30 IN {$deptIn}) OR (u.ID = 156 AND 26 IN {$deptIn}))"
-        : "(ud.VALUE_INT IN {$deptIn} OR (u.ID = 168 AND 30 IN {$deptIn}) OR (u.ID = 156 AND 26 IN {$deptIn}))";
+    $deptExpr = ($company === COMPANY_EVA)
+        ? "ud.VALUE_INT IN {$deptIn}"
+        : ($applyPrivateOfficeOverride
+            ? "(ud.VALUE_INT IN {$deptIn} OR (23 IN {$deptIn} AND TRIM(LOWER(u.WORK_POSITION)) = 'private office') OR (u.ID = 168 AND 30 IN {$deptIn}) OR (u.ID = 156 AND 26 IN {$deptIn}))"
+            : "(ud.VALUE_INT IN {$deptIn} OR (u.ID = 168 AND 30 IN {$deptIn}) OR (u.ID = 156 AND 26 IN {$deptIn}))");
 
     if ($dateRange && isset($dateRange['from']) && isset($dateRange['to'])) {
         $from = dbEsc($dateRange['from']);
@@ -1031,19 +1131,23 @@ function getAgentIdsByManager($managerId, $applyPrivateOfficeOverride = true, $d
 /**
  * Get dismissed agent user IDs (ACTIVE = 'N') managed by a given manager.
  */
-function getDismissedAgentIdsByManager($managerId, $applyPrivateOfficeOverride = true, $dateRange = null)
+function getDismissedAgentIdsByManager($managerId, $applyPrivateOfficeOverride = true, $dateRange = null, $company = null)
 {
     $mid = dbInt($managerId);
+    if ($company === null) {
+        $company = getUserCompany($managerId);
+    }
+
     $nonAgentIds = getNonAgentUserIds();
     $excludeNonAgents = !empty($nonAgentIds)
         ? 'AND u.ID NOT IN ' . inClauseInt($nonAgentIds)
         : '';
 
     $managerDepts = array();
-    if ($mid === 156) {
+    if ($company === COMPANY_MIRA && $mid === 156) {
         $managerDepts[] = 26; // ST3 branch
     }
-    $salesTeams = getSalesTeams();
+    $salesTeams = getSalesTeams($company);
     foreach ($salesTeams as $team) {
         if ((int)$team['UF_HEAD'] === $mid) {
             $managerDepts[] = (int)$team['ID'];
@@ -1056,9 +1160,11 @@ function getDismissedAgentIdsByManager($managerId, $applyPrivateOfficeOverride =
 
     $deptIn = inClauseInt($managerDepts);
 
-    $deptExpr = $applyPrivateOfficeOverride
-        ? "(ud.VALUE_INT IN {$deptIn} OR (23 IN {$deptIn} AND TRIM(LOWER(u.WORK_POSITION)) = 'private office') OR (u.ID = 168 AND 30 IN {$deptIn}) OR (u.ID = 156 AND 26 IN {$deptIn}))"
-        : "(ud.VALUE_INT IN {$deptIn} OR (u.ID = 168 AND 30 IN {$deptIn}) OR (u.ID = 156 AND 26 IN {$deptIn}))";
+    $deptExpr = ($company === COMPANY_EVA)
+        ? "ud.VALUE_INT IN {$deptIn}"
+        : ($applyPrivateOfficeOverride
+            ? "(ud.VALUE_INT IN {$deptIn} OR (23 IN {$deptIn} AND TRIM(LOWER(u.WORK_POSITION)) = 'private office') OR (u.ID = 168 AND 30 IN {$deptIn}) OR (u.ID = 156 AND 26 IN {$deptIn}))"
+            : "(ud.VALUE_INT IN {$deptIn} OR (u.ID = 168 AND 30 IN {$deptIn}) OR (u.ID = 156 AND 26 IN {$deptIn}))");
 
     if ($dateRange && isset($dateRange['from']) && isset($dateRange['to'])) {
         $from = dbEsc($dateRange['from']);
@@ -1308,12 +1414,17 @@ function getEffectiveDealCloseDateExpr($dealAlias = 'd', $utsAlias = 'uts')
 }
 
 /**
- * Build SQL WHERE fragment to exclude deals where UF_CRM_1785767578527 is true / 1 / 'Y'.
+ * Build SQL WHERE fragment to filter deals by company (using UF_CRM_1785767578527).
+ * For 'eva': deal flag is 1 / 'Y' / 'true'.
+ * For 'mira': deal flag is NULL / 0 / NOT '1' / NOT 'Y'.
  */
-function getExcludeDealFilter($utsAlias = 'uts')
+function getExcludeDealFilter($utsAlias = 'uts', $company = 'mira')
 {
     $f = FIELD_EXCLUDE_DEAL;
-    return "AND ({$utsAlias}.{$f} IS NULL OR CAST({$utsAlias}.{$f} AS CHAR) NOT IN ('1', 'Y'))";
+    if ($company === COMPANY_EVA) {
+        return "AND ({$utsAlias}.{$f} IS NOT NULL AND CAST({$utsAlias}.{$f} AS CHAR) IN ('1', 'Y', 'true', 'TRUE'))";
+    }
+    return "AND ({$utsAlias}.{$f} IS NULL OR CAST({$utsAlias}.{$f} AS CHAR) NOT IN ('1', 'Y', 'true', 'TRUE'))";
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1331,9 +1442,10 @@ function getExcludeDealFilter($utsAlias = 'uts')
  * @param  array  $agentIds    Bitrix user IDs to filter by (empty = all agents)
  * @param  array  $dateRange   ['from'=>'YYYY-MM-DD', 'to'=>'YYYY-MM-DD']
  * @param  string $dealType    'All' | 'Offplan' | 'Secondary' | 'Rental'
+ * @param  string $company     'mira' | 'eva'
  * @return array
  */
-function fetchWonDeals($agentIds, $dateRange, $dealType = 'All')
+function fetchWonDeals($agentIds, $dateRange, $dealType = 'All', $company = 'mira')
 {
     $catId    = dbInt(PIPELINE_TRANSACTION);
     $stageWon = dbEsc(STAGE_WON);
@@ -1356,7 +1468,7 @@ function fetchWonDeals($agentIds, $dateRange, $dealType = 'All')
     }
 
     $typeFilter = buildPropertyTypeFilter($dealType, 'uts');
-    $excludeDealFilter = getExcludeDealFilter('uts');
+    $excludeDealFilter = getExcludeDealFilter('uts', $company);
 
     return dbQuery("
         SELECT
@@ -1393,7 +1505,7 @@ function fetchWonDeals($agentIds, $dateRange, $dealType = 'All')
     ");
 }
 
-function fetchAllDeals($agentIds, $dateRange, $dealType = 'All')
+function fetchAllDeals($agentIds, $dateRange, $dealType = 'All', $company = 'mira')
 {
     $catId    = dbInt(PIPELINE_TRANSACTION);
     $from     = dbEsc($dateRange['from']);
@@ -1414,7 +1526,7 @@ function fetchAllDeals($agentIds, $dateRange, $dealType = 'All')
     }
 
     $typeFilter = buildPropertyTypeFilter($dealType, 'uts');
-    $excludeDealFilter = getExcludeDealFilter('uts');
+    $excludeDealFilter = getExcludeDealFilter('uts', $company);
 
     return dbQuery("
         SELECT
@@ -1455,7 +1567,7 @@ function fetchAllDeals($agentIds, $dateRange, $dealType = 'All')
  * Fetch all deals in the Transactions pipeline without report filters.
  * Scope is limited only by owner IDs when provided.
  */
-function fetchTransactionPipelineDeals($agentIds = array())
+function fetchTransactionPipelineDeals($agentIds = array(), $company = 'mira')
 {
     $catId   = dbInt(PIPELINE_TRANSACTION);
     $fAmount = FIELD_DEAL_AMOUNT;
@@ -1471,7 +1583,7 @@ function fetchTransactionPipelineDeals($agentIds = array())
     if (!empty($agentIds)) {
         $agentFilter = 'AND d.ASSIGNED_BY_ID IN ' . inClauseInt($agentIds);
     }
-    $excludeDealFilter = getExcludeDealFilter('uts');
+    $excludeDealFilter = getExcludeDealFilter('uts', $company);
 
     return dbQuery("
         SELECT
@@ -1501,7 +1613,7 @@ function fetchTransactionPipelineDeals($agentIds = array())
 /**
  * Fetch committed deals (all stages in pipeline 3 except WON and LOSE).
  */
-function fetchCommittedDeals($agentIds, $dateRange, $dealType = 'All')
+function fetchCommittedDeals($agentIds, $dateRange, $dealType = 'All', $company = 'mira')
 {
     $catId     = dbInt(PIPELINE_TRANSACTION);
     $from      = dbEsc($dateRange['from']);
@@ -1520,7 +1632,7 @@ function fetchCommittedDeals($agentIds, $dateRange, $dealType = 'All')
     }
 
     $typeFilter = buildPropertyTypeFilter($dealType, 'uts');
-    $excludeDealFilter = getExcludeDealFilter('uts');
+    $excludeDealFilter = getExcludeDealFilter('uts', $company);
 
     return dbQuery("
         SELECT
@@ -1585,7 +1697,7 @@ function getLeadPipelinesForDealType($dealType)
     return array(PIPELINE_OFFPLAN, PIPELINE_SECONDARY);
 }
 
-function fetchLeadBreakdownRows($agentIds, $dateRange, $dealType = 'All')
+function fetchLeadBreakdownRows($agentIds, $dateRange, $dealType = 'All', $company = 'mira')
 {
     $pipelines = getLeadPipelinesForDealType($dealType);
     if (empty($pipelines)) {
@@ -1602,7 +1714,7 @@ function fetchLeadBreakdownRows($agentIds, $dateRange, $dealType = 'All')
     if (!empty($agentIds)) {
         $agentFilter = 'AND d.ASSIGNED_BY_ID IN ' . inClauseInt($agentIds);
     }
-    $excludeDealFilter = getExcludeDealFilter('uts');
+    $excludeDealFilter = getExcludeDealFilter('uts', $company);
 
     return dbQuery("
         SELECT
@@ -1773,9 +1885,11 @@ function formatLeadBreakdownItems($grouped, $total, $preserveStageOrder = false)
  *
  * @param  array  $agentIds
  * @param  array  $dateRange
+ * @param  int|null $pipeline
+ * @param  string $company 'mira' | 'eva'
  * @return int
  */
-function countActiveLeads($agentIds, $dateRange, $pipeline = null)
+function countActiveLeads($agentIds, $dateRange, $pipeline = null, $company = 'mira')
 {
     if ($pipeline === PIPELINE_OFFPLAN) {
         $pipelines = array(PIPELINE_OFFPLAN);
@@ -1797,7 +1911,7 @@ function countActiveLeads($agentIds, $dateRange, $pipeline = null)
     }
 
     $excludeIn         = inClauseStr($excludeStages);
-    $excludeDealFilter = getExcludeDealFilter('uts');
+    $excludeDealFilter = getExcludeDealFilter('uts', $company);
     $effectiveCreateExpr = getEffectiveDealCreateDateExpr('d', 'uts');
 
     $row = dbQueryOne("
@@ -1819,22 +1933,12 @@ function countActiveLeads($agentIds, $dateRange, $pipeline = null)
  * automated lead-distribution system (CREATED_BY_ID = 1), within the
  * date range.
  *
- * b_crm_event logs an ASSIGNED_BY_ID change as two text fields:
- *   EVENT_TEXT_1 = previous responsible person (name)
- *   EVENT_TEXT_2 = new responsible person (name)
- *
- * A "reshuffle" for agent X = an event where EVENT_TEXT_1 matches X's
- * name (lead was taken off them) AND the event was created by the
- * automated system (CREATED_BY_ID = 1), NOT a manual reassignment by a
- * manager/CEO. Counted per event (not collapsed per deal), since each
- * automated reshuffle is a distinct action by the distribution bot.
- *
  * @param  array  $agentIds
  * @param  array  $dateRange
- * @param  int    $scopeDeptId
+ * @param  string $company 'mira' | 'eva'
  * @return int
  */
-function countReshuffledLeads($agentIds, $dateRange)
+function countReshuffledLeads($agentIds, $dateRange, $company = 'mira')
 {
     $from      = dbEsc($dateRange['from']);
     $to        = dbEsc($dateRange['to']);
@@ -1844,7 +1948,7 @@ function countReshuffledLeads($agentIds, $dateRange)
     }
 
     $inAgents = inClauseInt($agentIds);
-    $excludeDealFilter = getExcludeDealFilter('uts');
+    $excludeDealFilter = getExcludeDealFilter('uts', $company);
 
     $row = dbQueryOne("
         SELECT COUNT(*) AS cnt
@@ -2592,7 +2696,7 @@ function aggregateCommissionDeals($wonDeals, $committedDeals = array())
  * Calculate days since last transaction-pipeline deal for a set of agents.
  * Returns int (days) or 999 if no deals exist.
  */
-function daysSinceLastDeal($agentIds)
+function daysSinceLastDeal($agentIds, $company = 'mira')
 {
     $catId = dbInt(PIPELINE_TRANSACTION);
     $importedCloseField  = FIELD_IMPORTED_CLOSE_DATE;
@@ -2602,6 +2706,8 @@ function daysSinceLastDeal($agentIds)
     if (!empty($agentIds)) {
         $agentFilter = 'AND d.ASSIGNED_BY_ID IN ' . inClauseInt($agentIds);
     }
+
+    $excludeDealFilter = getExcludeDealFilter('uts', $company);
 
     $row = dbQueryOne("
         SELECT MAX(
@@ -2628,7 +2734,7 @@ function daysSinceLastDeal($agentIds)
             ON uts.VALUE_ID = d.ID
         WHERE d.CATEGORY_ID = {$catId}
           {$agentFilter}
-          " . getExcludeDealFilter('uts') . "
+          {$excludeDealFilter}
     ");
 
     if (empty($row['last_date'])) {
@@ -2650,7 +2756,7 @@ function daysSinceLastDeal($agentIds)
 /**
  * Calculate average gap (days) between consecutive won deals for an agent.
  */
-function avgGapBetweenDeals($agentId, $dateRange)
+function avgGapBetweenDeals($agentId, $dateRange, $company = 'mira')
 {
     $catId    = dbInt(PIPELINE_TRANSACTION);
     $stages   = inClauseStr($GLOBALS['CFG_ACTIVE_STAGES']);
@@ -2658,7 +2764,7 @@ function avgGapBetweenDeals($agentId, $dateRange)
     $from     = dbEsc($dateRange['from']);
     $to       = dbEsc($dateRange['to']);
     $effectiveCreateExpr = getEffectiveDealCreateDateExpr('d', 'uts');
-    $excludeDealFilter   = getExcludeDealFilter('uts');
+    $excludeDealFilter   = getExcludeDealFilter('uts', $company);
 
     $rows = dbQuery("
         SELECT DATE({$effectiveCreateExpr}) AS booking_date
@@ -2697,7 +2803,7 @@ function avgGapBetweenDeals($agentId, $dateRange)
  * Calculate average gap (days) between consecutive won deals for each agent in a team,
  * and return the average of those averages.
  */
-function avgGapBetweenDealsForTeam($agentIds, $dateRange)
+function avgGapBetweenDealsForTeam($agentIds, $dateRange, $company = 'mira')
 {
     if (empty($agentIds)) {
         return 0;
@@ -2708,7 +2814,7 @@ function avgGapBetweenDealsForTeam($agentIds, $dateRange)
     $from     = dbEsc($dateRange['from']);
     $to       = dbEsc($dateRange['to']);
     $effectiveCreateExpr = getEffectiveDealCreateDateExpr('d', 'uts');
-    $excludeDealFilter   = getExcludeDealFilter('uts');
+    $excludeDealFilter   = getExcludeDealFilter('uts', $company);
 
     $rows = dbQuery("
         SELECT d.ASSIGNED_BY_ID, DATE({$effectiveCreateExpr}) AS booking_date
@@ -2769,9 +2875,10 @@ function avgGapBetweenDealsForTeam($agentIds, $dateRange)
  * Count agents with no transaction-pipeline deal in last 60 days.
  *
  * @param  array $agentIds  All agent user IDs to check
+ * @param  string $company  'mira' | 'eva'
  * @return int
  */
-function countNoDealIn60Days($agentIds)
+function countNoDealIn60Days($agentIds, $company = 'mira')
 {
     if (empty($agentIds)) {
         return 0;
@@ -2827,7 +2934,7 @@ function countNoDealIn60Days($agentIds)
     $cutoff   = dbEsc(date('Y-m-d', strtotime('-60 days')));
     $inEligibleAgents = inClauseInt($eligibleAgentIds);
     $effectiveCreateExpr = getEffectiveDealCreateDateExpr('d', 'uts');
-    $excludeDealFilter   = getExcludeDealFilter('uts');
+    $excludeDealFilter   = getExcludeDealFilter('uts', $company);
 
     // Agents who DO have a recent transaction-pipeline deal based on Booking Date
     $rows = dbQuery("
@@ -2901,7 +3008,7 @@ function groupDealsByMonth($deals, $year)
  * Build target_vs_actual array for 12 months.
  *
  * @param  array $monthlyDeals  Output of groupDealsByMonth()
- * @param  int   $monthlyTarget AED target per month
+ * @param  int|array $monthlyTarget AED target per month
  * @return array
  */
 function buildTargetVsActual($monthlyDeals, $monthlyTarget)
@@ -3127,11 +3234,15 @@ function buildTopPropertyTypes($deals)
  * Get the monthly target for an agent.
  * Priority: agent-specific → WORK_POSITION-based → company default
  */
-function getAgentTarget($userId, $workPosition)
+function getAgentTarget($userId, $workPosition, $company = 'mira')
 {
     $uid     = (int)$userId;
     $targets = $GLOBALS['CFG_MONTHLY_TARGETS'];
+    $companyTargets = $targets[$company] ?? $targets;
 
+    if (isset($companyTargets['agents'][$uid])) {
+        return (int)$companyTargets['agents'][$uid];
+    }
     if (isset($targets['agents'][$uid])) {
         return (int)$targets['agents'][$uid];
     }
@@ -3146,21 +3257,27 @@ function getAgentTarget($userId, $workPosition)
  * Get the monthly target for a team (department).
  * Priority: team-specific → company default
  */
-function getTeamTarget($deptId)
+function getTeamTarget($deptId, $company = 'mira')
 {
     $targets = $GLOBALS['CFG_MONTHLY_TARGETS'];
+    $companyTargets = $targets[$company] ?? $targets;
+    if (isset($companyTargets['teams'][(int)$deptId])) {
+        return $companyTargets['teams'][(int)$deptId];
+    }
     if (isset($targets['teams'][(int)$deptId])) {
         return $targets['teams'][(int)$deptId];
     }
-    return $targets['company'];
+    return $companyTargets['company'] ?? ($targets['company'] ?? 0);
 }
 
 /**
  * Get company-wide monthly target.
  */
-function getCompanyTarget()
+function getCompanyTarget($company = 'mira')
 {
-    return $GLOBALS['CFG_MONTHLY_TARGETS']['company'];
+    $targets = $GLOBALS['CFG_MONTHLY_TARGETS'];
+    $companyTargets = $targets[$company] ?? $targets;
+    return $companyTargets['company'] ?? ($targets['company'] ?? 0);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -3173,18 +3290,20 @@ function getCompanyTarget()
  *
  * @param  int   $year
  * @param  array $agentIds  Empty = all agents
+ * @param  string $dealType
+ * @param  string $company
  * @return array
  */
-function fetchYearSummary($year, $agentIds = array())
+function fetchYearSummary($year, $agentIds = array(), $dealType = 'All', $company = 'mira')
 {
     $range = buildDateRange($year, 'All', 'All');
-    $deals = fetchAllDeals($agentIds, $range, 'All');
+    $deals = fetchAllDeals($agentIds, $range, $dealType, $company);
     $agg   = aggregateDeals($deals);
     return array(
         'sales'      => $agg['sales_volume'],
         'commission' => $agg['commissions'],
         'deals'      => $agg['deal_count'],
-        'agents'     => empty($agentIds) ? countAllActiveAgents() : count($agentIds),
+        'agents'     => empty($agentIds) ? countAllActiveAgents($company) : count($agentIds),
         'avg_deal'   => $agg['avg_sales_per_deal'],
     );
 }
@@ -3192,9 +3311,9 @@ function fetchYearSummary($year, $agentIds = array())
 /**
  * Count total active agents across all sales sub-departments.
  */
-function countAllActiveAgents()
+function countAllActiveAgents($company = 'mira')
 {
-    $allowedDeptIds = getSalesReportDepartmentIds(true);
+    $allowedDeptIds = getSalesReportDepartmentIds(true, $company);
     if (empty($allowedDeptIds)) {
         return 0;
     }
@@ -3203,6 +3322,8 @@ function countAllActiveAgents()
     $excludeNonAgents = !empty($nonAgentIds)
         ? 'AND u.ID NOT IN ' . inClauseInt($nonAgentIds)
         : '';
+
+    $poCond = ($company === COMPANY_MIRA) ? "OR (s.ID = 23 AND TRIM(LOWER(u.WORK_POSITION)) = 'private office')" : "";
 
     $row = dbQueryOne("
         SELECT COUNT(DISTINCT u.ID) AS cnt
@@ -3214,7 +3335,7 @@ function countAllActiveAgents()
 
         JOIN b_iblock_section s 
             ON s.ID = ud.VALUE_INT
-            OR (s.ID = 23 AND TRIM(LOWER(u.WORK_POSITION)) = 'private office')
+            {$poCond}
 
         WHERE u.ACTIVE = 'Y'
           AND (u.WORK_POSITION IS NULL OR (LOWER(TRIM(u.WORK_POSITION)) NOT LIKE '%pa liaison%' AND LOWER(TRIM(u.WORK_POSITION)) NOT LIKE '%listing admin%'))
@@ -3238,9 +3359,9 @@ function countAllActiveAgents()
  *
  * Returns array with both totals and percentages.
  */
-function buildCommissionSplit($wonDeals, $agentIds, $dateRange, $dealType)
+function buildCommissionSplit($wonDeals, $agentIds, $dateRange, $dealType, $company = 'mira')
 {
-    $committedDeals = fetchCommittedDeals($agentIds, $dateRange, $dealType);
+    $committedDeals = fetchCommittedDeals($agentIds, $dateRange, $dealType, $company);
     return aggregateCommissionDeals($wonDeals, $committedDeals);
 }
 
@@ -3252,10 +3373,10 @@ function buildCommissionSplit($wonDeals, $agentIds, $dateRange, $dealType)
  * Fetch 12-month breakdown for a full year (for year comparison chart).
  * Groups by month, returns sales/commission/deals per month.
  */
-function fetchYearMonthly($year, $agentIds = array())
+function fetchYearMonthly($year, $agentIds = array(), $dealType = 'All', $company = 'mira')
 {
     $range = buildDateRange($year, 'All', 'All');
-    $deals = fetchAllDeals($agentIds, $range, 'All');
+    $deals = fetchAllDeals($agentIds, $range, $dealType, $company);
     return groupDealsByMonth($deals, $year);
 }
 
@@ -3272,20 +3393,20 @@ function fetchYearMonthly($year, $agentIds = array())
  * @param  array $dateRange
  * @return array
  */
-function buildAgentPerformanceRow($userRow, $allDeals, $wonDeals, $committedDeals, $dateRange, $scopeDeptId = 0)
+function buildAgentPerformanceRow($userRow, $allDeals, $wonDeals, $committedDeals, $dateRange, $scopeDeptId = 0, $company = 'mira')
 {
     $uid = (int)$userRow['ID'];
     $agg = aggregateDeals($allDeals);
     $commissionAgg = aggregateCommissionDeals($wonDeals, $committedDeals);
 
-    $leadCountOffplan   = countActiveLeads(array($uid), $dateRange, PIPELINE_OFFPLAN);
-    $leadCountSecondary = countActiveLeads(array($uid), $dateRange, PIPELINE_SECONDARY);
-    $reshuffledCount = countReshuffledLeads(array($uid), $dateRange);
+    $leadCountOffplan   = countActiveLeads(array($uid), $dateRange, PIPELINE_OFFPLAN, $company);
+    $leadCountSecondary = countActiveLeads(array($uid), $dateRange, PIPELINE_SECONDARY, $company);
+    $reshuffledCount = countReshuffledLeads(array($uid), $dateRange, $company);
     $listingCount    = countListingsForUsers(array($uid));
     $pocketListings  = countPocketListingsForUsers(array($uid));
     $pocketListingCount = (int)$pocketListings['sale'] + (int)$pocketListings['rent'];
-    $lastDealDays    = daysSinceLastDeal(array($uid));
-    $avgGap          = avgGapBetweenDeals($uid, $dateRange);
+    $lastDealDays    = daysSinceLastDeal(array($uid), $company);
+    $avgGap          = avgGapBetweenDeals($uid, $dateRange, $company);
     $attendance      = countAttendanceDays($uid, $dateRange, $scopeDeptId);
 
     try {
@@ -3297,13 +3418,13 @@ function buildAgentPerformanceRow($userRow, $allDeals, $wonDeals, $committedDeal
     }
 
     $designation = $userRow['WORK_POSITION'] ?? '';
-    if (trim(strtolower($designation)) === 'private office') {
+    if ($company === COMPANY_MIRA && trim(strtolower($designation)) === 'private office') {
         static $teamCache = array();
-        $origDeptId = getUserOriginalDeptId($uid);
+        $origDeptId = getUserOriginalDeptId($uid, $company);
         if ($origDeptId > 0) {
             if (!isset($teamCache[$origDeptId])) {
-                $teamRow = getSalesTeamById($origDeptId);
-                $teamCache[$origDeptId] = !empty($teamRow) ? getSalesTeamCode($teamRow) : '';
+                $teamRow = getSalesTeamById($origDeptId, $company);
+                $teamCache[$origDeptId] = !empty($teamRow) ? getSalesTeamCode($teamRow, $company) : '';
             }
             $code = $teamCache[$origDeptId];
             if ($code !== '') {
@@ -3315,7 +3436,7 @@ function buildAgentPerformanceRow($userRow, $allDeals, $wonDeals, $committedDeal
     $isTransferred = false;
     $transferredAt = '';
     if ($scopeDeptId > 0) {
-        $teamDepts = filterAllowedSalesDepartmentIds(array($scopeDeptId), true);
+        $teamDepts = filterAllowedSalesDepartmentIds(array($scopeDeptId), true, $company);
         $historyRow = dbQueryOne("
             SELECT EFFECTIVE_TO 
             FROM b_agent_dept_history 
@@ -3336,14 +3457,14 @@ function buildAgentPerformanceRow($userRow, $allDeals, $wonDeals, $committedDeal
     }
 
     $deptId = 0;
-    if ($uid === 156) {
+    if ($company === COMPANY_MIRA && $uid === 156) {
         $deptId = 26;
-    } elseif ($uid === 168) {
+    } elseif ($company === COMPANY_MIRA && $uid === 168) {
         $deptId = 30;
-    } elseif (trim(strtolower($userRow['WORK_POSITION'] ?? '')) === 'private office') {
+    } elseif ($company === COMPANY_MIRA && trim(strtolower($userRow['WORK_POSITION'] ?? '')) === 'private office') {
         $deptId = 23;
     } else {
-        $allowedDeptIds = getSalesReportDepartmentIds(true);
+        $allowedDeptIds = getSalesReportDepartmentIds(true, $company);
         $row = dbQueryOne("
             SELECT VALUE_INT
             FROM b_utm_user
@@ -3355,7 +3476,7 @@ function buildAgentPerformanceRow($userRow, $allDeals, $wonDeals, $committedDeal
         $deptId = (int)($row['VALUE_INT'] ?? 0);
     }
 
-    $origDeptId = getUserOriginalDeptId($uid);
+    $origDeptId = getUserOriginalDeptId($uid, $company);
 
     return array(
         'id'                     => $uid,

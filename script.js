@@ -1,5 +1,6 @@
 // ── STATE ──────────────────────────────────────────────────────────────────
 let currentData = null;
+let currentCompany = "mira";
 let compareMetric = "sales";
 let charts = {};
 const tableSortState = {
@@ -315,7 +316,34 @@ function handleBackNavigation() {
 }
 
 function returnToPrimaryView() {
-  window.location.reload();
+  currentViewRole = null;
+  currentViewDeptId = null;
+  currentViewAgentId = null;
+  loadDashboard();
+}
+
+function switchCompany(company) {
+  if (currentCompany === company) return;
+  currentCompany = company;
+  updateCompanyToggleUI(company);
+  currentViewRole = null;
+  currentViewDeptId = null;
+  currentViewAgentId = null;
+  loadDashboard();
+}
+
+function updateCompanyToggleUI(company) {
+  const btnMira = document.getElementById("btnCompanyMira");
+  const btnEva = document.getElementById("btnCompanyEva");
+  if (btnMira && btnEva) {
+    if (company === "eva") {
+      btnEva.classList.add("active");
+      btnMira.classList.remove("active");
+    } else {
+      btnMira.classList.add("active");
+      btnEva.classList.remove("active");
+    }
+  }
 }
 
 function fetchDrilldownView(params) {
@@ -401,6 +429,7 @@ function applyFilters() {
 function getFilterParams() {
   const currentYear = new Date().getFullYear();
   const params = {
+    company: currentCompany,
     year: document.getElementById("f_year")?.value || "All",
     quarter: document.getElementById("f_quarter")?.value || "All",
     month: document.getElementById("f_month")?.value || "All",
@@ -434,6 +463,19 @@ async function loadDashboard() {
     const res = await fetch(`data.php?${qs}`);
     const data = await res.json();
     currentData = data;
+
+    if (data.company) {
+      currentCompany = data.company;
+      updateCompanyToggleUI(currentCompany);
+    }
+    const compToggle = document.getElementById("companyToggleContainer");
+    if (compToggle) {
+      if (data.can_switch_company) {
+        compToggle.classList.remove("hidden");
+      } else {
+        compToggle.classList.add("hidden");
+      }
+    }
 
     // Track active view state
     currentViewRole = data.view;
