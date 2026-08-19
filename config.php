@@ -56,25 +56,29 @@ $GLOBALS['CFG_ACTIVE_STAGES'] = array(
 // Lead pipelines – "active" stages (exclude WON/LOSE equivalents)
 // Offplan pipeline (category 1)
 $GLOBALS['CFG_LEAD_ACTIVE_STAGES_OFFPLAN'] = array(
-    'C1:NEW', // New Lead
-    'C1:UC_Y44ID0', // Assigned
-    'C1:UC_GT3BE1', // No Answer
-    'C1:UC_C55DKF', // Qualified
-    'C1:PREPAYMENT_INVOICE', // Option Sent
-    'C1:UC_VU0VYQ', // Meeting Scheduled
-    'C1:EXECUTING', // Cold
-    'C1:FINAL_INVOICE', // Warm
-    'C1:UC_BHOWXH', // Hot
-    'C1:UC_EO8A5H', // EOI Submitted
+    'C1:NEW',                // New Lead
+    'C1:UC_PQEWDF',          // From Amo CRM
+    'C1:UC_Y44ID0',          // Assigned (15 Min)
+    'C1:UC_GT3BE1',          // No Answer (2 Days)
+    'C1:UC_2OSPRW',          // Contacted (1 Day)
+    'C1:UC_C55DKF',          // Qualified
+    'C1:PREPAYMENT_INVOICE', // Option Sent (2 Days)
+    'C1:UC_VU0VYQ',          // Meetings Scheduled
+    'C1:EXECUTING',          // Cold (15 Days)
+    'C1:FINAL_INVOICE',      // Warm (10 Days)
+    'C1:UC_BHOWXH',          // Hot (5 Days)
+    'C1:UC_EO8A5H',          // EOI Submitted
+    'C1:UC_L64SIJ',          // Migrated from Eva
 );
 // Secondary pipeline (category 2)
 $GLOBALS['CFG_LEAD_ACTIVE_STAGES_SECONDARY'] = array(
-    'C2:NEW',   // New
-    'C2:UC_2MP0F2', // No Answer
-    'C2:UC_TDEII1', // Contacted
-    'C2:PREPARATION', // Qualified
-    'C2:EXECUTING', // Hot
+    'C2:NEW',                // New
+    'C2:UC_2MP0F2',          // No Answer
+    'C2:UC_TDEII1',          // Contacted
+    'C2:PREPARATION',        // Qualified
+    'C2:EXECUTING',          // Hot
     'C2:PREPAYMENT_INVOICE', // Cold
+    'C2:UC_MDWPW1',          // Migrated from Eva
 );
 
 // Lead pipelines – "junk/lost" stages (to be excluded from reshuffled leads count)
@@ -293,24 +297,28 @@ $GLOBALS['CFG_SALES_TEAM_HEAD_BY_DEPT_MIRA'] = array(
 // Eva Sales Departments & Teams
 $GLOBALS['CFG_SALES_REPORT_DEPARTMENT_IDS_EVA'] = array(
     36,  // Sales Department (parent)
-    37,  // Off Plan Market Department
-    38,  // Secondary Market Department
+    37,  // Off Plan Market Department (sub-department)
+    38,  // Secondary Market Department (sub-department)
     41,  // Independent H Team
     42,  // Freelance Sales Team
     43,  // Scott's Team
     44,  // Mario's Team
     40,  // Wagdy Team
-    46,  // Telesales
     39,  // Adilet Team
     45,  // Telesales admins
+    46,  // Telesales
 );
 
 $GLOBALS['CFG_SALES_TEAM_CODE_BY_DEPT_EVA'] = array(
+    37 => 'OP',
+    38 => 'SM',
     41 => 'IH',
+    42 => 'FT',
     43 => 'ST',
     44 => 'MT',
     40 => 'WT',
-    42 => 'FT',
+    39 => 'AT',
+    45 => 'TSA',
     46 => 'TS',
 );
 
@@ -319,6 +327,7 @@ $GLOBALS['CFG_SALES_TEAM_HEAD_BY_DEPT_EVA'] = array(
     43 => 670,  // Scott McGeachy (Scott's Team)
     44 => 669,  // Mario Volpi (Mario's Team)
     40 => 619,  // Mohamed Wagdy (Wagdy Team)
+    39 => 587,  // Adilet Abylgaziev (Adilet Team)
 );
 
 // Backward-compatibility references pointing to Mira
@@ -360,6 +369,7 @@ $GLOBALS['CFG_MANAGER_USER_IDS_EVA'] = array(
     670,  // Scott McGeachy (Scott's Team)
     669,  // Mario Volpi (Mario's Team)
     619,  // Mohamed Wagdy (Wagdy Team)
+    587,  // Adilet Abylgaziev (Adilet Team)
 );
 
 $GLOBALS['CFG_MANAGER_USER_IDS'] = array_values(array_unique(array_merge(
@@ -397,6 +407,8 @@ $GLOBALS['CFG_LEAD_STAGE_MAP'] = array(
         // Assignment / early stages
         'C1:UC_Y44ID0'          => 'Assigned (15 Min)',
         'C1:UC_GT3BE1'          => 'No Answer (2 Days)',
+        'C1:UC_2OSPRW'          => 'Contacted (1 Day)',
+        'C1:UC_C55DKF'          => 'Qualified',
 
         // Mid funnel
         'C1:PREPAYMENT_INVOICE' => 'Option Sent (2 Days)',
@@ -407,14 +419,15 @@ $GLOBALS['CFG_LEAD_STAGE_MAP'] = array(
         'C1:FINAL_INVOICE'      => 'Warm (10 Days)',
         'C1:UC_BHOWXH'          => 'Hot (5 Days)',
 
-        // Conversion
+        // Conversion / Eva Migration
         'C1:UC_EO8A5H'          => 'EOI Submitted',
+        'C1:UC_L64SIJ'          => 'Migrated from Eva',
 
         // Final
         'C1:WON'                => 'Deal won',
         'C1:LOSE'               => 'Junk',
 
-        // Lost reasons (you were missing these)
+        // Lost reasons
         'C1:APOLOGY'            => 'Invalid Number',
         'C1:UC_6CZF3Y'          => 'Realestate Brokers',
         'C1:UC_FGP2M3'          => 'Secondary',
@@ -438,12 +451,13 @@ $GLOBALS['CFG_LEAD_STAGE_MAP'] = array(
         // Lead status
         'C2:EXECUTING'          => 'Hot',
         'C2:PREPAYMENT_INVOICE' => 'Cold',
+        'C2:UC_MDWPW1'          => 'Migrated from Eva',
 
         // Final
         'C2:WON'                => 'Deal won',
         'C2:LOSE'               => 'Deal lost',
 
-        // Missing (important)
+        // Disqualified
         'C2:APOLOGY'            => 'Disqualified',
     ),
 );
@@ -454,12 +468,15 @@ $GLOBALS['CFG_LEAD_STAGE_META'] = array(
         'C1:UC_PQEWDF'          => array('semantics' => null, 'sort' => 11,  'color' => '#ace9fb'),
         'C1:UC_Y44ID0'          => array('semantics' => null, 'sort' => 20,  'color' => '#00adf2'),
         'C1:UC_GT3BE1'          => array('semantics' => null, 'sort' => 30,  'color' => '#f6989c'),
+        'C1:UC_2OSPRW'          => array('semantics' => null, 'sort' => 35,  'color' => '#fca048'),
+        'C1:UC_C55DKF'          => array('semantics' => null, 'sort' => 40,  'color' => '#2fc6f6'),
         'C1:PREPAYMENT_INVOICE' => array('semantics' => null, 'sort' => 50,  'color' => '#00ff00'),
         'C1:UC_VU0VYQ'          => array('semantics' => null, 'sort' => 60,  'color' => '#468ee5'),
         'C1:EXECUTING'          => array('semantics' => null, 'sort' => 70,  'color' => '#00a74c'),
         'C1:FINAL_INVOICE'      => array('semantics' => null, 'sort' => 80,  'color' => '#f99500'),
         'C1:UC_BHOWXH'          => array('semantics' => null, 'sort' => 90,  'color' => '#f11716'),
         'C1:UC_EO8A5H'          => array('semantics' => null, 'sort' => 91,  'color' => '#ace9fb'),
+        'C1:UC_L64SIJ'          => array('semantics' => null, 'sort' => 95,  'color' => '#c9a84c'),
         'C1:WON'                => array('semantics' => 'S',  'sort' => 100, 'color' => '#7BD500'),
         'C1:LOSE'               => array('semantics' => 'F',  'sort' => 110, 'color' => '#ff5752'),
         'C1:APOLOGY'            => array('semantics' => 'F',  'sort' => 120, 'color' => '#ff5752'),
@@ -478,6 +495,7 @@ $GLOBALS['CFG_LEAD_STAGE_META'] = array(
         'C2:PREPARATION'        => array('semantics' => null, 'sort' => 40, 'color' => '#2fc6f6'),
         'C2:EXECUTING'          => array('semantics' => null, 'sort' => 50, 'color' => '#0000ff'),
         'C2:PREPAYMENT_INVOICE' => array('semantics' => null, 'sort' => 60, 'color' => '#00ff00'),
+        'C2:UC_MDWPW1'          => array('semantics' => null, 'sort' => 65, 'color' => '#c9a84c'),
         'C2:WON'                => array('semantics' => 'S',  'sort' => 70, 'color' => '#7BD500'),
         'C2:LOSE'               => array('semantics' => 'F',  'sort' => 80, 'color' => '#FF5752'),
         'C2:APOLOGY'            => array('semantics' => 'F',  'sort' => 90, 'color' => '#ff5752'),
@@ -487,46 +505,110 @@ $GLOBALS['CFG_LEAD_STAGE_META'] = array(
 $GLOBALS['CFG_LEAD_SOURCE_MAP'] = array(
     ''              => 'Unknown',
 
-    // Direct sources
-    'WEB'           => 'Website',
+    // Direct / Telephony / System
     'CALL'          => 'Call',
     'EMAIL'         => 'E-Mail',
-    'CALLBACK'      => 'Callback',
-    'WEBFORM'       => 'CRM form',
-
-    // Marketing / Ads
+    'WEB'           => 'Website',
     'ADVERTISING'   => 'Advertising',
+    'PARTNER'       => 'Existing Client',
+    'RECOMMENDATION'=> 'By Recommendation',
+    'TRADE_SHOW'    => 'Show/Exhibition',
+    'WEBFORM'       => 'CRM form',
+    'CALLBACK'      => 'Callback',
     'RC_GENERATOR'  => 'Sales boost',
-
-    // Social Media
+    'STORE'         => 'Online Store',
+    'BOOKING'       => 'Booking',
     'REPEAT_SALE'   => 'Facebook',
-    '7'             => 'TikTok',
-    '6'             => 'Snapchat',
+    'OTHER'         => 'Other',
 
-    // Search Engines
+    // WhatsApp Connectors
+    '2|WZ_WHATSAPP_CA9E9686623946BD4B227F1B1DBC212B7' => 'WAZZUP: WhatsApp',
+    '2|BITRIX_WHATCRM_NET_70680444'                    => 'WhatsApp Line #2',
+    '3|BITRIX_WHATCRM_NET_70680444'                    => 'WhatsApp Line #3',
+
+    // Numeric IDs (from Bitrix CRM status list)
+    '1'             => 'Tilda',
+    '2'             => 'Hubspot',
     '3'             => 'Google',
-    '5'             => 'Yandex',
-
-    // Messaging
     '4'             => 'WhatsApp Marketing',
-
-    // Portals
+    '5'             => 'Yandex',
+    '6'             => 'Snapchat',
+    '7'             => 'TikTok',
     '8'             => 'Property Finder',
     '9'             => 'Bayut',
     '10'            => 'Dubizzle',
-
-    // CRM / Integrations
-    '2'             => 'Hubspot',
     '11'            => 'Amo CRM',
-    '1'             => 'Tilda',
-
-    // Offline / Other
-    'PARTNER'       => 'Existing Client',
-    'RECOMMENDATION' => 'By Recommendation',
-    'TRADE_SHOW'    => 'Show/Exhibition',
-    'STORE'         => 'Online Store',
-    'BOOKING'       => 'Booking',
-    'OTHER'         => 'Other',
+    '12'            => 'Manualy Created',
+    '13'            => 'Instagram Elvira Direct',
+    '14'            => 'Linkedin Direct',
+    '15'            => 'Yahoo SEO',
+    '16'            => 'Private',
+    '17'            => 'Partnership',
+    '18'            => 'SEO (Google, Yandex)',
+    '19'            => 'Islands',
+    '20'            => 'Referral',
+    '21'            => 'Emirate Estates',
+    '22'            => 'Elvira Lead',
+    '23'            => 'Telegram EN',
+    '24'            => 'Kiosk',
+    '25'            => 'KZ branch',
+    '26'            => 'X Red',
+    '27'            => 'Bloggers',
+    '28'            => 'LinkedIn_ADS',
+    '29'            => 'Walk in',
+    '30'            => 'Telegram_ADS',
+    '31'            => 'Luxebridge',
+    '32'            => 'In house G',
+    '33'            => 'Instagram',
+    '34'            => 'Google Ads',
+    '35'            => 'TikTok - 5digital',
+    '36'            => 'BigLab',
+    '37'            => 'Database',
+    '38'            => 'Marina Korchagina',
+    '39'            => 'Yandex Ads',
+    '40'            => 'PF Email',
+    '41'            => 'PF Whatsapp',
+    '42'            => 'PF Call',
+    '43'            => 'Bayut Call',
+    '44'            => 'Bayut Email',
+    '45'            => 'Bayut Whatsapp',
+    '46'            => 'Duibizle Call',
+    '47'            => 'Duibizle Email',
+    '48'            => 'Duibizle Whatsapp',
+    '49'            => 'SF91',
+    '50'            => 'Lyzhin Media',
+    '51'            => 'Abdulkarim Personal',
+    '52'            => 'Belarus callcenter',
+    '53'            => 'Yandex SEO',
+    '54'            => 'Bing SEO',
+    '55'            => 'Yahoo SEO',
+    '56'            => 'repavlovagency',
+    '57'            => 'Premium Lead',
+    '58'            => 'XMD',
+    '59'            => 'TMC',
+    '60'            => 'D GARRY',
+    '61'            => 'G2',
+    '62'            => 'PM (T)',
+    '63'            => 'In House Referral',
+    '64'            => 'Exclusive EW/VM',
+    '65'            => 'Outdoor Leads',
+    '66'            => 'Marquiz',
+    '67'            => 'Wagdy Green List',
+    '68'            => 'Adilet',
+    '69'            => 'PC (T)',
+    '70'            => 'LevLeads',
+    '71'            => 'Binghatti developer leads',
+    '72'            => 'AR In House',
+    '73'            => 'Dimasik',
+    '74'            => 'Eva Real Estate',
+    '75'            => 'Marina Bach',
+    '76'            => 'PF Projects Leads',
+    '77'            => 'Bayut Projects Leads',
+    '78'            => 'EVA -NABIL-buyers',
+    '79'            => 'GHARR-new',
+    '80'            => 'MIRA DB',
+    '81'            => 'Anastasia Leads',
+    '82'            => 'WhatsApp',
 );
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -619,7 +701,7 @@ $GLOBALS['CFG_POSITION_TARGET'] = array(
 define('CACHE_DIR',     __DIR__ . '/cache/');   // Cache folder (must be writable)
 define('CACHE_TTL',     300);                    // Seconds – 5 minutes default
 define('CACHE_ENABLED', true);                   // Set false to disable during dev
-define('CACHE_VERSION', '2026-08-19-eva-integration-v1');
+define('CACHE_VERSION', '2026-08-19-eva-dept-stages-sources-v2');
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 13. FILTER META  (returned to frontend for populating dropdowns)

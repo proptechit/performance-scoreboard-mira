@@ -317,8 +317,13 @@ function getSalesReportDepartmentIds($includeRoot = true, $company = 'mira')
     })));
 
     if (!$includeRoot) {
-        $deptIds = array_values(array_filter($deptIds, function ($id) use ($root) {
-            return $id !== (int)$root;
+        $excluded = array((int)$root);
+        if ($company === COMPANY_EVA) {
+            $excluded[] = 37; // Off Plan Market Department
+            $excluded[] = 38; // Secondary Market Department
+        }
+        $deptIds = array_values(array_filter($deptIds, function ($id) use ($excluded) {
+            return !in_array($id, $excluded, true);
         }));
     }
 
