@@ -2060,11 +2060,11 @@ function countListingsForUsers($userIds)
 function countListingsForDepartments($deptIds)
 {
     $branchCodes = getListingBranchCodesForDeptIds($deptIds);
-    if (empty($branchCodes)) {
-        return 0;
+    if (!empty($branchCodes)) {
+        return countListingsByBranches($branchCodes);
     }
-
-    return countListingsByBranches($branchCodes);
+    $userIds = getDeptUserIds($deptIds);
+    return empty($userIds) ? 0 : countListingsForUsers($userIds);
 }
 
 /**
@@ -2108,11 +2108,11 @@ function countActiveListingsForUsers($userIds)
 function countActiveListingsForDepartments($deptIds)
 {
     $branchCodes = getListingBranchCodesForDeptIds($deptIds);
-    if (empty($branchCodes)) {
-        return array('sale' => 0, 'rent' => 0);
+    if (!empty($branchCodes)) {
+        return countActiveListingsByBranches($branchCodes);
     }
-
-    return countActiveListingsByBranches($branchCodes);
+    $userIds = getDeptUserIds($deptIds);
+    return empty($userIds) ? array('sale' => 0, 'rent' => 0) : countActiveListingsForUsers($userIds);
 }
 
 /**
@@ -2170,11 +2170,11 @@ function countPocketListingsByBranchesTotal($branchCodes = array())
 function countPocketListingsForDepartments($deptIds)
 {
     $branchCodes = getListingBranchCodesForDeptIds($deptIds);
-    if (empty($branchCodes)) {
-        return array('sale' => 0, 'rent' => 0);
+    if (!empty($branchCodes)) {
+        return countPocketListingsByBranches($branchCodes);
     }
-
-    return countPocketListingsByBranches($branchCodes);
+    $userIds = getDeptUserIds($deptIds);
+    return empty($userIds) ? array('sale' => 0, 'rent' => 0) : countPocketListingsForUsers($userIds);
 }
 
 /**
@@ -2183,11 +2183,11 @@ function countPocketListingsForDepartments($deptIds)
 function countPocketListingsForDepartmentsTotal($deptIds)
 {
     $branchCodes = getListingBranchCodesForDeptIds($deptIds);
-    if (empty($branchCodes)) {
-        return 0;
+    if (!empty($branchCodes)) {
+        return countPocketListingsByBranchesTotal($branchCodes);
     }
-
-    return countPocketListingsByBranchesTotal($branchCodes);
+    $userIds = getDeptUserIds($deptIds);
+    return empty($userIds) ? 0 : countPocketListingsForUsersTotal($userIds);
 }
 
 /**
@@ -2320,11 +2320,11 @@ function fetchPocketListingDetailsByBranches($branchCodes = array())
 function fetchPocketListingDetailsForDepartments($deptIds)
 {
     $branchCodes = getListingBranchCodesForDeptIds($deptIds);
-    if (empty($branchCodes)) {
-        return array('sale' => array(), 'rent' => array());
+    if (!empty($branchCodes)) {
+        return fetchPocketListingDetailsByBranches($branchCodes);
     }
-
-    return fetchPocketListingDetailsByBranches($branchCodes);
+    $userIds = getDeptUserIds($deptIds);
+    return empty($userIds) ? array('sale' => array(), 'rent' => array()) : fetchPocketListingDetailsForUsers($userIds);
 }
 
 /**
@@ -2516,11 +2516,11 @@ function fetchActiveListingDetailsForUsers($userIds)
 function fetchActiveListingDetailsForDepartments($deptIds)
 {
     $branchCodes = getListingBranchCodesForDeptIds($deptIds);
-    if (empty($branchCodes)) {
-        return array('sale' => array(), 'rent' => array());
+    if (!empty($branchCodes)) {
+        return fetchActiveListingDetailsByBranches($branchCodes);
     }
-
-    return fetchActiveListingDetailsByBranches($branchCodes);
+    $userIds = getDeptUserIds($deptIds);
+    return empty($userIds) ? array('sale' => array(), 'rent' => array()) : fetchActiveListingDetailsForUsers($userIds);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

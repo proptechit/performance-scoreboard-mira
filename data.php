@@ -655,11 +655,17 @@ if ($role === 'agent') {
     $monthlyTarget = getCompanyTarget($company);
 
     // Company-wide supplementary
-    $listings = countActiveListingsByBranches();
-    $pocketListings = countPocketListingsByBranches();
-
-    $activeDetails = fetchActiveListingDetailsByBranches();
-    $pocketDetails = fetchPocketListingDetailsByBranches();
+    if ($company === COMPANY_EVA) {
+        $listings = empty($allDealOwnerIds) ? array('sale' => 0, 'rent' => 0) : countActiveListingsForUsers($allDealOwnerIds);
+        $pocketListings = empty($allDealOwnerIds) ? array('sale' => 0, 'rent' => 0) : countPocketListingsForUsers($allDealOwnerIds);
+        $activeDetails = empty($allDealOwnerIds) ? array('sale' => array(), 'rent' => array()) : fetchActiveListingDetailsForUsers($allDealOwnerIds);
+        $pocketDetails = empty($allDealOwnerIds) ? array('sale' => array(), 'rent' => array()) : fetchPocketListingDetailsForUsers($allDealOwnerIds);
+    } else {
+        $listings = countActiveListingsByBranches();
+        $pocketListings = countPocketListingsByBranches();
+        $activeDetails = fetchActiveListingDetailsByBranches();
+        $pocketDetails = fetchPocketListingDetailsByBranches();
+    }
     $listingDetails = array(
         'sale'        => $activeDetails['sale'],
         'rent'        => $activeDetails['rent'],
