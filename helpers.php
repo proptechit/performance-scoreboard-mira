@@ -2049,7 +2049,7 @@ function countListingsForUsers($userIds)
         SELECT COUNT(*) AS cnt
         FROM {$table} l
         WHERE l.STAGE_ID = '{$stage}'
-          AND (l.ASSIGNED_BY_ID IN {$inUsers} OR l.{$ownerField} IN {$inUsers})
+          AND l.{$ownerField} IN {$inUsers}
     ");
     return (int)($row['cnt'] ?? 0);
 }
@@ -2091,7 +2091,7 @@ function countActiveListingsForUsers($userIds)
             SUM(CASE WHEN l.{$typeField} != {$saleValue} OR l.{$typeField} IS NULL THEN 1 ELSE 0 END) AS rent_count
         FROM {$table} l
         WHERE l.STAGE_ID = '{$stage}'
-          AND (l.ASSIGNED_BY_ID IN {$inUsers} OR l.{$ownerField} IN {$inUsers})
+          AND l.{$ownerField} IN {$inUsers}
     ");
 
     $row = !empty($rows) ? $rows[0] : array();
@@ -2214,7 +2214,7 @@ function countPocketListingsForUsers($userIds)
             SUM(CASE WHEN l.{$typeField} != {$saleValue} OR l.{$typeField} IS NULL THEN 1 ELSE 0 END) AS rent_count
         FROM {$table} l
         WHERE l.STAGE_ID = '{$stage}'
-          AND (l.ASSIGNED_BY_ID IN {$inUsers} OR l.{$ownerField} IN {$inUsers})
+          AND l.{$ownerField} IN {$inUsers}
     ");
 
     $row = !empty($rows) ? $rows[0] : array();
@@ -2244,7 +2244,7 @@ function countPocketListingsForUsersTotal($userIds)
         SELECT COUNT(*) AS cnt
         FROM {$table} l
         WHERE l.STAGE_ID = '{$stage}'
-          AND (l.ASSIGNED_BY_ID IN {$inUsers} OR l.{$ownerField} IN {$inUsers})
+          AND l.{$ownerField} IN {$inUsers}
     ");
     return (int)($row['cnt'] ?? 0);
 }
@@ -2361,7 +2361,7 @@ function fetchPocketListingDetailsForUsers($userIds)
         LEFT JOIN b_user owner
           ON owner.ID = l.{$ownerField}
         WHERE l.STAGE_ID = '{$stage}'
-          AND (l.ASSIGNED_BY_ID IN {$inUsers} OR l.{$ownerField} IN {$inUsers})
+          AND l.{$ownerField} IN {$inUsers}
         ORDER BY l.ID DESC
     ");
 
@@ -2485,7 +2485,7 @@ function fetchActiveListingDetailsForUsers($userIds)
         LEFT JOIN b_user owner
           ON owner.ID = l.{$ownerField}
         WHERE l.STAGE_ID = '{$stage}'
-          AND (l.ASSIGNED_BY_ID IN {$inUsers} OR l.{$ownerField} IN {$inUsers})
+          AND l.{$ownerField} IN {$inUsers}
         ORDER BY l.ID DESC
     ");
 
