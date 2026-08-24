@@ -935,6 +935,9 @@
                     </table>
                 </div>
             </div>
+        </div>
+    </div>
+
     <div id="agentModal" class="modal-overlay hidden" onclick="handleAgentModalOverlay(event)">
         <div class="modal-card modal-card-lg" role="dialog" aria-modal="true" aria-labelledby="agentModalTitle">
             <div class="modal-header">
