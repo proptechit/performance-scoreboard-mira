@@ -930,7 +930,7 @@ function openAgentListModal(type) {
 
   if (isNoDeal) {
     title.textContent = "Agents with No Transaction (Last 60 Days)";
-    subtitle.textContent = `${fmtNum(items.length)} agent${items.length === 1 ? "" : "s"} with no transaction deal in the last 60 days (excluding new joiners <= 60 days)`;
+    subtitle.textContent = `${fmtNum(items.length)} agent${items.length === 1 ? "" : "s"} with no transaction deal in the last 60 days`;
     thead.innerHTML = `
       <tr>
         <th style="width: 40px; text-align: center;">#</th>

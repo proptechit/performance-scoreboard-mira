@@ -2913,9 +2913,6 @@ function getNoDealIn60DaysDetails($agentIds, $company = 'mira')
           AND (u.WORK_POSITION IS NULL OR (LOWER(TRIM(u.WORK_POSITION)) NOT LIKE '%pa liaison%' AND LOWER(TRIM(u.WORK_POSITION)) NOT LIKE '%listing admin%'))
     ");
 
-    $cutoff60 = new \DateTime('-60 days');
-    $cutoff60->setTime(0, 0, 0);
-
     $eligibleUsers = array();
     $eligibleAgentIds = array();
     $today = new \DateTime();
@@ -2941,20 +2938,10 @@ function getNoDealIn60DaysDetails($agentIds, $company = 'mira')
             }
         }
 
-        $isEligible = true;
-        if ($joiningDate) {
-            $joiningDate->setTime(0, 0, 0);
-            if ($joiningDate >= $cutoff60) {
-                $isEligible = false;
-            }
-        }
-
-        if ($isEligible) {
-            $eligibleAgentIds[] = $uid;
-            $row['joining_date_formatted'] = $joiningDate ? $joiningDate->format('d M Y') : ($joiningDateStr ?: 'N/A');
-            $row['days_joined'] = $joiningDate ? (int)$today->diff($joiningDate)->days : null;
-            $eligibleUsers[$uid] = $row;
-        }
+        $eligibleAgentIds[] = $uid;
+        $row['joining_date_formatted'] = $joiningDate ? $joiningDate->format('d M Y') : ($joiningDateStr ?: 'N/A');
+        $row['days_joined'] = $joiningDate ? (int)$today->diff($joiningDate)->days : null;
+        $eligibleUsers[$uid] = $row;
     }
 
     if (empty($eligibleAgentIds)) {
