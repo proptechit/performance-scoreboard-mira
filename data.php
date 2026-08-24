@@ -484,7 +484,9 @@ if ($role === 'agent') {
         'pocket_sale' => $pocketDetails['sale'],
         'pocket_rent' => $pocketDetails['rent'],
     );
-    $noDeal60     = countNoDealIn60Days($currentActiveAgentIds, $company);
+    $noDeal60Details    = getNoDealIn60DaysDetails($currentActiveAgentIds, $company);
+    $activeAgentDetails = getActiveAgentsDetails($currentActiveAgentIds, $company);
+    $noDeal60           = count($noDeal60Details);
     $deptUserIds  = $targetDeptId > 0 ? getDeptUserIds(array($targetDeptId), false, null, $company) : array();
     $leadRows     = empty($deptUserIds) ? array() : fetchLeadBreakdownRows($deptUserIds, $dateRange, $dealType, $company);
 
@@ -604,8 +606,10 @@ if ($role === 'agent') {
         'deal_closure_source_offplan'   => $dealClosureSourceOffplan,
         'deal_closure_source_secondary' => $dealClosureSourceSecondary,
     );
-    $response['all_agents'] = $allAgentRows;
-    $response['listing_details'] = $listingDetails;
+    $response['all_agents']            = $allAgentRows;
+    $response['listing_details']       = $listingDetails;
+    $response['active_agents_details'] = $activeAgentDetails;
+    $response['no_deal_60_details']    = $noDeal60Details;
 
     // ───────────────────────────────────────────────────────────────────────────
     // CEO VIEW
@@ -687,7 +691,9 @@ if ($role === 'agent') {
         'pocket_sale' => $pocketDetails['sale'],
         'pocket_rent' => $pocketDetails['rent'],
     );
-    $noDeal60 = countNoDealIn60Days($allAgentIds, $company);
+    $noDeal60Details    = getNoDealIn60DaysDetails($allAgentIds, $company);
+    $activeAgentDetails = getActiveAgentsDetails($allAgentIds, $company);
+    $noDeal60           = count($noDeal60Details);
     $leadRows = fetchLeadBreakdownRows(array(), $dateRange, $dealType, $company);
 
     // Charts
@@ -904,9 +910,11 @@ if ($role === 'agent') {
     $response['leads_by_source_secondary'] = $leadsBySourceSecondary;
     $response['deal_closure_source_offplan']   = $dealClosureSourceOffplan;
     $response['deal_closure_source_secondary'] = $dealClosureSourceSecondary;
-    $response['listing_details']    = $listingDetails;
-    $response['agent_performance']  = $agentPerformance;
-    $response['team_performance']   = $teamPerformance;
+    $response['listing_details']       = $listingDetails;
+    $response['active_agents_details'] = $activeAgentDetails;
+    $response['no_deal_60_details']    = $noDeal60Details;
+    $response['agent_performance']     = $agentPerformance;
+    $response['team_performance']      = $teamPerformance;
 
     $response['year_comparison'] = array(
         'year1'         => $year1,

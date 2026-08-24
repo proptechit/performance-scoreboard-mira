@@ -672,6 +672,124 @@ body {
   font-size: 13px;
 }
 
+.modal-card-lg {
+  width: min(1040px, 100%);
+  max-height: min(84vh, 900px);
+}
+
+.modal-search-input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--grey-200);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 13px;
+  background: var(--off-white);
+  color: var(--navy);
+  outline: none;
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.modal-search-input:focus {
+  border-color: var(--gold);
+  background: var(--white);
+  box-shadow: 0 0 0 3px rgba(201, 168, 76, 0.15);
+}
+
+.agent-modal-table td,
+.agent-modal-table th {
+  padding: 12px 14px;
+  font-size: 13px;
+  vertical-align: middle;
+}
+
+.agent-modal-table th {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--grey-400);
+  font-weight: 600;
+  background: var(--off-white);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.modal-agent-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.modal-agent-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.modal-agent-avatar-placeholder {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--navy-light), var(--navy));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.85);
+  flex-shrink: 0;
+}
+
+.modal-agent-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.modal-agent-name {
+  font-weight: 600;
+  color: var(--navy);
+  font-size: 13px;
+}
+
+.modal-agent-id {
+  font-size: 11px;
+  color: var(--grey-400);
+}
+
+.modal-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.modal-badge.team {
+  background: rgba(15, 30, 53, 0.07);
+  color: var(--navy);
+}
+
+.modal-badge.active {
+  background: rgba(61, 170, 114, 0.12);
+  color: var(--green);
+}
+
+.modal-badge.warning {
+  background: rgba(217, 79, 79, 0.12);
+  color: var(--red);
+}
+
+.modal-badge.neutral {
+  background: var(--grey-100);
+  color: var(--grey-600);
+}
+
 /* ── COMMITTED/OPERATIONAL COMMISSION SPLIT ────────────────────────────────── */
 .commission-split {
   background: var(--white);

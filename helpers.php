@@ -2877,16 +2877,17 @@ function avgGapBetweenDealsForTeam($agentIds, $dateRange, $company = 'mira')
 }
 
 /**
- * Count agents with no transaction-pipeline deal in last 60 days.
+ * Get full agent detail list for agents with no transaction-pipeline deal in last 60 days.
+ * Excludes non-agents and agents who joined <= 60 days ago.
  *
- * @param  array $agentIds  All agent user IDs to check
+ * @param  array  $agentIds All candidate agent user IDs
  * @param  string $company  'mira' | 'eva'
- * @return int
+ * @return array
  */
-function countNoDealIn60Days($agentIds, $company = 'mira')
+function getNoDealIn60DaysDetails($agentIds, $company = 'mira')
 {
     if (empty($agentIds)) {
-        return 0;
+        return array();
     }
 
     $nonAgentIds = getNonAgentUserIds();
@@ -2898,15 +2899,15 @@ function countNoDealIn60Days($agentIds, $company = 'mira')
     }
 
     if (empty($agentIds)) {
-        return 0;
+        return array();
     }
 
-    // Fetch joining dates for these active agents to filter out new joiners (<= 60 days)
     $inAgents = inClauseInt($agentIds);
     $userRows = dbQuery("
-        SELECT u.ID, u.DATE_REGISTER, uts_u.UF_USR_1778656838068
+        SELECT u.ID, u.NAME, u.LAST_NAME, u.SECOND_NAME, u.WORK_POSITION, u.PERSONAL_PHOTO, u.DATE_REGISTER, uts_u.UF_USR_1778656838068, ud.VALUE_INT AS DEPT_ID
         FROM b_user u
         LEFT JOIN b_uts_user uts_u ON uts_u.VALUE_ID = u.ID
+        LEFT JOIN b_utm_user ud ON ud.VALUE_ID = u.ID AND ud.FIELD_ID = 40
         WHERE u.ID IN {$inAgents}
           AND u.ACTIVE = 'Y'
           AND (u.WORK_POSITION IS NULL OR (LOWER(TRIM(u.WORK_POSITION)) NOT LIKE '%pa liaison%' AND LOWER(TRIM(u.WORK_POSITION)) NOT LIKE '%listing admin%'))
@@ -2915,38 +2916,49 @@ function countNoDealIn60Days($agentIds, $company = 'mira')
     $cutoff60 = new \DateTime('-60 days');
     $cutoff60->setTime(0, 0, 0);
 
+    $eligibleUsers = array();
     $eligibleAgentIds = array();
+    $today = new \DateTime();
+    $today->setTime(0, 0, 0);
+
     foreach ($userRows as $row) {
-        $joiningDateStr = formatUserJoiningDate($row);
-        if (empty($joiningDateStr)) {
-            // Default to eligible if no join date is set
-            $eligibleAgentIds[] = (int)$row['ID'];
+        $uid = (int)$row['ID'];
+        if (isset($eligibleUsers[$uid])) {
             continue;
         }
 
+        $joiningDateStr = formatUserJoiningDate($row);
         $joiningDate = null;
-        $dt = parseReportDate($joiningDateStr);
-        if ($dt) {
-            $joiningDate = $dt;
-        } else {
-            $ts = strtotime($joiningDateStr);
-            if ($ts !== false && $ts > 0) {
-                $joiningDate = new \DateTime(date('Y-m-d', $ts));
+        if (!empty($joiningDateStr)) {
+            $dt = parseReportDate($joiningDateStr);
+            if ($dt) {
+                $joiningDate = $dt;
+            } else {
+                $ts = strtotime($joiningDateStr);
+                if ($ts !== false && $ts > 0) {
+                    $joiningDate = new \DateTime(date('Y-m-d', $ts));
+                }
             }
         }
 
+        $isEligible = true;
         if ($joiningDate) {
             $joiningDate->setTime(0, 0, 0);
-            if ($joiningDate < $cutoff60) {
-                $eligibleAgentIds[] = (int)$row['ID'];
+            if ($joiningDate >= $cutoff60) {
+                $isEligible = false;
             }
-        } else {
-            $eligibleAgentIds[] = (int)$row['ID'];
+        }
+
+        if ($isEligible) {
+            $eligibleAgentIds[] = $uid;
+            $row['joining_date_formatted'] = $joiningDate ? $joiningDate->format('d M Y') : ($joiningDateStr ?: 'N/A');
+            $row['days_joined'] = $joiningDate ? (int)$today->diff($joiningDate)->days : null;
+            $eligibleUsers[$uid] = $row;
         }
     }
 
     if (empty($eligibleAgentIds)) {
-        return 0;
+        return array();
     }
 
     $catId    = dbInt(PIPELINE_TRANSACTION);
@@ -2955,9 +2967,9 @@ function countNoDealIn60Days($agentIds, $company = 'mira')
     $effectiveCreateExpr = getEffectiveDealCreateDateExpr('d', 'uts');
     $excludeDealFilter   = getExcludeDealFilter('uts', $company);
 
-    // Agents who DO have a recent transaction-pipeline deal based on Booking Date
-    $rows = dbQuery("
-        SELECT DISTINCT ASSIGNED_BY_ID
+    // Agents who DO have a recent transaction-pipeline deal in the last 60 days
+    $recentDeals = dbQuery("
+        SELECT DISTINCT d.ASSIGNED_BY_ID
         FROM b_crm_deal d
         LEFT JOIN b_uts_crm_deal uts
             ON uts.VALUE_ID = d.ID
@@ -2967,8 +2979,199 @@ function countNoDealIn60Days($agentIds, $company = 'mira')
           {$excludeDealFilter}
     ");
 
-    $activeAgents = count($rows);
-    return max(0, count($eligibleAgentIds) - $activeAgents);
+    $agentsWithRecentDeals = array();
+    foreach ($recentDeals as $r) {
+        $agentsWithRecentDeals[(int)$r['ASSIGNED_BY_ID']] = true;
+    }
+
+    $noDealAgentIds = array();
+    foreach ($eligibleAgentIds as $aid) {
+        if (!isset($agentsWithRecentDeals[$aid])) {
+            $noDealAgentIds[] = $aid;
+        }
+    }
+
+    if (empty($noDealAgentIds)) {
+        return array();
+    }
+
+    $inNoDeal = inClauseInt($noDealAgentIds);
+    $lastDeals = dbQuery("
+        SELECT d.ASSIGNED_BY_ID, MAX(DATE({$effectiveCreateExpr})) AS LAST_DEAL_DATE
+        FROM b_crm_deal d
+        LEFT JOIN b_uts_crm_deal uts
+            ON uts.VALUE_ID = d.ID
+        WHERE d.CATEGORY_ID    = {$catId}
+          AND d.ASSIGNED_BY_ID IN {$inNoDeal}
+          {$excludeDealFilter}
+        GROUP BY d.ASSIGNED_BY_ID
+    ");
+
+    $lastDealDateMap = array();
+    foreach ($lastDeals as $ld) {
+        $lastDealDateMap[(int)$ld['ASSIGNED_BY_ID']] = $ld['LAST_DEAL_DATE'];
+    }
+
+    $results = array();
+    foreach ($noDealAgentIds as $aid) {
+        $u = $eligibleUsers[$aid];
+        $lastDealRaw = $lastDealDateMap[$aid] ?? null;
+        $lastDealFormatted = 'No transactions recorded';
+        $daysSinceLastDeal = null;
+
+        if ($lastDealRaw) {
+            $ldt = parseReportDate($lastDealRaw);
+            if ($ldt) {
+                $lastDealFormatted = $ldt->format('d M Y');
+                $daysSinceLastDeal = (int)$today->diff($ldt)->days;
+            }
+        }
+
+        $photoUrl = null;
+        if (!empty($u['PERSONAL_PHOTO'])) {
+            $file = \CFile::GetFileArray($u['PERSONAL_PHOTO']);
+            $photoUrl = $file['SRC'] ?? null;
+        }
+
+        $deptId = (int)($u['DEPT_ID'] ?? 0);
+        $teamName = '';
+        if ($deptId > 0) {
+            $teamRow = getSalesTeamById($deptId, $company);
+            $teamName = !empty($teamRow) ? getSalesTeamDisplayName($teamRow, $company) : '';
+        }
+
+        $results[] = array(
+            'id'                   => $aid,
+            'name'                 => fullName($u),
+            'first_name'           => $u['NAME'] ?? '',
+            'last_name'            => $u['LAST_NAME'] ?? '',
+            'position'             => $u['WORK_POSITION'] ?? 'Agent',
+            'photo'                => $photoUrl,
+            'team_name'            => $teamName,
+            'dept_id'              => $deptId,
+            'joined'               => $u['joining_date_formatted'],
+            'days_joined'          => $u['days_joined'],
+            'last_deal_date'       => $lastDealFormatted,
+            'days_since_last_deal' => $daysSinceLastDeal,
+        );
+    }
+
+    usort($results, function ($a, $b) {
+        return strcmp($a['name'], $b['name']);
+    });
+
+    return $results;
+}
+
+/**
+ * Get full active agent detail list.
+ *
+ * @param  array  $agentIds All candidate agent user IDs
+ * @param  string $company  'mira' | 'eva'
+ * @return array
+ */
+function getActiveAgentsDetails($agentIds, $company = 'mira')
+{
+    if (empty($agentIds)) {
+        return array();
+    }
+
+    $nonAgentIds = getNonAgentUserIds();
+    if (!empty($nonAgentIds)) {
+        $nonAgentMap = array_flip(array_map('intval', $nonAgentIds));
+        $agentIds = array_values(array_filter(array_map('intval', $agentIds), function ($id) use ($nonAgentMap) {
+            return $id > 0 && !isset($nonAgentMap[$id]);
+        }));
+    }
+
+    if (empty($agentIds)) {
+        return array();
+    }
+
+    $inAgents = inClauseInt($agentIds);
+    $userRows = dbQuery("
+        SELECT u.ID, u.NAME, u.LAST_NAME, u.SECOND_NAME, u.WORK_POSITION, u.PERSONAL_PHOTO, u.DATE_REGISTER, uts_u.UF_USR_1778656838068, ud.VALUE_INT AS DEPT_ID
+        FROM b_user u
+        LEFT JOIN b_uts_user uts_u ON uts_u.VALUE_ID = u.ID
+        LEFT JOIN b_utm_user ud ON ud.VALUE_ID = u.ID AND ud.FIELD_ID = 40
+        WHERE u.ID IN {$inAgents}
+          AND u.ACTIVE = 'Y'
+          AND (u.WORK_POSITION IS NULL OR (LOWER(TRIM(u.WORK_POSITION)) NOT LIKE '%pa liaison%' AND LOWER(TRIM(u.WORK_POSITION)) NOT LIKE '%listing admin%'))
+    ");
+
+    $seen = array();
+    $results = array();
+    $today = new \DateTime();
+    $today->setTime(0, 0, 0);
+
+    foreach ($userRows as $u) {
+        $uid = (int)$u['ID'];
+        if (isset($seen[$uid])) {
+            continue;
+        }
+        $seen[$uid] = true;
+
+        $joiningDateStr = formatUserJoiningDate($u);
+        $joiningDateFormatted = 'N/A';
+        $daysJoined = null;
+        if (!empty($joiningDateStr)) {
+            $dt = parseReportDate($joiningDateStr);
+            if (!$dt) {
+                $ts = strtotime($joiningDateStr);
+                if ($ts !== false && $ts > 0) {
+                    $dt = new \DateTime(date('Y-m-d', $ts));
+                }
+            }
+            if ($dt) {
+                $joiningDateFormatted = $dt->format('d M Y');
+                $daysJoined = (int)$today->diff($dt)->days;
+            }
+        }
+
+        $photoUrl = null;
+        if (!empty($u['PERSONAL_PHOTO'])) {
+            $file = \CFile::GetFileArray($u['PERSONAL_PHOTO']);
+            $photoUrl = $file['SRC'] ?? null;
+        }
+
+        $deptId = (int)($u['DEPT_ID'] ?? 0);
+        $teamName = '';
+        if ($deptId > 0) {
+            $teamRow = getSalesTeamById($deptId, $company);
+            $teamName = !empty($teamRow) ? getSalesTeamDisplayName($teamRow, $company) : '';
+        }
+
+        $results[] = array(
+            'id'          => $uid,
+            'name'        => fullName($u),
+            'first_name'  => $u['NAME'] ?? '',
+            'last_name'   => $u['LAST_NAME'] ?? '',
+            'position'    => $u['WORK_POSITION'] ?? 'Agent',
+            'photo'       => $photoUrl,
+            'team_name'   => $teamName,
+            'dept_id'     => $deptId,
+            'joined'      => $joiningDateFormatted,
+            'days_joined' => $daysJoined,
+        );
+    }
+
+    usort($results, function ($a, $b) {
+        return strcmp($a['name'], $b['name']);
+    });
+
+    return $results;
+}
+
+/**
+ * Count agents with no transaction-pipeline deal in last 60 days.
+ *
+ * @param  array $agentIds  All agent user IDs to check
+ * @param  string $company  'mira' | 'eva'
+ * @return int
+ */
+function countNoDealIn60Days($agentIds, $company = 'mira')
+{
+    return count(getNoDealIn60DaysDetails($agentIds, $company));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

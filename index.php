@@ -935,6 +935,28 @@
                     </table>
                 </div>
             </div>
+    <div id="agentModal" class="modal-overlay hidden" onclick="handleAgentModalOverlay(event)">
+        <div class="modal-card modal-card-lg" role="dialog" aria-modal="true" aria-labelledby="agentModalTitle">
+            <div class="modal-header">
+                <div>
+                    <div class="modal-title" id="agentModalTitle">Agent List</div>
+                    <div class="modal-subtitle" id="agentModalSubtitle">Overview</div>
+                </div>
+                <button type="button" class="modal-close" onclick="closeAgentModal()" aria-label="Close modal">
+                    &times;
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-search-wrapper" style="margin: 14px 0 16px;">
+                    <input type="text" id="agentModalSearch" class="modal-search-input" placeholder="Search by agent name, team, position..." oninput="filterAgentModalTable(this.value)">
+                </div>
+                <div class="listing-modal-table-wrapper">
+                    <table class="data-table listing-modal-table agent-modal-table">
+                        <thead id="agentModalTableHead"></thead>
+                        <tbody id="agentModalTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 

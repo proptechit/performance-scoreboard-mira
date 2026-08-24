@@ -10,6 +10,9 @@ const tableSortState = {
   managerAgentTable: { key: "commission", dir: "desc" },
 };
 let listingModalLastFocus = null;
+let agentModalLastFocus = null;
+let currentAgentModalType = null;
+let currentAgentModalItems = [];
 let managerAgentStatusFilter = "active";
 
 let currentViewRole = null;
@@ -248,6 +251,7 @@ function getAttendanceBadgeClass(attendance, total) {
 
 function setActiveView(viewId) {
   closeListingModal();
+  closeAgentModal();
   ["view-ceo", "view-manager", "view-agent"].forEach((id) =>
     document.getElementById(id)?.classList.add("hidden"),
   );
@@ -457,6 +461,7 @@ async function loadDashboard() {
     .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
     .join("&");
   closeListingModal();
+  closeAgentModal();
   document.getElementById("loadingOverlay").classList.remove("hidden");
 
   try {
@@ -539,6 +544,7 @@ function renderCEO(data) {
       sub: "Current staff",
       icon: "👥",
       badge: null,
+      action: "active_agents",
     },
     {
       label: "No Transaction (in Last 60 Days)",
@@ -550,6 +556,7 @@ function renderCEO(data) {
         cls: "red",
       },
       highlight: true,
+      action: "no_deal_60",
     },
     {
       label: "Transaction Count",
@@ -660,7 +667,7 @@ function renderCEO(data) {
     <div
       class="kpi-card ${k.highlight ? "highlight" : ""} ${k.action ? "clickable" : ""}"
       style="animation-delay:${0.04 + i * 0.03}s"
-      ${k.action ? `role="button" tabindex="0" onclick="openListingModal('${k.action}')" onkeydown="handleListingCardKeydown(event, '${k.action}')"` : ""}
+      ${k.action ? `role="button" tabindex="0" onclick="handleKpiCardClick('${k.action}')" onkeydown="handleKpiCardKeydown(event, '${k.action}')"` : ""}
     >
       <div class="kpi-label">
         <span>${k.label}</span>
@@ -790,11 +797,23 @@ function escapeHtml(value) {
   });
 }
 
-function handleListingCardKeydown(event, type) {
+function handleKpiCardClick(action) {
+  if (action === "active_agents" || action === "no_deal_60") {
+    openAgentListModal(action);
+  } else if (action) {
+    openListingModal(action);
+  }
+}
+
+function handleKpiCardKeydown(event, action) {
   if (event.key === "Enter" || event.key === " ") {
     event.preventDefault();
-    openListingModal(type);
+    handleKpiCardClick(action);
   }
+}
+
+function handleListingCardKeydown(event, type) {
+  handleKpiCardKeydown(event, type);
 }
 
 function handleListingModalOverlay(event) {
@@ -815,6 +834,11 @@ function closeListingModal() {
 }
 
 function openListingModal(type) {
+  if (type === "active_agents" || type === "no_deal_60") {
+    openAgentListModal(type);
+    return;
+  }
+
   const modal = document.getElementById("listingModal");
   const title = document.getElementById("listingModalTitle");
   const subtitle = document.getElementById("listingModalSubtitle");
@@ -863,9 +887,195 @@ function openListingModal(type) {
   modal.querySelector(".modal-close")?.focus();
 }
 
+function handleAgentModalOverlay(event) {
+  if (event.target?.id === "agentModal") {
+    closeAgentModal();
+  }
+}
+
+function closeAgentModal() {
+  const modal = document.getElementById("agentModal");
+  if (!modal) return;
+  modal.classList.add("hidden");
+  document.body.style.overflow = "";
+  const searchInput = document.getElementById("agentModalSearch");
+  if (searchInput) searchInput.value = "";
+  if (agentModalLastFocus && typeof agentModalLastFocus.focus === "function") {
+    agentModalLastFocus.focus();
+  }
+  agentModalLastFocus = null;
+  currentAgentModalType = null;
+  currentAgentModalItems = [];
+}
+
+function openAgentListModal(type) {
+  const modal = document.getElementById("agentModal");
+  const title = document.getElementById("agentModalTitle");
+  const subtitle = document.getElementById("agentModalSubtitle");
+  const thead = document.getElementById("agentModalTableHead");
+  const tbody = document.getElementById("agentModalTableBody");
+  const searchInput = document.getElementById("agentModalSearch");
+  if (!modal || !title || !subtitle || !thead || !tbody) return;
+
+  agentModalLastFocus = document.activeElement;
+  currentAgentModalType = type;
+  if (searchInput) searchInput.value = "";
+
+  const isNoDeal = type === "no_deal_60";
+  const items = (isNoDeal ? currentData?.no_deal_60_details : currentData?.active_agents_details) || [];
+  currentAgentModalItems = items;
+
+  if (isNoDeal) {
+    title.textContent = "Agents with No Transaction (Last 60 Days)";
+    subtitle.textContent = `${fmtNum(items.length)} agent${items.length === 1 ? "" : "s"} with no transaction deal in the last 60 days (excluding new joiners <= 60 days)`;
+    thead.innerHTML = `
+      <tr>
+        <th style="width: 40px; text-align: center;">#</th>
+        <th>Agent</th>
+        <th>Position</th>
+        <th>Team</th>
+        <th>Joined</th>
+        <th>Last Transaction</th>
+        <th style="text-align: right;">Status</th>
+      </tr>
+    `;
+  } else {
+    title.textContent = "Active Sales Agents";
+    subtitle.textContent = `${fmtNum(items.length)} active agent${items.length === 1 ? "" : "s"}`;
+    thead.innerHTML = `
+      <tr>
+        <th style="width: 40px; text-align: center;">#</th>
+        <th>Agent</th>
+        <th>Position</th>
+        <th>Team</th>
+        <th>Joined</th>
+        <th style="text-align: right;">Status</th>
+      </tr>
+    `;
+  }
+
+  renderAgentModalRows(items);
+
+  modal.classList.remove("hidden");
+  document.body.style.overflow = "hidden";
+  setTimeout(() => {
+    searchInput?.focus();
+  }, 50);
+}
+
+function renderAgentModalRows(items) {
+  const tbody = document.getElementById("agentModalTableBody");
+  if (!tbody) return;
+
+  const isNoDeal = currentAgentModalType === "no_deal_60";
+  const colSpan = isNoDeal ? 7 : 6;
+
+  if (!items || !items.length) {
+    tbody.innerHTML = `<tr><td colspan="${colSpan}" class="listing-modal-empty">No agents found.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = items
+    .map((agent, index) => {
+      const agentInitials = initials(agent.name || `${agent.first_name || ""} ${agent.last_name || ""}`);
+      const avatarHtml = agent.photo
+        ? `<img class="modal-agent-avatar" src="${escapeHtml(agent.photo)}" alt="${escapeHtml(agent.name)}" onerror="this.outerHTML='<div class=\\'modal-agent-avatar-placeholder\\'>${escapeHtml(agentInitials)}</div>'">`
+        : `<div class="modal-agent-avatar-placeholder">${escapeHtml(agentInitials)}</div>`;
+
+      const teamHtml = agent.team_name
+        ? `<span class="modal-badge team">${escapeHtml(agent.team_name)}</span>`
+        : `<span class="modal-badge neutral">—</span>`;
+
+      const joinedSub = agent.days_joined !== null && agent.days_joined !== undefined
+        ? `<div style="font-size: 11px; color: var(--grey-400); margin-top: 2px;">${fmtNum(agent.days_joined)}d ago</div>`
+        : "";
+
+      const joinedHtml = `
+        <div>
+          <div style="font-weight: 500;">${escapeHtml(agent.joined || "—")}</div>
+          ${joinedSub}
+        </div>
+      `;
+
+      if (isNoDeal) {
+        const lastDealSub = agent.days_since_last_deal !== null && agent.days_since_last_deal !== undefined
+          ? `<div style="font-size: 11px; color: var(--grey-400); margin-top: 2px;">${fmtNum(agent.days_since_last_deal)}d ago</div>`
+          : "";
+        const lastDealHtml = `
+          <div>
+            <div style="font-weight: 500;">${escapeHtml(agent.last_deal_date || "—")}</div>
+            ${lastDealSub}
+          </div>
+        `;
+        const statusHtml = `<span class="modal-badge warning">⚠️ No Deal (60d+)</span>`;
+
+        return `
+          <tr>
+            <td style="text-align: center; color: var(--grey-400); font-weight: 600;">${index + 1}</td>
+            <td>
+              <div class="modal-agent-cell">
+                ${avatarHtml}
+                <div class="modal-agent-info">
+                  <span class="modal-agent-name">${escapeHtml(agent.name)}</span>
+                  <span class="modal-agent-id">ID: ${escapeHtml(agent.id)}</span>
+                </div>
+              </div>
+            </td>
+            <td style="color: var(--grey-600);">${escapeHtml(agent.position || "Agent")}</td>
+            <td>${teamHtml}</td>
+            <td>${joinedHtml}</td>
+            <td>${lastDealHtml}</td>
+            <td style="text-align: right;">${statusHtml}</td>
+          </tr>
+        `;
+      } else {
+        const statusHtml = `<span class="modal-badge active">● Active</span>`;
+
+        return `
+          <tr>
+            <td style="text-align: center; color: var(--grey-400); font-weight: 600;">${index + 1}</td>
+            <td>
+              <div class="modal-agent-cell">
+                ${avatarHtml}
+                <div class="modal-agent-info">
+                  <span class="modal-agent-name">${escapeHtml(agent.name)}</span>
+                  <span class="modal-agent-id">ID: ${escapeHtml(agent.id)}</span>
+                </div>
+              </div>
+            </td>
+            <td style="color: var(--grey-600);">${escapeHtml(agent.position || "Agent")}</td>
+            <td>${teamHtml}</td>
+            <td>${joinedHtml}</td>
+            <td style="text-align: right;">${statusHtml}</td>
+          </tr>
+        `;
+      }
+    })
+    .join("");
+}
+
+function filterAgentModalTable(query) {
+  const q = (query || "").trim().toLowerCase();
+  if (!q) {
+    renderAgentModalRows(currentAgentModalItems);
+    return;
+  }
+
+  const filtered = currentAgentModalItems.filter((agent) => {
+    const name = (agent.name || "").toLowerCase();
+    const id = String(agent.id || "");
+    const team = (agent.team_name || "").toLowerCase();
+    const pos = (agent.position || "").toLowerCase();
+    return name.includes(q) || id.includes(q) || team.includes(q) || pos.includes(q);
+  });
+
+  renderAgentModalRows(filtered);
+}
+
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     closeListingModal();
+    closeAgentModal();
   }
 });
 
@@ -2017,12 +2227,14 @@ function renderManager(data) {
       label: "Active Agents",
       value: fmtNum(s.active_agents),
       icon: "👥",
+      action: "active_agents",
     },
     {
       label: "No Transaction (in Last 60 Days)",
       value: fmtNum(s.no_deal_60_days),
       icon: "⚠️",
       highlight: true,
+      action: "no_deal_60",
     },
     {
       label: "Offplan Leads Number",
@@ -2102,7 +2314,7 @@ function renderManager(data) {
       <div
         class="kpi-card ${k.highlight ? "highlight" : ""} ${k.action ? "clickable" : ""}"
         style="animation-delay:${0.04 + i * 0.03}s"
-        ${k.action ? `role="button" tabindex="0" onclick="openListingModal('${k.action}')" onkeydown="handleListingCardKeydown(event, '${k.action}')"` : ""}
+        ${k.action ? `role="button" tabindex="0" onclick="handleKpiCardClick('${k.action}')" onkeydown="handleKpiCardKeydown(event, '${k.action}')"` : ""}
       >
       <div class="kpi-label"><span>${k.label}</span><span style="font-size:16px;">${k.icon}</span></div>
       <div class="kpi-value">${k.value}</div>
