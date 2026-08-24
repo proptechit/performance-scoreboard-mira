@@ -2889,13 +2889,27 @@ function countNoDealIn60Days($agentIds, $company = 'mira')
         return 0;
     }
 
-    // Fetch joining dates for these agents to filter out new joiners (<= 60 days)
+    $nonAgentIds = getNonAgentUserIds();
+    if (!empty($nonAgentIds)) {
+        $nonAgentMap = array_flip(array_map('intval', $nonAgentIds));
+        $agentIds = array_values(array_filter(array_map('intval', $agentIds), function ($id) use ($nonAgentMap) {
+            return $id > 0 && !isset($nonAgentMap[$id]);
+        }));
+    }
+
+    if (empty($agentIds)) {
+        return 0;
+    }
+
+    // Fetch joining dates for these active agents to filter out new joiners (<= 60 days)
     $inAgents = inClauseInt($agentIds);
     $userRows = dbQuery("
         SELECT u.ID, u.DATE_REGISTER, uts_u.UF_USR_1778656838068
         FROM b_user u
         LEFT JOIN b_uts_user uts_u ON uts_u.VALUE_ID = u.ID
         WHERE u.ID IN {$inAgents}
+          AND u.ACTIVE = 'Y'
+          AND (u.WORK_POSITION IS NULL OR (LOWER(TRIM(u.WORK_POSITION)) NOT LIKE '%pa liaison%' AND LOWER(TRIM(u.WORK_POSITION)) NOT LIKE '%listing admin%'))
     ");
 
     $cutoff60 = new \DateTime('-60 days');

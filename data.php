@@ -347,11 +347,15 @@ if ($role === 'agent') {
     // All agents in this manager's department(s)
     $agentRows = array();
     $activeAgentCount = 0;
+    $activeAgentIds = array();
     if ($deptId > 0) {
         // Manager-view: use each agent's real department
         $deptAgents = getAgentsByDept(array($deptId), false, $dateRange, $company);
         $dismissedAgents = getDismissedAgentsByDept(array($deptId), false, $dateRange, $company);
         $activeAgentCount = count($deptAgents);
+        $activeAgentIds = array_map(function ($row) {
+            return (int)$row['ID'];
+        }, $deptAgents);
         $allDeptAgents = array_merge($deptAgents, $dismissedAgents);
         $agentIds = array_map(function ($row) {
             return (int)$row['ID'];
@@ -363,6 +367,7 @@ if ($role === 'agent') {
         $activeIds = getAgentIdsByManager($managerId, false, $dateRange, $company);
         $dismissedIds = getDismissedAgentIdsByManager($managerId, false, $dateRange, $company);
         $activeAgentCount = count($activeIds);
+        $activeAgentIds = $activeIds;
         $agentIds = array_values(array_unique(array_merge($activeIds, $dismissedIds)));
         foreach ($agentIds as $aid) {
             $row = getUserProfile($aid);
@@ -439,6 +444,16 @@ if ($role === 'agent') {
     }
     $currentAgentIds = array_values(array_unique($currentAgentIds));
 
+    $currentActiveAgentIds = array();
+    if (!empty($activeAgentIds)) {
+        foreach ($activeAgentIds as $aid) {
+            if (isAgentInDept($aid, $targetDeptId)) {
+                $currentActiveAgentIds[] = $aid;
+            }
+        }
+    }
+    $currentActiveAgentIds = array_values(array_unique($currentActiveAgentIds));
+
     $leadCountOffplan   = empty($currentAgentIds) ? 0 : countActiveLeads($currentAgentIds, $dateRange, PIPELINE_OFFPLAN, $company);
     $leadCountSecondary = empty($currentAgentIds) ? 0 : countActiveLeads($currentAgentIds, $dateRange, PIPELINE_SECONDARY, $company);
     $reshuffled   = empty($currentAgentIds) ? 0 : countReshuffledLeads($currentAgentIds, $dateRange, $company);
@@ -469,7 +484,7 @@ if ($role === 'agent') {
         'pocket_sale' => $pocketDetails['sale'],
         'pocket_rent' => $pocketDetails['rent'],
     );
-    $noDeal60     = countNoDealIn60Days($currentAgentIds, $company);
+    $noDeal60     = countNoDealIn60Days($currentActiveAgentIds, $company);
     $deptUserIds  = $targetDeptId > 0 ? getDeptUserIds(array($targetDeptId), false, null, $company) : array();
     $leadRows     = empty($deptUserIds) ? array() : fetchLeadBreakdownRows($deptUserIds, $dateRange, $dealType, $company);
 
