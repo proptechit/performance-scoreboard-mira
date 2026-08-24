@@ -56,12 +56,15 @@ function fmtNum(v) {
 }
 
 function initials(name) {
+  if (!name || typeof name !== "string") return "—";
   return name
-    .split(" ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
     .map((n) => n[0])
     .join("")
     .slice(0, 3)
-    .toUpperCase();
+    .toUpperCase() || "—";
 }
 
 const SORT_ICON = `
@@ -954,10 +957,16 @@ function openAgentListModal(type) {
     `;
   }
 
-  renderAgentModalRows(items);
-
   modal.classList.remove("hidden");
   document.body.style.overflow = "hidden";
+
+  try {
+    renderAgentModalRows(items);
+  } catch (err) {
+    console.error("Error rendering agent modal rows:", err);
+    tbody.innerHTML = `<tr><td colspan="${isNoDeal ? 7 : 6}" class="listing-modal-empty">Failed to load agent details.</td></tr>`;
+  }
+
   setTimeout(() => {
     searchInput?.focus();
   }, 50);

@@ -13,7 +13,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css?v=<?= filemtime(__DIR__ . '/styles.css') ?>">
 </head>
 
 <body>
@@ -964,7 +964,7 @@
     </div>
 
     <!-- ────────────────────────────────────────────────────────────────────────── -->
-    <script src="script.js"></script>
+    <script src="script.js?v=<?= filemtime(__DIR__ . '/script.js') ?>"></script>
 </body>
 
 </html>
