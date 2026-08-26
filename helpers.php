@@ -2938,9 +2938,14 @@ function getNoDealIn60DaysDetails($agentIds, $company = 'mira')
             }
         }
 
+        $daysJoined = $joiningDate ? (int)$today->diff($joiningDate)->days : null;
+        if ($daysJoined !== null && $daysJoined <= 60) {
+            continue;
+        }
+
         $eligibleAgentIds[] = $uid;
         $row['joining_date_formatted'] = $joiningDate ? $joiningDate->format('d M Y') : ($joiningDateStr ?: 'N/A');
-        $row['days_joined'] = $joiningDate ? (int)$today->diff($joiningDate)->days : null;
+        $row['days_joined'] = $daysJoined;
         $eligibleUsers[$uid] = $row;
     }
 
