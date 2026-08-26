@@ -6,6 +6,7 @@ let charts = {};
 const tableSortState = {
   agentTable: { key: "commission", dir: "desc" },
   agentPrivateOfficeTable: { key: "commission", dir: "desc" },
+  managerPerformanceTable: { key: "commission", dir: "desc" },
   teamTable: { key: "commission", dir: "desc" },
   managerAgentTable: { key: "commission", dir: "desc" },
 };
@@ -24,6 +25,8 @@ let agentPage = 1;
 let agentPageSize = 15;
 let agentPrivateOfficePage = 1;
 let agentPrivateOfficePageSize = 15;
+let managerPerformancePage = 1;
+let managerPerformancePageSize = 15;
 
 const CHART_COLORS = [
   "#3b82f6",
@@ -202,6 +205,9 @@ function rerenderSortedTable(tableId) {
       break;
     case "agentPrivateOfficeTable":
       renderAgentPrivateOfficeTable(currentData?.agent_performance);
+      break;
+    case "managerPerformanceTable":
+      renderManagerPerformanceTable(currentData?.manager_performance);
       break;
     case "teamTable":
       renderTeamTable(currentData?.team_performance);
@@ -459,6 +465,7 @@ var GLOBAL_DATA;
 async function loadDashboard() {
   agentPage = 1;
   agentPrivateOfficePage = 1;
+  managerPerformancePage = 1;
   const params = getFilterParams();
   const qs = Object.entries(params)
     .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
@@ -769,6 +776,7 @@ function renderCEO(data) {
   renderSalesByDealTypeTable(data.sales_by_deal_type);
   renderAgentTable(data.agent_performance);
   renderAgentPrivateOfficeTable(data.agent_performance);
+  renderManagerPerformanceTable(data.manager_performance);
   renderTeamTable(data.team_performance);
 
   // Year comparison
@@ -1822,6 +1830,124 @@ function changeAgentPrivateOfficePageSize(size) {
   agentPrivateOfficePageSize = size === "All" ? "All" : parseInt(size);
   agentPrivateOfficePage = 1;
   renderAgentPrivateOfficeTable(currentData?.agent_performance || []);
+}
+
+function renderManagerPerformanceTable(managers) {
+  const tbody = document.getElementById("managerPerformanceTableBody");
+  if (!tbody || !managers) return;
+
+  const searchQuery = (
+    document.getElementById("managerPerformanceSearchInput")?.value || ""
+  ).trim().toLowerCase();
+
+  const filteredManagers = searchQuery
+    ? managers.filter((m) =>
+        `${m.name || ""} ${m.designation || ""}`
+          .toLowerCase()
+          .includes(searchQuery),
+      )
+    : managers;
+
+  const countBadge = document.getElementById("managerPerformanceCountBadge");
+  if (countBadge) {
+    countBadge.textContent =
+      filteredManagers.length === managers.length
+        ? `${managers.length} managers`
+        : `${filteredManagers.length} of ${managers.length} managers`;
+  }
+
+  const sortedManagers = sortCollection(filteredManagers, "managerPerformanceTable", {
+    name: { type: "string", get: (m) => m.name },
+    reshuffled_leads: { type: "number", get: (m) => m.reshuffled_leads },
+    deals: { type: "number", get: (m) => m.deals },
+    total_listings: { type: "number", get: (m) => m.total_listings },
+    active_listings: { type: "number", get: (m) => m.active_listings },
+    pocket_listings: { type: "number", get: (m) => m.pocket_listings },
+    sales: { type: "number", get: (m) => m.sales },
+    commission: { type: "number", get: (m) => m.commission },
+    top_deal: { type: "number", get: (m) => m.top_deal },
+    avg_gap: { type: "number", get: (m) => m.avg_gap },
+    last_deal_days: { type: "number", get: (m) => m.last_deal_days },
+    attendance: { type: "number", get: (m) => m.attendance },
+  });
+
+  if (!sortedManagers.length) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="12" class="table-empty-state">No managers match your search.</td>
+      </tr>
+    `;
+    const pagContainer = document.getElementById("managerPerformanceTablePagination");
+    if (pagContainer) pagContainer.innerHTML = "";
+    return;
+  }
+
+  // Slicing for pagination
+  const totalItems = sortedManagers.length;
+  const size = managerPerformancePageSize === "All" ? totalItems : managerPerformancePageSize;
+  const totalPages = Math.ceil(totalItems / size) || 1;
+  if (managerPerformancePage > totalPages) {
+    managerPerformancePage = totalPages;
+  }
+  const startIndex = (managerPerformancePage - 1) * size;
+  const endIndex = startIndex + size;
+  const paginatedManagers = sortedManagers.slice(startIndex, endIndex);
+
+  tbody.innerHTML = paginatedManagers
+    .map((m) => {
+      const { daysClass, daysLabel } = getDaysBadgeMeta(m.last_deal_days);
+      const ac = getAttendanceBadgeClass(m.attendance, m.attendance_total);
+      return `
+    <tr onclick="drillToAgent(${m.id})">
+      <td>
+        <div class="agent-name-cell">
+          <div class="agent-mini-avatar">${initials(m.name)}</div>
+          <div>
+            <div style="font-weight:600;">${m.name}</div>
+            <div style="font-size:10px;color:var(--grey-400);">${m.designation || 'Manager'}</div>
+          </div>
+        </div>
+      </td>
+      <td>${m.reshuffled_leads}</td>
+      <td style="font-weight:600;">${m.deals}</td>
+      <td style="font-weight:600;">${m.total_listings}</td>
+      <td>${m.active_listings}</td>
+      <td>${m.pocket_listings}</td>
+      <td>AED ${fmtCurrency(m.sales)}</td>
+      <td>AED ${fmtCurrency(m.commission)}</td>
+      <td>AED ${fmtCurrency(m.top_deal, true)}</td>
+      <td>${m.avg_gap === 999 ? '–' : m.avg_gap + ' days'}</td>
+      <td><span class="days-badge ${daysClass}">${daysLabel}</span></td>
+      <td><span class="days-badge ${ac}">${m.attendance} / ${m.attendance_total || 30} days</span></td>
+    </tr>
+    `;
+    })
+    .join("");
+
+  renderPagination(
+    "managerPerformanceTablePagination",
+    managerPerformancePage,
+    totalItems,
+    managerPerformancePageSize,
+    "changeManagerPerformancePage",
+    "changeManagerPerformancePageSize"
+  );
+}
+
+function handleManagerPerformanceSearch() {
+  managerPerformancePage = 1;
+  renderManagerPerformanceTable(currentData?.manager_performance || []);
+}
+
+function changeManagerPerformancePage(page) {
+  managerPerformancePage = page;
+  renderManagerPerformanceTable(currentData?.manager_performance || []);
+}
+
+function changeManagerPerformancePageSize(size) {
+  managerPerformancePageSize = size === "All" ? "All" : parseInt(size);
+  managerPerformancePage = 1;
+  renderManagerPerformanceTable(currentData?.manager_performance || []);
 }
 
 function renderTeamTable(teams) {
@@ -3577,6 +3703,79 @@ async function downloadReportPdf() {
                   </thead>
                   <tbody>
                     ${poRows}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            ${getFooter()}
+          </div>
+        `);
+      }
+
+      // CEO Page: Manager Performance (Individual)
+      const managersList = currentData.manager_performance || [];
+      if (managersList.length > 0) {
+        const sortedMgrs = sortCollection(managersList, "managerPerformanceTable", {
+          name: { type: "string", get: (m) => m.name },
+          reshuffled_leads: { type: "number", get: (m) => m.reshuffled_leads },
+          deals: { type: "number", get: (m) => m.deals },
+          total_listings: { type: "number", get: (m) => m.total_listings },
+          active_listings: { type: "number", get: (m) => m.active_listings },
+          pocket_listings: { type: "number", get: (m) => m.pocket_listings },
+          sales: { type: "number", get: (m) => m.sales },
+          commission: { type: "number", get: (m) => m.commission },
+          top_deal: { type: "number", get: (m) => m.top_deal },
+          avg_gap: { type: "number", get: (m) => m.avg_gap },
+          last_deal_days: { type: "number", get: (m) => m.last_deal_days },
+          attendance: { type: "number", get: (m) => m.attendance },
+        });
+
+        const mgrRows = sortedMgrs.map((m, idx) => {
+          const { daysClass, daysLabel } = getDaysBadgeMeta(m.last_deal_days);
+          const ac = getAttendanceBadgeClass(m.attendance, m.attendance_total);
+          return `
+            <tr>
+              <td style="font-weight:700;color:#0f1e35;">#${idx + 1}</td>
+              <td>
+                <div style="font-weight:600;font-size:10px;">${m.name}</div>
+                <div style="font-size:8.5px;color:#64748b;">${m.designation || 'Manager'}</div>
+              </td>
+              <td style="text-align:center;">${m.reshuffled_leads}</td>
+              <td style="font-weight:700;text-align:center;">${m.deals}</td>
+              <td style="text-align:center;">${m.total_listings}</td>
+              <td style="text-align:center;">${m.active_listings}</td>
+              <td>AED ${fmtCurrency(m.sales)}</td>
+              <td style="font-weight:700;color:#0f1e35;">AED ${fmtCurrency(m.commission)}</td>
+              <td>AED ${fmtCurrency(m.top_deal, true)}</td>
+              <td><span class="days-badge ${daysClass}">${daysLabel}</span></td>
+              <td><span class="days-badge ${ac}">${m.attendance} / ${m.attendance_total || 30}d</span></td>
+            </tr>
+          `;
+        }).join("");
+
+        pagesHtmlList.push(`
+          <div class="pdf-report-page">
+            ${getHeaderSub("Manager Performance Overview", "Individual sales and production performance of sales managers")}
+            <div class="pdf-page-body">
+              <div class="pdf-card" style="flex:1;overflow:hidden;">
+                <table class="pdf-table">
+                  <thead>
+                    <tr>
+                      <th>Rank</th>
+                      <th>Manager</th>
+                      <th style="text-align:center;">Reshuffled</th>
+                      <th style="text-align:center;">Deals</th>
+                      <th style="text-align:center;">Listings</th>
+                      <th style="text-align:center;">Active</th>
+                      <th>Sales Volume</th>
+                      <th>Commission</th>
+                      <th>Top Deal</th>
+                      <th>Last Deal</th>
+                      <th>Attendance</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${mgrRows}
                   </tbody>
                 </table>
               </div>

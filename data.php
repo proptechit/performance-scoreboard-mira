@@ -653,7 +653,13 @@ if ($role === 'agent') {
         return (int)$a['ID'];
     }, $allAgents);
     $allManagerIds = getSalesTeamHeadIds($salesTeams);
-    $allDealOwnerIds = array_values(array_unique(array_merge($allAgentIds, $allManagerIds)));
+    $cfgManagerIds = ($company === COMPANY_EVA)
+        ? ($GLOBALS['CFG_MANAGER_USER_IDS_EVA'] ?? array())
+        : ($GLOBALS['CFG_MANAGER_USER_IDS_MIRA'] ?? array());
+    $allManagerUserIds = array_values(array_unique(array_filter(array_merge($allManagerIds, $cfgManagerIds), function ($id) {
+        return (int)$id > 0;
+    })));
+    $allDealOwnerIds = array_values(array_unique(array_merge($allAgentIds, $allManagerUserIds)));
 
     // Company-wide won deals (no agent filter = all)
     $allDeals       = fetchAllDeals(array(), $dateRange, $dealType, $company);
@@ -753,6 +759,54 @@ if ($role === 'agent') {
     }
 
     usort($agentPerformance, function ($a, $b) {
+        return $b['commission'] - $a['commission'];
+    });
+
+    // ── MANAGER PERFORMANCE TABLE ────────────────────────────────────────
+    $managerUsers = array();
+    if (!empty($allManagerUserIds)) {
+        $inMgr = inClauseInt($allManagerUserIds);
+        $managerUsers = dbQuery("
+            SELECT 
+                u.ID,
+                u.ACTIVE,
+                u.NAME,
+                u.LAST_NAME,
+                u.WORK_POSITION,
+                u.DATE_REGISTER,
+                u.PERSONAL_PHOTO,
+                uts_u.UF_USR_1778656838068,
+                uts_u." . FIELD_COMPANY_USER . " AS company_enum
+            FROM b_user u
+            LEFT JOIN b_uts_user uts_u
+                ON uts_u.VALUE_ID = u.ID
+            WHERE u.ID IN {$inMgr}
+            ORDER BY u.LAST_NAME ASC, u.NAME ASC
+        ");
+    }
+
+    $managerTeamMap = array();
+    foreach ($salesTeams as $team) {
+        $hid = resolveSalesTeamHeadId($team, $company);
+        if ($hid > 0) {
+            $managerTeamMap[$hid] = ($team['DISPLAY_NAME'] ?? '') ?: $team['NAME'];
+        }
+    }
+
+    $managerPerformance = array();
+    foreach ($managerUsers as $managerRow) {
+        $mid                   = (int)$managerRow['ID'];
+        $managerDeals          = isset($dealsByAgent[$mid]) ? $dealsByAgent[$mid] : array();
+        $managerWonDeals       = isset($wonDealsByAgent[$mid]) ? $wonDealsByAgent[$mid] : array();
+        $managerCommittedDeals = isset($committedDealsByAgent[$mid]) ? $committedDealsByAgent[$mid] : array();
+        $row = buildAgentPerformanceRow($managerRow, $managerDeals, $managerWonDeals, $managerCommittedDeals, $dateRange, 0, $company);
+        if (empty($row['designation']) && isset($managerTeamMap[$mid])) {
+            $row['designation'] = $managerTeamMap[$mid];
+        }
+        $managerPerformance[] = $row;
+    }
+
+    usort($managerPerformance, function ($a, $b) {
         return $b['commission'] - $a['commission'];
     });
 
@@ -914,6 +968,7 @@ if ($role === 'agent') {
     $response['active_agents_details'] = $activeAgentDetails;
     $response['no_deal_60_details']    = $noDeal60Details;
     $response['agent_performance']     = $agentPerformance;
+    $response['manager_performance']   = $managerPerformance;
     $response['team_performance']      = $teamPerformance;
 
     $response['year_comparison'] = array(

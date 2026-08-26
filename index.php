@@ -460,6 +460,49 @@
                 <div id="agentPrivateOfficeTablePagination" class="table-pagination-container"></div>
             </div>
 
+            <!-- Manager Performance Table -->
+            <div class="chart-card mb-24">
+                <div class="chart-card-header">
+                    <div>
+                        <div class="chart-card-title">Manager Performance Overview</div>
+                        <div class="chart-card-subtitle">Click on a manager for detailed view</div>
+                    </div>
+                    <div class="agent-overview-controls">
+                        <input
+                            type="search"
+                            id="managerPerformanceSearchInput"
+                            class="table-search-input"
+                            placeholder="Search manager"
+                            oninput="handleManagerPerformanceSearch()"
+                        >
+                        <span id="managerPerformanceCountBadge" style="font-size:11px;color:var(--grey-400);font-weight:500;"></span>
+                        <span style="width:8px;height:8px;border-radius:50%;background:var(--red);display:inline-block;"></span>
+                    </div>
+                </div>
+                <div class="agent-table-wrapper">
+                    <table class="agent-table">
+                        <thead>
+                            <tr>
+                                <th data-table-id="managerPerformanceTable" data-sort-key="name" data-sort-type="string">Manager</th>
+                                <th data-table-id="managerPerformanceTable" data-sort-key="reshuffled_leads" data-sort-type="number">Reshuffled</th>
+                                <th data-table-id="managerPerformanceTable" data-sort-key="deals" data-sort-type="number">Transactions</th>
+                                <th data-table-id="managerPerformanceTable" data-sort-key="total_listings" data-sort-type="number">Total Listings</th>
+                                <th data-table-id="managerPerformanceTable" data-sort-key="active_listings" data-sort-type="number">Active Listings</th>
+                                <th data-table-id="managerPerformanceTable" data-sort-key="pocket_listings" data-sort-type="number">Pocket Listings</th>
+                                <th data-table-id="managerPerformanceTable" data-sort-key="sales" data-sort-type="number">Sales Volume (AED)</th>
+                                <th data-table-id="managerPerformanceTable" data-sort-key="commission" data-sort-type="number">Commission</th>
+                                <th data-table-id="managerPerformanceTable" data-sort-key="top_deal" data-sort-type="number">Top Transaction</th>
+                                <th data-table-id="managerPerformanceTable" data-sort-key="avg_gap" data-sort-type="number">Avg Gap</th>
+                                <th data-table-id="managerPerformanceTable" data-sort-key="last_deal_days" data-sort-type="number">Last Transaction</th>
+                                <th data-table-id="managerPerformanceTable" data-sort-key="attendance" data-sort-type="number">Attendence</th>
+                            </tr>
+                        </thead>
+                        <tbody id="managerPerformanceTableBody"></tbody>
+                    </table>
+                </div>
+                <div id="managerPerformanceTablePagination" class="table-pagination-container"></div>
+            </div>
+
             <!-- Team Performance Table -->
             <div class="chart-card mb-24">
                 <div class="chart-card-header">
