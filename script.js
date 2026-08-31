@@ -15,6 +15,7 @@ let agentModalLastFocus = null;
 let currentAgentModalType = null;
 let currentAgentModalItems = [];
 let managerAgentStatusFilter = "active";
+let agentStatusFilter = "active";
 
 let currentViewRole = null;
 let currentViewDeptId = null;
@@ -431,6 +432,14 @@ function resetFilters() {
   ["f_year", "f_quarter", "f_month", "f_deal_type"].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.selectedIndex = 0;
+  });
+  agentStatusFilter = "active";
+  document.querySelectorAll("#agentStatusToggle .status-tab").forEach((tab) => {
+    tab.classList.toggle("active", tab.dataset.status === "active");
+  });
+  managerAgentStatusFilter = "active";
+  document.querySelectorAll("#managerAgentStatusToggle .status-tab").forEach((tab) => {
+    tab.classList.toggle("active", tab.dataset.status === "active");
   });
   loadDashboard();
 }
@@ -1540,6 +1549,15 @@ function renderSalesByDealTypeTable(salesData) {
   tbody.innerHTML = rows;
 }
 
+function toggleAgentStatus(status) {
+  agentStatusFilter = status;
+  document.querySelectorAll("#agentStatusToggle .status-tab").forEach((tab) => {
+    tab.classList.toggle("active", tab.dataset.status === status);
+  });
+  agentPage = 1;
+  renderAgentTable(currentData?.agent_performance);
+}
+
 function renderAgentTable(agents) {
   const tbody = document.getElementById("agentTableBody");
   if (!tbody || !agents) return;
@@ -1551,22 +1569,30 @@ function renderAgentTable(agents) {
       (a.original_department_id && a.original_department_id > 0),
   );
 
+  const isDismissedTab = agentStatusFilter === "dismissed";
+  const statusFilteredAgents = regularAgents.filter((a) =>
+    isDismissedTab ? a.is_dismissed === true : a.is_dismissed !== true,
+  );
+
   const searchQuery = (
     document.getElementById("agentSearchInput")?.value || ""
   ).trim().toLowerCase();
 
   const filteredAgents = searchQuery
-    ? regularAgents.filter((a) =>
+    ? statusFilteredAgents.filter((a) =>
         `${a.name || ""} ${a.designation || ""}`
           .toLowerCase()
           .includes(searchQuery),
       )
-    : regularAgents;
+    : statusFilteredAgents;
 
-  document.getElementById("agentCountBadge").textContent =
-    filteredAgents.length === regularAgents.length
-      ? `${regularAgents.length} agents`
-      : `${filteredAgents.length} of ${regularAgents.length} agents`;
+  const countBadge = document.getElementById("agentCountBadge");
+  if (countBadge) {
+    countBadge.textContent =
+      filteredAgents.length === statusFilteredAgents.length
+        ? `${statusFilteredAgents.length} ${isDismissedTab ? "dismissed" : "active"} agent${statusFilteredAgents.length === 1 ? "" : "s"}`
+        : `${filteredAgents.length} of ${statusFilteredAgents.length} ${isDismissedTab ? "dismissed" : "active"} agent${statusFilteredAgents.length === 1 ? "" : "s"}`;
+  }
 
   const sortedAgents = sortCollection(filteredAgents, "agentTable", {
     name: { type: "string", get: (a) => a.name },
@@ -1586,7 +1612,7 @@ function renderAgentTable(agents) {
   if (!sortedAgents.length) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="12" class="table-empty-state">No agents match your search.</td>
+        <td colspan="12" class="table-empty-state">No ${isDismissedTab ? "dismissed" : "active"} agents match your search.</td>
       </tr>
     `;
     const pagContainer = document.getElementById("agentTablePagination");
@@ -1615,7 +1641,7 @@ function renderAgentTable(agents) {
         <div class="agent-name-cell">
           <div class="agent-mini-avatar">${initials(a.name)}</div>
           <div>
-            <div style="font-weight:600;">${a.name} ${a.is_transferred ? `<span class="days-badge warn" style="font-size:9px;padding:2px 4px;margin-left:6px;display:inline-flex;">No longer in dept${a.transferred_at ? ' (since ' + a.transferred_at + ')' : ''}</span>` : ''}</div>
+            <div style="font-weight:600;">${a.name} ${a.is_dismissed ? `<span class="days-badge crit" style="font-size:9px;padding:2px 4px;margin-left:6px;display:inline-flex;">Dismissed</span>` : (a.is_transferred ? `<span class="days-badge warn" style="font-size:9px;padding:2px 4px;margin-left:6px;display:inline-flex;">No longer in dept${a.transferred_at ? ' (since ' + a.transferred_at + ')' : ''}</span>` : '')}</div>
             <div style="font-size:10px;color:var(--grey-400);">${a.designation}</div>
           </div>
         </div>
@@ -3562,10 +3588,12 @@ async function downloadReportPdf() {
       `);
 
       // CEO Pages 5+: Agent Performance Tables (Chunked cleanly)
+      const isDismissedTab = agentStatusFilter === "dismissed";
       const regularAgents = (currentData.agent_performance || []).filter(
         (a) =>
-          !((a.designation || "").trim().toLowerCase().startsWith("private office") || a.department_id === 23) ||
-          (a.original_department_id && a.original_department_id > 0),
+          (isDismissedTab ? a.is_dismissed === true : a.is_dismissed !== true) &&
+          (!((a.designation || "").trim().toLowerCase().startsWith("private office") || a.department_id === 23) ||
+            (a.original_department_id && a.original_department_id > 0)),
       );
       const sortedRegular = sortCollection(regularAgents, "agentTable", {
         name: { type: "string", get: (a) => a.name },
@@ -3582,36 +3610,10 @@ async function downloadReportPdf() {
         attendance: { type: "number", get: (a) => a.attendance },
       });
 
-      const chunkSize = 16;
-      for (let i = 0; i < sortedRegular.length; i += chunkSize) {
-        const chunk = sortedRegular.slice(i, i + chunkSize);
-        const agentChunkRows = chunk.map((a, cIdx) => {
-          const rank = i + cIdx + 1;
-          const { daysClass, daysLabel } = getDaysBadgeMeta(a.last_deal_days);
-          const ac = getAttendanceBadgeClass(a.attendance, a.attendance_total);
-          return `
-            <tr>
-              <td style="font-weight:700;color:#0f1e35;">#${rank}</td>
-              <td>
-                <div style="font-weight:600;font-size:10px;">${a.name}</div>
-                <div style="font-size:8.5px;color:#64748b;">${a.designation || ''}</div>
-              </td>
-              <td style="text-align:center;">${a.reshuffled_leads}</td>
-              <td style="font-weight:700;text-align:center;">${a.deals}</td>
-              <td style="text-align:center;">${a.total_listings}</td>
-              <td style="text-align:center;">${a.active_listings}</td>
-              <td>AED ${fmtCurrency(a.sales)}</td>
-              <td style="font-weight:700;color:#0f1e35;">AED ${fmtCurrency(a.commission)}</td>
-              <td>AED ${fmtCurrency(a.top_deal, true)}</td>
-              <td><span class="days-badge ${daysClass}">${daysLabel}</span></td>
-              <td><span class="days-badge ${ac}">${a.attendance} / ${a.attendance_total || 30}d</span></td>
-            </tr>
-          `;
-        }).join("");
-
+      if (sortedRegular.length === 0) {
         pagesHtmlList.push(`
           <div class="pdf-report-page">
-            ${getHeaderSub("Agent Performance Leaderboard", `Rankings ${i + 1} to ${Math.min(i + chunkSize, sortedRegular.length)} of ${sortedRegular.length} agents`)}
+            ${getHeaderSub("Agent Performance Leaderboard", `${isDismissedTab ? 'Dismissed Agents' : 'Active Agents'} (0 total)`)}
             <div class="pdf-page-body">
               <div class="pdf-card" style="flex:1;overflow:hidden;">
                 <table class="pdf-table">
@@ -3631,7 +3633,7 @@ async function downloadReportPdf() {
                     </tr>
                   </thead>
                   <tbody>
-                    ${agentChunkRows}
+                    <tr><td colspan="11" style="text-align:center;padding:20px;color:#94a3b8;">No ${isDismissedTab ? 'dismissed' : 'active'} agents found.</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -3639,6 +3641,65 @@ async function downloadReportPdf() {
             ${getFooter()}
           </div>
         `);
+      } else {
+        const chunkSize = 16;
+        for (let i = 0; i < sortedRegular.length; i += chunkSize) {
+          const chunk = sortedRegular.slice(i, i + chunkSize);
+          const agentChunkRows = chunk.map((a, cIdx) => {
+            const rank = i + cIdx + 1;
+            const { daysClass, daysLabel } = getDaysBadgeMeta(a.last_deal_days);
+            const ac = getAttendanceBadgeClass(a.attendance, a.attendance_total);
+            return `
+              <tr>
+                <td style="font-weight:700;color:#0f1e35;">#${rank}</td>
+                <td>
+                  <div style="font-weight:600;font-size:10px;">${a.name} ${a.is_dismissed ? '<span class="days-badge crit" style="font-size:8px;padding:1px 3px;">Dismissed</span>' : ''}</div>
+                  <div style="font-size:8.5px;color:#64748b;">${a.designation || ''}</div>
+                </td>
+                <td style="text-align:center;">${a.reshuffled_leads}</td>
+                <td style="font-weight:700;text-align:center;">${a.deals}</td>
+                <td style="text-align:center;">${a.total_listings}</td>
+                <td style="text-align:center;">${a.active_listings}</td>
+                <td>AED ${fmtCurrency(a.sales)}</td>
+                <td style="font-weight:700;color:#0f1e35;">AED ${fmtCurrency(a.commission)}</td>
+                <td>AED ${fmtCurrency(a.top_deal, true)}</td>
+                <td><span class="days-badge ${daysClass}">${daysLabel}</span></td>
+                <td><span class="days-badge ${ac}">${a.attendance} / ${a.attendance_total || 30}d</span></td>
+              </tr>
+            `;
+          }).join("");
+
+          pagesHtmlList.push(`
+            <div class="pdf-report-page">
+              ${getHeaderSub("Agent Performance Leaderboard", `${isDismissedTab ? 'Dismissed Agents' : 'Active Agents'} • Rankings ${i + 1} to ${Math.min(i + chunkSize, sortedRegular.length)} of ${sortedRegular.length} agents`)}
+              <div class="pdf-page-body">
+                <div class="pdf-card" style="flex:1;overflow:hidden;">
+                  <table class="pdf-table">
+                    <thead>
+                      <tr>
+                        <th>Rank</th>
+                        <th>Agent</th>
+                        <th style="text-align:center;">Reshuffled</th>
+                        <th style="text-align:center;">Deals</th>
+                        <th style="text-align:center;">Listings</th>
+                        <th style="text-align:center;">Active</th>
+                        <th>Sales Volume</th>
+                        <th>Commission</th>
+                        <th>Top Deal</th>
+                        <th>Last Deal</th>
+                        <th>Attendance</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${agentChunkRows}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              ${getFooter()}
+            </div>
+          `);
+        }
       }
 
       // CEO Page Final: Private Office Agents

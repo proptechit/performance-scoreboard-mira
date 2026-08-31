@@ -617,41 +617,61 @@ if ($role === 'agent') {
 } else {
 
     // All sales teams and agents
-    $salesTeams  = getSalesTeams($company);
-    $allDeptIds  = array_map(function ($t) {
+    $salesTeams      = getSalesTeams($company);
+    $allDeptIds      = array_map(function ($t) {
         return (int)$t['ID'];
     }, $salesTeams);
-    $allAgents   = empty($allDeptIds) ? array() : getAgentsByDept($allDeptIds, true, $dateRange, $company);
+    $activeAgents    = empty($allDeptIds) ? array() : getAgentsByDept($allDeptIds, true, $dateRange, $company);
+    $dismissedAgents = empty($allDeptIds) ? array() : getDismissedAgentsByDept($allDeptIds, true, $dateRange, $company);
 
     // Explicitly include user ID 168 and 156 for Mira
     if ($company === COMPANY_MIRA) {
         $specialUserIds = array(168, 156);
         foreach ($specialUserIds as $specialId) {
             $found = false;
-            foreach ($allAgents as $a) {
+            foreach ($activeAgents as $a) {
                 if ((int)$a['ID'] === $specialId) {
                     $found = true;
                     break;
                 }
             }
             if (!$found) {
+                foreach ($dismissedAgents as $a) {
+                    if ((int)$a['ID'] === $specialId) {
+                        $found = true;
+                        break;
+                    }
+                }
+            }
+            if (!$found) {
                 $userProfile = getUserProfile($specialId);
                 if (!empty($userProfile)) {
-                    $allAgents[] = $userProfile;
+                    if (($userProfile['ACTIVE'] ?? 'Y') === 'N') {
+                        $dismissedAgents[] = $userProfile;
+                    } else {
+                        $activeAgents[] = $userProfile;
+                    }
                 }
             }
         }
     }
 
     // Filter out users with excluded work positions (PA Liaison, Listing Admin)
-    $allAgents = array_filter($allAgents, function ($a) {
+    $activeAgents = array_values(array_filter($activeAgents, function ($a) {
         $pos = strtolower(trim($a['WORK_POSITION'] ?? ''));
         return ($pos === '' || (strpos($pos, 'pa liaison') === false && strpos($pos, 'listing admin') === false));
-    });
+    }));
+    $dismissedAgents = array_values(array_filter($dismissedAgents, function ($a) {
+        $pos = strtolower(trim($a['WORK_POSITION'] ?? ''));
+        return ($pos === '' || (strpos($pos, 'pa liaison') === false && strpos($pos, 'listing admin') === false));
+    }));
 
-    $allAgentIds = array_map(function ($a) {
+    $allAgents = array_merge($activeAgents, $dismissedAgents);
+
+    $allActiveAgentIds = array_map(function ($a) {
         return (int)$a['ID'];
-    }, $allAgents);
+    }, $activeAgents);
+    $allAgentIds = $allActiveAgentIds;
     $allManagerIds = getSalesTeamHeadIds($salesTeams);
     $cfgManagerIds = ($company === COMPANY_EVA)
         ? ($GLOBALS['CFG_MANAGER_USER_IDS_EVA'] ?? array())
@@ -659,7 +679,7 @@ if ($role === 'agent') {
     $allManagerUserIds = array_values(array_unique(array_filter(array_merge($allManagerIds, $cfgManagerIds), function ($id) {
         return (int)$id > 0;
     })));
-    $allDealOwnerIds = array_values(array_unique(array_merge($allAgentIds, $allManagerUserIds)));
+    $allDealOwnerIds = array_values(array_unique(array_merge($allActiveAgentIds, $allManagerUserIds)));
 
     // Company-wide won deals (no agent filter = all)
     $allDeals       = fetchAllDeals(array(), $dateRange, $dealType, $company);
