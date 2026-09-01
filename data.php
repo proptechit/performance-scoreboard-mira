@@ -533,6 +533,7 @@ if ($role === 'agent') {
         $committedDealsByAgent[$rid][] = $d;
     }
 
+    $dismissDateMap = getDismissDatesForUsers($agentIds);
     $allAgentRows = array();
     foreach ($agentIds as $aid) {
         if (!isset($agentRows[$aid])) {
@@ -553,7 +554,7 @@ if ($role === 'agent') {
             return isAgentInDeptAtDate($d['ASSIGNED_BY_ID'], $targetDeptId, $dealDate);
         })) : array();
 
-        $allAgentRows[] = buildAgentPerformanceRow($agentRows[$aid], $agentDeals, $agentWonDeals, $agentCommittedDeals, $dateRange, $targetDeptId, $company);
+        $allAgentRows[] = buildAgentPerformanceRow($agentRows[$aid], $agentDeals, $agentWonDeals, $agentCommittedDeals, $dateRange, $targetDeptId, $company, $dismissDateMap);
     }
 
     usort($allAgentRows, function ($a, $b) {
@@ -769,13 +770,18 @@ if ($role === 'agent') {
         $committedDealsByAgent[$rid][] = $d;
     }
 
+    $allAgentRowIds = array_map(function ($a) {
+        return (int)$a['ID'];
+    }, $allAgents);
+    $dismissDateMap = getDismissDatesForUsers($allAgentRowIds);
+
     $agentPerformance = array();
     foreach ($allAgents as $agentRow) {
         $aid                 = (int)$agentRow['ID'];
         $agentDeals          = isset($dealsByAgent[$aid]) ? $dealsByAgent[$aid] : array();
         $agentWonDeals       = isset($wonDealsByAgent[$aid]) ? $wonDealsByAgent[$aid] : array();
         $agentCommittedDeals = isset($committedDealsByAgent[$aid]) ? $committedDealsByAgent[$aid] : array();
-        $agentPerformance[] = buildAgentPerformanceRow($agentRow, $agentDeals, $agentWonDeals, $agentCommittedDeals, $dateRange, 0, $company);
+        $agentPerformance[] = buildAgentPerformanceRow($agentRow, $agentDeals, $agentWonDeals, $agentCommittedDeals, $dateRange, 0, $company, $dismissDateMap);
     }
 
     usort($agentPerformance, function ($a, $b) {

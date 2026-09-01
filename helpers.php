@@ -3599,15 +3599,52 @@ function fetchYearMonthly($year, $agentIds = array(), $dealType = 'All', $compan
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
+ * Batch fetch latest dismiss dates for a list of user IDs from b_agent_dismiss_history.
+ * Returns array: [ USER_ID => 'd/m/Y' ]
+ */
+function getDismissDatesForUsers($userIds)
+{
+    $userIds = array_values(array_unique(array_filter(array_map('intval', $userIds), function($id) {
+        return $id > 0;
+    })));
+    if (empty($userIds)) {
+        return array();
+    }
+    $in = inClauseInt($userIds);
+    $rows = dbQuery("
+        SELECT USER_ID, DISMISS_DATE
+        FROM b_agent_dismiss_history
+        WHERE USER_ID IN {$in}
+        ORDER BY DISMISS_DATE DESC
+    ");
+    $result = array();
+    foreach ($rows as $r) {
+        $uid = (int)$r['USER_ID'];
+        if (!isset($result[$uid]) && !empty($r['DISMISS_DATE'])) {
+            $dismissedDate = convertBitrixDateToString($r['DISMISS_DATE'], 'Y-m-d');
+            if ($dismissedDate !== '') {
+                $result[$uid] = date('d/m/Y', strtotime($dismissedDate));
+            }
+        }
+    }
+    return $result;
+}
+
+/**
  * Build a single agent's performance row for the agent table.
  * Used in both CEO and Manager views.
  *
  * @param  array $userRow    Row from b_user
- * @param  array $wonDeals   Pre-fetched won deals (already filtered for this agent)
+ * @param  array $allDeals   Pre-fetched all deals
+ * @param  array $wonDeals   Pre-fetched won deals
+ * @param  array $committedDeals Pre-fetched committed deals
  * @param  array $dateRange
+ * @param  int   $scopeDeptId
+ * @param  string $company
+ * @param  array $dismissDateMap Optional pre-fetched map of [USER_ID => 'd/m/Y']
  * @return array
  */
-function buildAgentPerformanceRow($userRow, $allDeals, $wonDeals, $committedDeals, $dateRange, $scopeDeptId = 0, $company = 'mira')
+function buildAgentPerformanceRow($userRow, $allDeals, $wonDeals, $committedDeals, $dateRange, $scopeDeptId = 0, $company = 'mira', $dismissDateMap = array())
 {
     $uid = (int)$userRow['ID'];
     $agg = aggregateDeals($allDeals);
@@ -3670,6 +3707,28 @@ function buildAgentPerformanceRow($userRow, $allDeals, $wonDeals, $committedDeal
         }
     }
 
+    $isDismissed = (($userRow['ACTIVE'] ?? 'Y') === 'N');
+    $dismissedAt = '';
+    if ($isDismissed) {
+        if (isset($dismissDateMap[$uid])) {
+            $dismissedAt = $dismissDateMap[$uid];
+        } else {
+            $dismissRow = dbQueryOne("
+                SELECT DISMISS_DATE 
+                FROM b_agent_dismiss_history 
+                WHERE USER_ID = {$uid} 
+                ORDER BY DISMISS_DATE DESC 
+                LIMIT 1
+            ");
+            if (!empty($dismissRow) && !empty($dismissRow['DISMISS_DATE'])) {
+                $dismissedDate = convertBitrixDateToString($dismissRow['DISMISS_DATE'], 'Y-m-d');
+                if ($dismissedDate !== '') {
+                    $dismissedAt = date('d/m/Y', strtotime($dismissedDate));
+                }
+            }
+        }
+    }
+
     $deptId = 0;
     if ($company === COMPANY_MIRA && $uid === 156) {
         $deptId = 26;
@@ -3718,7 +3777,8 @@ function buildAgentPerformanceRow($userRow, $allDeals, $wonDeals, $committedDeal
         'attendance_total' => $attendanceTotal,
         'is_transferred'   => $isTransferred,
         'transferred_at'   => $transferredAt,
-        'is_dismissed'     => (($userRow['ACTIVE'] ?? 'Y') === 'N'),
+        'is_dismissed'     => $isDismissed,
+        'dismissed_at'     => $dismissedAt,
     );
 }
 

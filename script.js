@@ -1641,7 +1641,7 @@ function renderAgentTable(agents) {
         <div class="agent-name-cell">
           <div class="agent-mini-avatar">${initials(a.name)}</div>
           <div>
-            <div style="font-weight:600;">${a.name} ${a.is_dismissed ? `<span class="days-badge crit" style="font-size:9px;padding:2px 4px;margin-left:6px;display:inline-flex;">Dismissed</span>` : (a.is_transferred ? `<span class="days-badge warn" style="font-size:9px;padding:2px 4px;margin-left:6px;display:inline-flex;">No longer in dept${a.transferred_at ? ' (since ' + a.transferred_at + ')' : ''}</span>` : '')}</div>
+            <div style="font-weight:600;">${a.name} ${a.is_dismissed ? `<span class="days-badge crit" style="font-size:9px;padding:2px 4px;margin-left:6px;display:inline-flex;">Dismissed${a.dismissed_at ? ' (since ' + a.dismissed_at + ')' : ''}</span>` : (a.is_transferred ? `<span class="days-badge warn" style="font-size:9px;padding:2px 4px;margin-left:6px;display:inline-flex;">No longer in dept${a.transferred_at ? ' (since ' + a.transferred_at + ')' : ''}</span>` : '')}</div>
             <div style="font-size:10px;color:var(--grey-400);">${a.designation}</div>
           </div>
         </div>
@@ -1787,7 +1787,7 @@ function renderAgentPrivateOfficeTable(agents) {
         <div class="agent-name-cell">
           <div class="agent-mini-avatar">${initials(a.name)}</div>
           <div>
-            <div style="font-weight:600;">${a.name} ${a.is_transferred ? `<span class="days-badge warn" style="font-size:9px;padding:2px 4px;margin-left:6px;display:inline-flex;">No longer in dept${a.transferred_at ? ' (since ' + a.transferred_at + ')' : ''}</span>` : ''}</div>
+            <div style="font-weight:600;">${a.name} ${a.is_dismissed ? `<span class="days-badge crit" style="font-size:9px;padding:2px 4px;margin-left:6px;display:inline-flex;">Dismissed${a.dismissed_at ? ' (since ' + a.dismissed_at + ')' : ''}</span>` : (a.is_transferred ? `<span class="days-badge warn" style="font-size:9px;padding:2px 4px;margin-left:6px;display:inline-flex;">No longer in dept${a.transferred_at ? ' (since ' + a.transferred_at + ')' : ''}</span>` : '')}</div>
             <div style="font-size:10px;color:var(--grey-400);">${a.designation}</div>
           </div>
         </div>
@@ -2097,7 +2097,7 @@ function renderManagerAgentTable(agents) {
       const { daysClass, daysLabel } = getDaysBadgeMeta(a.last_deal_days);
       const ac = getAttendanceBadgeClass(a.attendance, a.attendance_total);
       return `<tr onclick="drillToAgent(${a.id})">
-        <td><div class="agent-name-cell"><div class="agent-mini-avatar">${initials(a.name)}</div><div><div style="font-weight:600">${a.name} ${a.is_dismissed ? `<span class="days-badge crit" style="font-size:9px;padding:2px 4px;margin-left:6px;display:inline-flex;">Dismissed</span>` : (a.is_transferred ? `<span class="days-badge warn" style="font-size:9px;padding:2px 4px;margin-left:6px;display:inline-flex;">No longer in dept${a.transferred_at ? ' (since ' + a.transferred_at + ')' : ''}</span>` : '')}</div><div style="font-size:10px;color:var(--grey-400)">${a.designation}</div></div></div></td>
+        <td><div class="agent-name-cell"><div class="agent-mini-avatar">${initials(a.name)}</div><div><div style="font-weight:600">${a.name} ${a.is_dismissed ? `<span class="days-badge crit" style="font-size:9px;padding:2px 4px;margin-left:6px;display:inline-flex;">Dismissed${a.dismissed_at ? ' (since ' + a.dismissed_at + ')' : ''}</span>` : (a.is_transferred ? `<span class="days-badge warn" style="font-size:9px;padding:2px 4px;margin-left:6px;display:inline-flex;">No longer in dept${a.transferred_at ? ' (since ' + a.transferred_at + ')' : ''}</span>` : '')}</div><div style="font-size:10px;color:var(--grey-400)">${a.designation}</div></div></div></td>
         <td>${a.leads_offplan}</td>
         <td>${a.leads_secondary}</td>
         <td>${a.reshuffled_leads}</td>
@@ -3653,7 +3653,7 @@ async function downloadReportPdf() {
               <tr>
                 <td style="font-weight:700;color:#0f1e35;">#${rank}</td>
                 <td>
-                  <div style="font-weight:600;font-size:10px;">${a.name} ${a.is_dismissed ? '<span class="days-badge crit" style="font-size:8px;padding:1px 3px;">Dismissed</span>' : ''}</div>
+                  <div style="font-weight:600;font-size:10px;">${a.name} ${a.is_dismissed ? `<span class="days-badge crit" style="font-size:8px;padding:1px 3px;">Dismissed${a.dismissed_at ? ' (since ' + a.dismissed_at + ')' : ''}</span>` : ''}</div>
                   <div style="font-size:8.5px;color:#64748b;">${a.designation || ''}</div>
                 </td>
                 <td style="text-align:center;">${a.reshuffled_leads}</td>
@@ -4003,7 +4003,7 @@ async function downloadReportPdf() {
             <tr>
               <td style="font-weight:700;color:#0f1e35;">#${rank}</td>
               <td>
-                <div style="font-weight:600;font-size:10px;">${a.name} ${a.is_dismissed ? `<span class="days-badge crit" style="font-size:8px;padding:1px 3px;">Dismissed</span>` : ''}</div>
+                <div style="font-weight:600;font-size:10px;">${a.name} ${a.is_dismissed ? `<span class="days-badge crit" style="font-size:8px;padding:1px 3px;">Dismissed${a.dismissed_at ? ' (since ' + a.dismissed_at + ')' : ''}</span>` : ''}</div>
                 <div style="font-size:8.5px;color:#64748b;">${a.designation || ''}</div>
               </td>
               <td style="text-align:center;">${a.leads_offplan}</td>
