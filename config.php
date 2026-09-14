@@ -117,6 +117,11 @@ define('FIELD_COMPANY_USER',       'UF_USR_1784813725054');
 define('COMPANY_USER_MIRA',        2206);
 define('COMPANY_USER_EVA',         2207);
 
+// Deal company enumeration (UF_CRM_1784820025268: 2208 = Mira, 2209 = Eva)
+define('FIELD_COMPANY_DEAL',       'UF_CRM_1784820025268');
+define('COMPANY_DEAL_MIRA',        2208);
+define('COMPANY_DEAL_EVA',         2209);
+
 // Deal migration flag (UF_CRM_1785767578527: 1 / Y / true = Eva, 0 / NULL / false = Mira)
 define('FIELD_EVA_DEAL',           'UF_CRM_1785767578527');
 

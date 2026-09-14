@@ -1419,17 +1419,27 @@ function getEffectiveDealCloseDateExpr($dealAlias = 'd', $utsAlias = 'uts')
 }
 
 /**
- * Build SQL WHERE fragment to filter deals by company (using UF_CRM_1785767578527).
- * For 'eva': deal flag is 1 / 'Y' / 'true'.
- * For 'mira': deal flag is NULL / 0 / NOT '1' / NOT 'Y'.
+ * Build SQL WHERE fragment to filter deals by company (using UF_CRM_1784820025268 and UF_CRM_1785767578527).
+ * For 'eva': deal company is 2209 (Eva DXB) OR migration flag is 1 / 'Y' / 'true'.
+ * For 'mira': deal company is NOT 2209 AND migration flag is NOT 1 / 'Y' / 'true'.
  */
 function getExcludeDealFilter($utsAlias = 'uts', $company = 'mira')
 {
-    $f = FIELD_EXCLUDE_DEAL;
-    if ($company === COMPANY_EVA) {
-        return "AND ({$utsAlias}.{$f} IS NOT NULL AND CAST({$utsAlias}.{$f} AS CHAR) IN ('1', 'Y', 'true', 'TRUE'))";
+    $fCompany  = FIELD_COMPANY_DEAL;
+    $fMigrated = FIELD_EVA_DEAL;
+    $evaCompanyVal = dbInt(COMPANY_DEAL_EVA);
+
+    if (strtolower(trim($company)) === COMPANY_EVA) {
+        return "AND (
+            {$utsAlias}.{$fCompany} = {$evaCompanyVal}
+            OR ({$utsAlias}.{$fMigrated} IS NOT NULL AND CAST({$utsAlias}.{$fMigrated} AS CHAR) IN ('1', 'Y', 'true', 'TRUE'))
+        )";
     }
-    return "AND ({$utsAlias}.{$f} IS NULL OR CAST({$utsAlias}.{$f} AS CHAR) NOT IN ('1', 'Y', 'true', 'TRUE'))";
+
+    return "AND (
+        ({$utsAlias}.{$fCompany} IS NULL OR {$utsAlias}.{$fCompany} != {$evaCompanyVal})
+        AND ({$utsAlias}.{$fMigrated} IS NULL OR CAST({$utsAlias}.{$fMigrated} AS CHAR) NOT IN ('1', 'Y', 'true', 'TRUE'))
+    )";
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
