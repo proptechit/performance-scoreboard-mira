@@ -232,6 +232,13 @@ function getUserCompany($userId)
         return COMPANY_MIRA;
     }
 
+    if ($uid === 670 || $uid === 669 || $uid === 897) {
+        return COMPANY_EVA;
+    }
+    if (in_array($uid, $GLOBALS['CFG_MANAGER_USER_IDS_EVA'] ?? array(), true)) {
+        return COMPANY_EVA;
+    }
+
     $row = dbQueryOne("
         SELECT uts_u." . FIELD_COMPANY_USER . " AS company_enum
         FROM b_user u
@@ -251,7 +258,7 @@ function getUserCompany($userId)
     }
 
     // Fallback: check if user is in any Eva department (root 35 or sub-depts)
-    $evaDeptIds = $GLOBALS['CFG_SALES_REPORT_DEPARTMENT_IDS_EVA'] ?? array(36);
+    $evaDeptIds = array_values(array_unique(array_merge(array(35, 36), $GLOBALS['CFG_SALES_REPORT_DEPARTMENT_IDS_EVA'] ?? array(36))));
     $deptRow = dbQueryOne("
         SELECT 1 AS match_found
         FROM b_utm_user
@@ -279,6 +286,11 @@ function getUserRole($userId)
         return 'ceo';
     }
     if (in_array($uid, $GLOBALS['CFG_MANAGER_USER_IDS'], true)) {
+        return 'manager';
+    }
+    $miraHeads = $GLOBALS['CFG_SALES_TEAM_HEAD_BY_DEPT_MIRA'] ?? array();
+    $evaHeads  = $GLOBALS['CFG_SALES_TEAM_HEAD_BY_DEPT_EVA'] ?? array();
+    if (in_array($uid, $miraHeads, true) || in_array($uid, $evaHeads, true)) {
         return 'manager';
     }
     return 'agent';
@@ -349,6 +361,9 @@ function isUserInAllowedSalesDepartments($userId, $company = 'mira')
     if ($company === COMPANY_MIRA && ($uid === 168 || $uid === 156)) {
         return true;
     }
+    if ($company === COMPANY_EVA && ($uid === 670 || $uid === 669 || in_array($uid, $GLOBALS['CFG_MANAGER_USER_IDS_EVA'] ?? array(), true))) {
+        return true;
+    }
     $uid = dbInt($userId);
 
     // If user's WORK_POSITION is "Private Office", they belong to PO team (dept 23) in Mira
@@ -413,6 +428,18 @@ function getSalesTeams($company = 'mira')
         ORDER BY s.SORT ASC, s.NAME ASC
     ");
 
+    if ($company === COMPANY_EVA) {
+        $existingDeptIds = array_map(function ($r) {
+            return (int)$r['ID'];
+        }, $rows);
+        if (in_array(43, $teamIds, true) && !in_array(43, $existingDeptIds, true)) {
+            $rows[] = array('ID' => 43, 'NAME' => "Scott's Team", 'UF_HEAD' => 670);
+        }
+        if (in_array(44, $teamIds, true) && !in_array(44, $existingDeptIds, true)) {
+            $rows[] = array('ID' => 44, 'NAME' => "Mario's Team", 'UF_HEAD' => 669);
+        }
+    }
+
     foreach ($rows as &$row) {
         $row['UF_HEAD'] = resolveSalesTeamHeadId($row, $company);
         $row['DISPLAY_NAME'] = getSalesTeamDisplayName($row, $company);
@@ -464,6 +491,14 @@ function getSalesTeamById($deptId, $company = 'mira')
     if (!empty($row)) {
         $row['UF_HEAD'] = resolveSalesTeamHeadId($row, $company);
         $row['DISPLAY_NAME'] = getSalesTeamDisplayName($row, $company);
+    } elseif ($company === COMPANY_EVA) {
+        if ($deptId === 43) {
+            $row = array('ID' => 43, 'NAME' => "Scott's Team", 'UF_HEAD' => 670);
+            $row['DISPLAY_NAME'] = getSalesTeamDisplayName($row, $company);
+        } elseif ($deptId === 44) {
+            $row = array('ID' => 44, 'NAME' => "Mario's Team", 'UF_HEAD' => 669);
+            $row['DISPLAY_NAME'] = getSalesTeamDisplayName($row, $company);
+        }
     }
 
     return $row;
@@ -920,6 +955,18 @@ function getUserDeptId($userId, $company = null)
         if ($userRow && trim(strtolower($userRow['WORK_POSITION'] ?? '')) === 'private office') {
             return 23; // Private Office department ID
         }
+    } elseif ($company === COMPANY_EVA) {
+        if ($uid === 670) {
+            return 43; // Scott's Team
+        }
+        if ($uid === 669) {
+            return 44; // Mario's Team
+        }
+        $evaHeads = $GLOBALS['CFG_SALES_TEAM_HEAD_BY_DEPT_EVA'] ?? array();
+        $headDept = array_search($uid, $evaHeads, true);
+        if ($headDept !== false) {
+            return (int)$headDept;
+        }
     }
 
     $allowedDeptIds = getSalesReportDepartmentIds(true, $company);
@@ -963,6 +1010,18 @@ function getUserOriginalDeptId($userId, $company = null)
         }
         if ($uid === 168) {
             return 30; // TG department
+        }
+    } elseif ($company === COMPANY_EVA) {
+        if ($uid === 670) {
+            return 43; // Scott's Team
+        }
+        if ($uid === 669) {
+            return 44; // Mario's Team
+        }
+        $evaHeads = $GLOBALS['CFG_SALES_TEAM_HEAD_BY_DEPT_EVA'] ?? array();
+        $headDept = array_search($uid, $evaHeads, true);
+        if ($headDept !== false) {
+            return (int)$headDept;
         }
     }
 
@@ -1069,9 +1128,23 @@ function getAgentIdsByManager($managerId, $applyPrivateOfficeOverride = true, $d
     if ($company === COMPANY_MIRA && $mid === 156) {
         $managerDepts[] = 26; // ST3 branch
     }
+    if ($company === COMPANY_EVA) {
+        if ($mid === 670) {
+            $managerDepts[] = 43; // Scott's Team
+        }
+        if ($mid === 669) {
+            $managerDepts[] = 44; // Mario's Team
+        }
+        $evaHeads = $GLOBALS['CFG_SALES_TEAM_HEAD_BY_DEPT_EVA'] ?? array();
+        foreach ($evaHeads as $dId => $hId) {
+            if ((int)$hId === $mid && !in_array((int)$dId, $managerDepts, true)) {
+                $managerDepts[] = (int)$dId;
+            }
+        }
+    }
     $salesTeams = getSalesTeams($company);
     foreach ($salesTeams as $team) {
-        if ((int)$team['UF_HEAD'] === $mid) {
+        if ((int)$team['UF_HEAD'] === $mid && !in_array((int)$team['ID'], $managerDepts, true)) {
             $managerDepts[] = (int)$team['ID'];
         }
     }
@@ -1152,9 +1225,23 @@ function getDismissedAgentIdsByManager($managerId, $applyPrivateOfficeOverride =
     if ($company === COMPANY_MIRA && $mid === 156) {
         $managerDepts[] = 26; // ST3 branch
     }
+    if ($company === COMPANY_EVA) {
+        if ($mid === 670) {
+            $managerDepts[] = 43; // Scott's Team
+        }
+        if ($mid === 669) {
+            $managerDepts[] = 44; // Mario's Team
+        }
+        $evaHeads = $GLOBALS['CFG_SALES_TEAM_HEAD_BY_DEPT_EVA'] ?? array();
+        foreach ($evaHeads as $dId => $hId) {
+            if ((int)$hId === $mid && !in_array((int)$dId, $managerDepts, true)) {
+                $managerDepts[] = (int)$dId;
+            }
+        }
+    }
     $salesTeams = getSalesTeams($company);
     foreach ($salesTeams as $team) {
-        if ((int)$team['UF_HEAD'] === $mid) {
+        if ((int)$team['UF_HEAD'] === $mid && !in_array((int)$team['ID'], $managerDepts, true)) {
             $managerDepts[] = (int)$team['ID'];
         }
     }
@@ -3746,6 +3833,10 @@ function buildAgentPerformanceRow($userRow, $allDeals, $wonDeals, $committedDeal
         $deptId = 30;
     } elseif ($company === COMPANY_MIRA && trim(strtolower($userRow['WORK_POSITION'] ?? '')) === 'private office') {
         $deptId = 23;
+    } elseif ($company === COMPANY_EVA && $uid === 670) {
+        $deptId = 43;
+    } elseif ($company === COMPANY_EVA && $uid === 669) {
+        $deptId = 44;
     } else {
         $allowedDeptIds = getSalesReportDepartmentIds(true, $company);
         $row = dbQueryOne("
@@ -3877,7 +3968,7 @@ function getAgentOriginalDeptAtDate($userId, $dateStr)
         $rows = dbQuery("SELECT USER_ID, DEPT_ID, EFFECTIVE_FROM, EFFECTIVE_TO FROM b_agent_dept_history ORDER BY EFFECTIVE_FROM ASC");
         foreach ($rows as $row) {
             $deptId = (int)$row['DEPT_ID'];
-            if ($deptId === 23 || $deptId === 3) {
+            if ($deptId === 23 || $deptId === 3 || $deptId === 36) {
                 continue;
             }
             $uid = (int)$row['USER_ID'];

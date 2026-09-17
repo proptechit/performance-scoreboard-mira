@@ -302,37 +302,18 @@ $GLOBALS['CFG_SALES_TEAM_HEAD_BY_DEPT_MIRA'] = array(
 // Eva Sales Departments & Teams
 $GLOBALS['CFG_SALES_REPORT_DEPARTMENT_IDS_EVA'] = array(
     36,  // Sales Department (parent)
-    37,  // Off Plan Market Department (sub-department)
-    38,  // Secondary Market Department (sub-department)
-    41,  // Independent H Team
-    42,  // Freelance Sales Team
     43,  // Scott's Team
     44,  // Mario's Team
-    40,  // Wagdy Team
-    39,  // Adilet Team
-    45,  // Telesales admins
-    46,  // Telesales
 );
 
 $GLOBALS['CFG_SALES_TEAM_CODE_BY_DEPT_EVA'] = array(
-    37 => 'OP',
-    38 => 'SM',
-    41 => 'IH',
-    42 => 'FT',
     43 => 'ST',
     44 => 'MT',
-    40 => 'WT',
-    39 => 'AT',
-    45 => 'TSA',
-    46 => 'TS',
 );
 
 $GLOBALS['CFG_SALES_TEAM_HEAD_BY_DEPT_EVA'] = array(
-    41 => 581,  // Anastasiya Kouzan (Independent H Team)
     43 => 670,  // Scott McGeachy (Scott's Team)
     44 => 669,  // Mario Volpi (Mario's Team)
-    40 => 619,  // Mohamed Wagdy (Wagdy Team)
-    39 => 587,  // Adilet Abylgaziev (Adilet Team)
 );
 
 // Backward-compatibility references pointing to Mira
@@ -370,11 +351,8 @@ $GLOBALS['CFG_MANAGER_USER_IDS_MIRA'] = array(
 );
 
 $GLOBALS['CFG_MANAGER_USER_IDS_EVA'] = array(
-    581,  // Anastasiya Kouzan (Independent H Team)
     670,  // Scott McGeachy (Scott's Team)
     669,  // Mario Volpi (Mario's Team)
-    619,  // Mohamed Wagdy (Wagdy Team)
-    587,  // Adilet Abylgaziev (Adilet Team)
 );
 
 $GLOBALS['CFG_MANAGER_USER_IDS'] = array_values(array_unique(array_merge(
@@ -706,7 +684,7 @@ $GLOBALS['CFG_POSITION_TARGET'] = array(
 define('CACHE_DIR',     __DIR__ . '/cache/');   // Cache folder (must be writable)
 define('CACHE_TTL',     300);                    // Seconds – 5 minutes default
 define('CACHE_ENABLED', true);                   // Set false to disable during dev
-define('CACHE_VERSION', '2026-09-01-dismissed-date-v1');
+define('CACHE_VERSION', '2026-09-17-eva-sales-teams-v3');
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 13. FILTER META  (returned to frontend for populating dropdowns)
