@@ -784,7 +784,14 @@ function renderCEO(data) {
   handleTableFilter(data);
   renderSalesByDealTypeTable(data.sales_by_deal_type);
   renderAgentTable(data.agent_performance);
-  renderAgentPrivateOfficeTable(data.agent_performance);
+  const poCard = document.getElementById("agentPrivateOfficeCard");
+  const isEva = (data.company || currentCompany) === "eva";
+  if (poCard) {
+    poCard.style.display = isEva ? "none" : "";
+  }
+  if (!isEva) {
+    renderAgentPrivateOfficeTable(data.agent_performance);
+  }
   renderManagerPerformanceTable(data.manager_performance);
   renderTeamTable(data.team_performance);
 
@@ -1562,9 +1569,11 @@ function renderAgentTable(agents) {
   const tbody = document.getElementById("agentTableBody");
   if (!tbody || !agents) return;
 
-  // Filter out Private Office agents unless they also have a regular department
+  // Filter out Private Office agents unless they also have a regular department (Mira only)
+  const isEva = (currentData?.company || currentCompany) === "eva";
   const regularAgents = agents.filter(
     (a) =>
+      isEva ||
       !((a.designation || "").trim().toLowerCase().startsWith("private office") || a.department_id === 23) ||
       (a.original_department_id && a.original_department_id > 0),
   );
@@ -1689,6 +1698,14 @@ function changeAgentPageSize(size) {
 }
 
 function renderAgentPrivateOfficeTable(agents) {
+  const isEva = (currentData?.company || currentCompany) === "eva";
+  const poCard = document.getElementById("agentPrivateOfficeCard");
+  if (isEva) {
+    if (poCard) poCard.style.display = "none";
+    return;
+  }
+  if (poCard) poCard.style.display = "";
+
   const tbody = document.getElementById("agentPrivateOfficeTableBody");
   if (!tbody || !agents) return;
 
@@ -3589,10 +3606,12 @@ async function downloadReportPdf() {
 
       // CEO Pages 5+: Agent Performance Tables (Chunked cleanly)
       const isDismissedTab = agentStatusFilter === "dismissed";
+      const isEvaPdf = (currentData?.company || currentCompany) === "eva";
       const regularAgents = (currentData.agent_performance || []).filter(
         (a) =>
           (isDismissedTab ? a.is_dismissed === true : a.is_dismissed !== true) &&
-          (!((a.designation || "").trim().toLowerCase().startsWith("private office") || a.department_id === 23) ||
+          (isEvaPdf ||
+            !((a.designation || "").trim().toLowerCase().startsWith("private office") || a.department_id === 23) ||
             (a.original_department_id && a.original_department_id > 0)),
       );
       const sortedRegular = sortCollection(regularAgents, "agentTable", {
@@ -3702,75 +3721,77 @@ async function downloadReportPdf() {
         }
       }
 
-      // CEO Page Final: Private Office Agents
-      const poAgents = (currentData.agent_performance || []).filter(
-        (a) => (a.designation || "").trim().toLowerCase().startsWith("private office") || a.department_id === 23,
-      );
-      if (poAgents.length > 0) {
-        const sortedPo = sortCollection(poAgents, "agentPrivateOfficeTable", {
-          name: { type: "string", get: (a) => a.name },
-          reshuffled_leads: { type: "number", get: (a) => a.reshuffled_leads },
-          leads_offplan: { type: "number", get: (a) => a.leads_offplan },
-          leads_secondary: { type: "number", get: (a) => a.leads_secondary },
-          deals: { type: "number", get: (a) => a.deals },
-          total_listings: { type: "number", get: (a) => a.total_listings },
-          sales: { type: "number", get: (a) => a.sales },
-          commission: { type: "number", get: (a) => a.commission },
-          top_deal: { type: "number", get: (a) => a.top_deal },
-          last_deal_days: { type: "number", get: (a) => a.last_deal_days },
-          attendance: { type: "number", get: (a) => a.attendance },
-        });
+      // CEO Page Final: Private Office Agents (Mira only)
+      if (!isEvaPdf) {
+        const poAgents = (currentData.agent_performance || []).filter(
+          (a) => (a.designation || "").trim().toLowerCase().startsWith("private office") || a.department_id === 23,
+        );
+        if (poAgents.length > 0) {
+          const sortedPo = sortCollection(poAgents, "agentPrivateOfficeTable", {
+            name: { type: "string", get: (a) => a.name },
+            reshuffled_leads: { type: "number", get: (a) => a.reshuffled_leads },
+            leads_offplan: { type: "number", get: (a) => a.leads_offplan },
+            leads_secondary: { type: "number", get: (a) => a.leads_secondary },
+            deals: { type: "number", get: (a) => a.deals },
+            total_listings: { type: "number", get: (a) => a.total_listings },
+            sales: { type: "number", get: (a) => a.sales },
+            commission: { type: "number", get: (a) => a.commission },
+            top_deal: { type: "number", get: (a) => a.top_deal },
+            last_deal_days: { type: "number", get: (a) => a.last_deal_days },
+            attendance: { type: "number", get: (a) => a.attendance },
+          });
 
-        const poRows = sortedPo.map((a, idx) => {
-          const { daysClass, daysLabel } = getDaysBadgeMeta(a.last_deal_days);
-          const ac = getAttendanceBadgeClass(a.attendance, a.attendance_total);
-          return `
-            <tr>
-              <td style="font-weight:700;color:#0f1e35;">#${idx + 1}</td>
-              <td style="font-weight:600;">${a.name}</td>
-              <td style="text-align:center;">${a.deals}</td>
-              <td style="text-align:center;">${a.leads_offplan}</td>
-              <td style="text-align:center;">${a.leads_secondary}</td>
-              <td style="text-align:center;">${a.total_listings}</td>
-              <td>AED ${fmtCurrency(a.sales)}</td>
-              <td style="font-weight:700;color:#0f1e35;">AED ${fmtCurrency(a.commission)}</td>
-              <td>AED ${fmtCurrency(a.top_deal, true)}</td>
-              <td><span class="days-badge ${daysClass}">${daysLabel}</span></td>
-              <td><span class="days-badge ${ac}">${a.attendance} / ${a.attendance_total || 30}d</span></td>
-            </tr>
-          `;
-        }).join("");
+          const poRows = sortedPo.map((a, idx) => {
+            const { daysClass, daysLabel } = getDaysBadgeMeta(a.last_deal_days);
+            const ac = getAttendanceBadgeClass(a.attendance, a.attendance_total);
+            return `
+              <tr>
+                <td style="font-weight:700;color:#0f1e35;">#${idx + 1}</td>
+                <td style="font-weight:600;">${a.name}</td>
+                <td style="text-align:center;">${a.deals}</td>
+                <td style="text-align:center;">${a.leads_offplan}</td>
+                <td style="text-align:center;">${a.leads_secondary}</td>
+                <td style="text-align:center;">${a.total_listings}</td>
+                <td>AED ${fmtCurrency(a.sales)}</td>
+                <td style="font-weight:700;color:#0f1e35;">AED ${fmtCurrency(a.commission)}</td>
+                <td>AED ${fmtCurrency(a.top_deal, true)}</td>
+                <td><span class="days-badge ${daysClass}">${daysLabel}</span></td>
+                <td><span class="days-badge ${ac}">${a.attendance} / ${a.attendance_total || 30}d</span></td>
+              </tr>
+            `;
+          }).join("");
 
-        pagesHtmlList.push(`
-          <div class="pdf-report-page">
-            ${getHeaderSub("Private Office Performance", "Dedicated high-net-worth sales advisory team")}
-            <div class="pdf-page-body">
-              <div class="pdf-card" style="flex:1;overflow:hidden;">
-                <table class="pdf-table">
-                  <thead>
-                    <tr>
-                      <th>Rank</th>
-                      <th>Private Office Advisor</th>
-                      <th style="text-align:center;">Deals</th>
-                      <th style="text-align:center;">Leads (Off)</th>
-                      <th style="text-align:center;">Leads (Sec)</th>
-                      <th style="text-align:center;">Listings</th>
-                      <th>Sales Volume</th>
-                      <th>Commission</th>
-                      <th>Top Deal</th>
-                      <th>Last Deal</th>
-                      <th>Attendance</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${poRows}
-                  </tbody>
-                </table>
+          pagesHtmlList.push(`
+            <div class="pdf-report-page">
+              ${getHeaderSub("Private Office Performance", "Dedicated high-net-worth sales advisory team")}
+              <div class="pdf-page-body">
+                <div class="pdf-card" style="flex:1;overflow:hidden;">
+                  <table class="pdf-table">
+                    <thead>
+                      <tr>
+                        <th>Rank</th>
+                        <th>Private Office Advisor</th>
+                        <th style="text-align:center;">Deals</th>
+                        <th style="text-align:center;">Leads (Off)</th>
+                        <th style="text-align:center;">Leads (Sec)</th>
+                        <th style="text-align:center;">Listings</th>
+                        <th>Sales Volume</th>
+                        <th>Commission</th>
+                        <th>Top Deal</th>
+                        <th>Last Deal</th>
+                        <th>Attendance</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${poRows}
+                    </tbody>
+                  </table>
+                </div>
               </div>
+              ${getFooter()}
             </div>
-            ${getFooter()}
-          </div>
-        `);
+          `);
+        }
       }
 
       // CEO Page: Manager Performance (Individual)

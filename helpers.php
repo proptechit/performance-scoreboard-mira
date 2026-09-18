@@ -1835,32 +1835,290 @@ function fetchLeadBreakdownRows($agentIds, $dateRange, $dealType = 'All', $compa
     ");
 }
 
+/**
+ * Dynamically fetches all deal stages from b_crm_status.
+ * Returns array($stageMap, $stageMeta) where:
+ *   $stageMap[category_id][stage_id] = stage_name
+ *   $stageMeta[category_id][stage_id] = ['semantics' => ..., 'sort' => ..., 'color' => ...]
+ * Also provides global category-agnostic fallback in $stageMap['_all'] and $stageMeta['_all'].
+ */
+function getDynamicLeadStageMaps()
+{
+    static $cached = null;
+    if ($cached !== null) {
+        return $cached;
+    }
+
+    $stageMap  = array();
+    $stageMeta = array();
+
+    try {
+        $rows = dbQuery("
+            SELECT ENTITY_ID, STATUS_ID, NAME, SORT, COLOR, SEMANTICS, CATEGORY_ID
+            FROM b_crm_status
+            WHERE ENTITY_ID LIKE 'DEAL_STAGE%'
+            ORDER BY SORT ASC, ID ASC
+        ");
+
+        foreach ($rows as $r) {
+            $entityId = trim((string)($r['ENTITY_ID'] ?? ''));
+            $statusId = trim((string)($r['STATUS_ID'] ?? ''));
+            $name     = trim((string)($r['NAME'] ?? ''));
+            if ($statusId === '' || $name === '') {
+                continue;
+            }
+
+            // Extract category ID from ENTITY_ID (e.g. DEAL_STAGE_1 => 1, DEAL_STAGE => 0)
+            if ($entityId === 'DEAL_STAGE') {
+                $catId = 0;
+            } elseif (preg_match('/^DEAL_STAGE_(\d+)$/', $entityId, $m)) {
+                $catId = (int)$m[1];
+            } elseif (isset($r['CATEGORY_ID']) && $r['CATEGORY_ID'] !== null && $r['CATEGORY_ID'] !== '') {
+                $catId = (int)$r['CATEGORY_ID'];
+            } else {
+                $catId = 0;
+            }
+
+            $sort      = isset($r['SORT']) && $r['SORT'] !== '' ? (int)$r['SORT'] : 9999;
+            $color     = trim((string)($r['COLOR'] ?? ''));
+            if ($color === '#' || $color === '#000000') {
+                $color = '';
+            }
+            $rawSemantics = isset($r['SEMANTICS']) ? trim((string)$r['SEMANTICS']) : '';
+            $semantics    = ($rawSemantics !== '' && $rawSemantics !== 'process') ? $rawSemantics : null;
+
+            $metaItem = array(
+                'semantics' => $semantics,
+                'sort'      => $sort,
+                'color'     => $color,
+            );
+
+            // Register under category
+            $stageMap[$catId][$statusId] = $name;
+            $stageMeta[$catId][$statusId] = $metaItem;
+
+            // Handle C{catId}: prefix variants if catId > 0
+            if ($catId > 0) {
+                $prefix = 'C' . $catId . ':';
+                if (strpos($statusId, $prefix) === 0) {
+                    $shortId = substr($statusId, strlen($prefix));
+                    $stageMap[$catId][$shortId] = $name;
+                    $stageMeta[$catId][$shortId] = $metaItem;
+                } else {
+                    $fullId = $prefix . $statusId;
+                    $stageMap[$catId][$fullId] = $name;
+                    $stageMeta[$catId][$fullId] = $metaItem;
+                }
+            }
+
+            // Global category-agnostic fallback
+            $stageMap['_all'][$statusId] = $name;
+            $stageMeta['_all'][$statusId] = $metaItem;
+            if ($catId > 0) {
+                $prefix = 'C' . $catId . ':';
+                if (strpos($statusId, $prefix) === 0) {
+                    $shortId = substr($statusId, strlen($prefix));
+                    $stageMap['_all'][$shortId] = $name;
+                    $stageMeta['_all'][$shortId] = $metaItem;
+                } else {
+                    $fullId = $prefix . $statusId;
+                    $stageMap['_all'][$fullId] = $name;
+                    $stageMeta['_all'][$fullId] = $metaItem;
+                }
+            }
+        }
+    } catch (\Throwable $e) {
+        // Fallback gracefully on query failure (e.g. offline dev)
+    }
+
+    $cached = array($stageMap, $stageMeta);
+    return $cached;
+}
+
+/**
+ * Dynamically fetches all CRM lead/deal sources from b_crm_status.
+ * Caches in static memory for the duration of the request.
+ *
+ * Returns array: source_id => source_name
+ */
+function getDynamicLeadSourceMap()
+{
+    static $sourceMap = null;
+    if ($sourceMap !== null) {
+        return $sourceMap;
+    }
+
+    $sourceMap = array();
+
+    try {
+        $rows = dbQuery("
+            SELECT STATUS_ID, NAME, SORT
+            FROM b_crm_status
+            WHERE ENTITY_ID = 'SOURCE'
+            ORDER BY SORT ASC, ID ASC
+        ");
+
+        foreach ($rows as $r) {
+            $statusId = trim((string)($r['STATUS_ID'] ?? ''));
+            $name     = trim((string)($r['NAME'] ?? ''));
+            if ($statusId === '' || $name === '') {
+                continue;
+            }
+            $sourceMap[$statusId] = $name;
+        }
+    } catch (\Throwable $e) {
+        // Fallback gracefully on query failure
+    }
+
+    return $sourceMap;
+}
+
+/**
+ * Helper to resolve a human-readable stage name dynamically with fallbacks.
+ */
+function resolveLeadStageName($stageId, $pipelineId = null)
+{
+    $stageId = trim((string)$stageId);
+    if ($stageId === '') {
+        return 'Unknown';
+    }
+
+    list($dynamicStageMap) = getDynamicLeadStageMaps();
+    $staticStageMap = $GLOBALS['CFG_LEAD_STAGE_MAP'] ?? array();
+
+    if ($pipelineId !== null) {
+        $pId = (int)$pipelineId;
+        if (!empty($dynamicStageMap[$pId][$stageId])) {
+            return $dynamicStageMap[$pId][$stageId];
+        }
+        if (!empty($staticStageMap[$pId][$stageId])) {
+            return $staticStageMap[$pId][$stageId];
+        }
+        // Check prefix variants for pipeline
+        if ($pId > 0) {
+            $prefix = 'C' . $pId . ':';
+            if (strpos($stageId, $prefix) === 0) {
+                $short = substr($stageId, strlen($prefix));
+                if (!empty($dynamicStageMap[$pId][$short])) {
+                    return $dynamicStageMap[$pId][$short];
+                }
+                if (!empty($staticStageMap[$pId][$short])) {
+                    return $staticStageMap[$pId][$short];
+                }
+            } else {
+                $full = $prefix . $stageId;
+                if (!empty($dynamicStageMap[$pId][$full])) {
+                    return $dynamicStageMap[$pId][$full];
+                }
+                if (!empty($staticStageMap[$pId][$full])) {
+                    return $staticStageMap[$pId][$full];
+                }
+            }
+        }
+    }
+
+    // Check dynamic global fallback
+    if (!empty($dynamicStageMap['_all'][$stageId])) {
+        return $dynamicStageMap['_all'][$stageId];
+    }
+
+    // Search across all static pipelines
+    foreach ($staticStageMap as $pId => $stages) {
+        if (!empty($stages[$stageId])) {
+            return $stages[$stageId];
+        }
+    }
+
+    return $stageId;
+}
+
+/**
+ * Helper to resolve stage metadata (semantics, sort, color) dynamically with fallbacks.
+ */
+function resolveLeadStageMeta($stageId, $pipelineId = null)
+{
+    $stageId = trim((string)$stageId);
+    list(, $dynamicStageMeta) = getDynamicLeadStageMaps();
+    $staticStageMeta = $GLOBALS['CFG_LEAD_STAGE_META'] ?? array();
+
+    $meta = array();
+    if ($pipelineId !== null) {
+        $pId = (int)$pipelineId;
+        $meta = $dynamicStageMeta[$pId][$stageId] ?? $staticStageMeta[$pId][$stageId] ?? array();
+        if (empty($meta) && $pId > 0) {
+            $prefix = 'C' . $pId . ':';
+            if (strpos($stageId, $prefix) === 0) {
+                $short = substr($stageId, strlen($prefix));
+                $meta = $dynamicStageMeta[$pId][$short] ?? $staticStageMeta[$pId][$short] ?? array();
+            } else {
+                $full = $prefix . $stageId;
+                $meta = $dynamicStageMeta[$pId][$full] ?? $staticStageMeta[$pId][$full] ?? array();
+            }
+        }
+    }
+
+    if (empty($meta)) {
+        $meta = $dynamicStageMeta['_all'][$stageId] ?? array();
+    }
+    if (empty($meta)) {
+        foreach ($staticStageMeta as $pId => $pMeta) {
+            if (!empty($pMeta[$stageId])) {
+                $meta = $pMeta[$stageId];
+                break;
+            }
+        }
+    }
+
+    return $meta;
+}
+
+/**
+ * Helper to resolve a human-readable lead/deal source name dynamically with fallbacks.
+ */
+function resolveLeadSourceName($sourceId)
+{
+    $sourceId = trim((string)$sourceId);
+    if ($sourceId === '') {
+        return 'Unknown';
+    }
+
+    $dynamicSourceMap = getDynamicLeadSourceMap();
+    if (!empty($dynamicSourceMap[$sourceId])) {
+        return $dynamicSourceMap[$sourceId];
+    }
+
+    $staticSourceMap = $GLOBALS['CFG_LEAD_SOURCE_MAP'] ?? array();
+    if (!empty($staticSourceMap[$sourceId])) {
+        return $staticSourceMap[$sourceId];
+    }
+
+    return $sourceId;
+}
+
 function buildLeadStageBreakdown($rows, $pipelineIdFilter = null)
 {
-    $stageMap  = $GLOBALS['CFG_LEAD_STAGE_MAP'];
-    $stageMeta = $GLOBALS['CFG_LEAD_STAGE_META'] ?? array();
-    $grouped   = array();
-    $total     = 0;
+    $grouped = array();
+    $total   = 0;
 
     foreach ($rows as $row) {
         $pipelineId = (int)($row['CATEGORY_ID'] ?? 0);
         if ($pipelineIdFilter !== null && $pipelineId !== (int)$pipelineIdFilter) {
             continue;
         }
-        $stageId    = (string)($row['STAGE_ID'] ?? '');
-        $count      = (int)($row['cnt'] ?? 0);
-        $label      = $stageMap[$pipelineId][$stageId] ?? $stageId ?: 'Unknown';
-        $meta       = $stageMeta[$pipelineId][$stageId] ?? array();
-        $semantics  = $meta['semantics'] ?? null;
-        $sort       = (int)($meta['sort'] ?? 9999);
-        $color      = trim((string)($meta['color'] ?? ''));
+        $stageId   = (string)($row['STAGE_ID'] ?? '');
+        $count     = (int)($row['cnt'] ?? 0);
+        $label     = resolveLeadStageName($stageId, $pipelineId);
+        $meta      = resolveLeadStageMeta($stageId, $pipelineId);
+        $semantics = $meta['semantics'] ?? null;
+        $sort      = (int)($meta['sort'] ?? 9999);
+        $color     = trim((string)($meta['color'] ?? ''));
 
         if (!isset($grouped[$label])) {
             $grouped[$label] = array(
-                'count' => 0,
+                'count'     => 0,
                 'semantics' => $semantics,
-                'sort' => $sort,
-                'color' => $color,
+                'sort'      => $sort,
+                'color'     => $color,
             );
         }
         $grouped[$label]['count'] += $count;
@@ -1881,9 +2139,8 @@ function buildLeadStageBreakdown($rows, $pipelineIdFilter = null)
 
 function buildLeadSourceBreakdown($rows, $pipelineIdFilter = null)
 {
-    $sourceMap = $GLOBALS['CFG_LEAD_SOURCE_MAP'];
-    $grouped   = array();
-    $total     = 0;
+    $grouped = array();
+    $total   = 0;
 
     foreach ($rows as $row) {
         $pipelineId = (int)($row['CATEGORY_ID'] ?? 0);
@@ -1892,7 +2149,7 @@ function buildLeadSourceBreakdown($rows, $pipelineIdFilter = null)
         }
         $sourceId = trim((string)($row['source_id'] ?? ''));
         $count    = (int)($row['cnt'] ?? 0);
-        $label    = $sourceMap[$sourceId] ?? ($sourceId !== '' ? $sourceId : 'Unknown');
+        $label    = resolveLeadSourceName($sourceId);
 
         if (!isset($grouped[$label])) {
             $grouped[$label] = 0;
@@ -1906,9 +2163,8 @@ function buildLeadSourceBreakdown($rows, $pipelineIdFilter = null)
 
 function buildDealClosureSourceBreakdown($deals, $propertyTypeIdFilter = null)
 {
-    $sourceMap = $GLOBALS['CFG_LEAD_SOURCE_MAP'];
-    $grouped   = array();
-    $total     = 0;
+    $grouped = array();
+    $total   = 0;
 
     foreach ($deals as $d) {
         $typeId = (int)($d['property_type_id'] ?? 0);
@@ -1916,7 +2172,7 @@ function buildDealClosureSourceBreakdown($deals, $propertyTypeIdFilter = null)
             continue;
         }
         $sourceId = trim((string)($d['deal_source_id'] ?? ($d['SOURCE_ID'] ?? '')));
-        $label    = $sourceMap[$sourceId] ?? ($sourceId !== '' ? $sourceId : 'Unknown');
+        $label    = resolveLeadSourceName($sourceId);
 
         if (!isset($grouped[$label])) {
             $grouped[$label] = 0;

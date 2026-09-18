@@ -419,6 +419,16 @@ $GLOBALS['CFG_LEAD_STAGE_MAP'] = array(
         'C1:UC_P2JQLK'          => 'Others',
         'C1:2'                  => 'Not Intrested Anymore',
         'C1:3'                  => 'Already purchased',
+
+        // Eva Stages
+        'C1:1'                  => 'Contract B',
+        'C1:4'                  => 'Spam',
+        'C1:5'                  => 'Changed mind',
+        'C1:6'                  => 'Not interested',
+        'C1:7'                  => 'Already bought',
+        'C1:8'                  => 'Duplicate',
+        'C1:9'                  => 'Trustee',
+        'C1:10'                 => 'Financial confirmed',
     ),
     PIPELINE_SECONDARY => array(
         // Initial
@@ -470,6 +480,14 @@ $GLOBALS['CFG_LEAD_STAGE_META'] = array(
         'C1:UC_P2JQLK'          => array('semantics' => 'F',  'sort' => 170, 'color' => '#ff5b55'),
         'C1:2'                  => array('semantics' => 'F',  'sort' => 180, 'color' => '#FF5752'),
         'C1:3'                  => array('semantics' => 'F',  'sort' => 190, 'color' => '#FF5752'),
+        'C1:1'                  => array('semantics' => null, 'sort' => 25,  'color' => '#fdc68c'),
+        'C1:4'                  => array('semantics' => 'F',  'sort' => 125, 'color' => '#ff5752'),
+        'C1:5'                  => array('semantics' => 'F',  'sort' => 126, 'color' => '#ff5752'),
+        'C1:6'                  => array('semantics' => 'F',  'sort' => 127, 'color' => '#ff5752'),
+        'C1:7'                  => array('semantics' => 'F',  'sort' => 128, 'color' => '#ff5752'),
+        'C1:8'                  => array('semantics' => 'F',  'sort' => 129, 'color' => '#ff5752'),
+        'C1:9'                  => array('semantics' => null, 'sort' => 35,  'color' => '#ffa801'),
+        'C1:10'                 => array('semantics' => null, 'sort' => 45,  'color' => '#39a8ef'),
     ),
     PIPELINE_SECONDARY => array(
         'C2:NEW'                => array('semantics' => null, 'sort' => 10, 'color' => '#39a8ef'),
@@ -684,7 +702,7 @@ $GLOBALS['CFG_POSITION_TARGET'] = array(
 define('CACHE_DIR',     __DIR__ . '/cache/');   // Cache folder (must be writable)
 define('CACHE_TTL',     300);                    // Seconds – 5 minutes default
 define('CACHE_ENABLED', true);                   // Set false to disable during dev
-define('CACHE_VERSION', '2026-09-17-eva-sales-teams-v3');
+define('CACHE_VERSION', '2026-09-18-dynamic-stages-sources-v1');
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 13. FILTER META  (returned to frontend for populating dropdowns)

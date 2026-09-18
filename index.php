@@ -420,7 +420,7 @@
             </div>
 
             <!-- Agent Performance Overview (Private Office) Table -->
-            <div class="chart-card mb-24">
+            <div class="chart-card mb-24" id="agentPrivateOfficeCard">
                 <div class="chart-card-header">
                     <div>
                         <div class="chart-card-title">Agent Performance Overview (Private Office)</div>
