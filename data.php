@@ -457,23 +457,24 @@ if ($role === 'agent') {
     $leadCountOffplan   = empty($currentAgentIds) ? 0 : countActiveLeads($currentAgentIds, $dateRange, PIPELINE_OFFPLAN, $company);
     $leadCountSecondary = empty($currentAgentIds) ? 0 : countActiveLeads($currentAgentIds, $dateRange, PIPELINE_SECONDARY, $company);
     $reshuffled   = empty($currentAgentIds) ? 0 : countReshuffledLeads($currentAgentIds, $dateRange, $company);
-    $listingCount = $deptId > 0
-        ? countListingsForDepartments(array($deptId))
+    $listingDeptId = $targetDeptId > 0 ? $targetDeptId : $deptId;
+    $listingCount = $listingDeptId > 0
+        ? countListingsForDepartments(array($listingDeptId), $company)
         : (empty($currentAgentIds) ? 0 : countListingsForUsers($currentAgentIds));
-    $pocketListingCount = $deptId > 0
-        ? countPocketListingsForDepartmentsTotal(array($deptId))
+    $pocketListingCount = $listingDeptId > 0
+        ? countPocketListingsForDepartmentsTotal(array($listingDeptId), $company)
         : (empty($currentAgentIds) ? 0 : countPocketListingsForUsersTotal($currentAgentIds));
 
-    $listingSummary = $deptId > 0
-        ? countActiveListingsForDepartments(array($deptId))
+    $listingSummary = $listingDeptId > 0
+        ? countActiveListingsForDepartments(array($listingDeptId), $company)
         : (empty($currentAgentIds) ? array('sale' => 0, 'rent' => 0) : countActiveListingsForUsers($currentAgentIds));
-    $pocketListingSummary = $deptId > 0
-        ? countPocketListingsForDepartments(array($deptId))
+    $pocketListingSummary = $listingDeptId > 0
+        ? countPocketListingsForDepartments(array($listingDeptId), $company)
         : (empty($currentAgentIds) ? array('sale' => 0, 'rent' => 0) : countPocketListingsForUsers($currentAgentIds));
 
-    if ($deptId > 0) {
-        $activeDetails = fetchActiveListingDetailsForDepartments(array($deptId));
-        $pocketDetails = fetchPocketListingDetailsForDepartments(array($deptId));
+    if ($listingDeptId > 0) {
+        $activeDetails = fetchActiveListingDetailsForDepartments(array($listingDeptId), $company);
+        $pocketDetails = fetchPocketListingDetailsForDepartments(array($listingDeptId), $company);
     } else {
         $activeDetails = empty($currentAgentIds) ? array('sale' => array(), 'rent' => array()) : fetchActiveListingDetailsForUsers($currentAgentIds);
         $pocketDetails = empty($currentAgentIds) ? array('sale' => array(), 'rent' => array()) : fetchPocketListingDetailsForUsers($currentAgentIds);
@@ -889,8 +890,8 @@ if ($role === 'agent') {
 
         $tagg      = aggregateDeals($teamDeals);
         $teamComm  = aggregateCommissionDeals($teamWonDeals, $teamCommittedDeals);
-        $teamList  = countListingsForDepartments(array($tid));
-        $teamPocketList = countPocketListingsForDepartmentsTotal(array($tid));
+        $teamList  = countListingsForDepartments(array($tid), $company);
+        $teamPocketList = countPocketListingsForDepartmentsTotal(array($tid), $company);
         $currentTeamIds = array();
         if (!empty($teamIds)) {
             foreach ($teamIds as $aid) {
