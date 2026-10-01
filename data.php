@@ -844,8 +844,10 @@ if ($role === 'agent') {
         if ($company === COMPANY_MIRA && $tid === 23) {
             continue;
         }
-        $teamAgents = getAgentsByDept(array($tid), true, $dateRange, $company);
-        $teamIds    = array_map(function ($a) {
+        $teamActiveAgents    = getAgentsByDept(array($tid), false, $dateRange, $company);
+        $teamDismissedAgents = getDismissedAgentsByDept(array($tid), false, $dateRange, $company);
+        $teamAgents          = array_merge($teamActiveAgents, $teamDismissedAgents);
+        $teamIds             = array_map(function ($a) {
             return (int)$a['ID'];
         }, $teamAgents);
         $teamDealOwnerIds = $teamIds;
