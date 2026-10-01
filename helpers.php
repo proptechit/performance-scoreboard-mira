@@ -3136,6 +3136,77 @@ function daysSinceLastDeal($agentIds, $company = 'mira')
 }
 
 /**
+ * Calculate days since the team's last deal, ensuring the deal occurred
+ * while the responsible agent was actually in this department.
+ *
+ * @param  int    $deptId
+ * @param  array  $agentIds
+ * @param  string $company
+ * @return int
+ */
+function daysSinceLastDealForTeam($deptId, $agentIds, $company = 'mira')
+{
+    $deptId = (int)$deptId;
+    if ($deptId <= 0 || empty($agentIds)) {
+        return 999;
+    }
+
+    $catId = dbInt(PIPELINE_TRANSACTION);
+    $importedCloseField  = FIELD_IMPORTED_CLOSE_DATE;
+    $importedCreateField = FIELD_IMPORTED_CREATE_DATE;
+    $inAgents = inClauseInt($agentIds);
+    $excludeDealFilter = getExcludeDealFilter('uts', $company);
+
+    $rows = dbQuery("
+        SELECT 
+            d.ASSIGNED_BY_ID,
+            COALESCE(
+                CASE
+                    WHEN uts.{$importedCloseField} IS NULL THEN NULL
+                    WHEN CAST(uts.{$importedCloseField} AS CHAR) IN ('', '0000-00-00') THEN NULL
+                    ELSE CAST(uts.{$importedCloseField} AS CHAR)
+                END,
+                CASE
+                    WHEN uts.{$importedCreateField} IS NULL THEN NULL
+                    WHEN CAST(uts.{$importedCreateField} AS CHAR) IN ('', '0000-00-00') THEN NULL
+                    ELSE CAST(uts.{$importedCreateField} AS CHAR)
+                END,
+                d.CLOSEDATE,
+                d.DATE_CREATE
+            ) AS deal_date
+        FROM b_crm_deal d
+        LEFT JOIN b_uts_crm_deal uts
+            ON uts.VALUE_ID = d.ID
+        WHERE d.CATEGORY_ID = {$catId}
+          AND d.ASSIGNED_BY_ID IN {$inAgents}
+          {$excludeDealFilter}
+        ORDER BY deal_date DESC
+        LIMIT 100
+    ");
+
+    $today = new \DateTime('today');
+    foreach ($rows as $r) {
+        if (empty($r['deal_date'])) {
+            continue;
+        }
+        $dealDate = $r['deal_date'];
+        if (isAgentInDeptAtDate($r['ASSIGNED_BY_ID'], $deptId, $dealDate)) {
+            try {
+                $dt = new \DateTime($dealDate);
+                return (int)$today->diff($dt)->days;
+            } catch (\Exception $e) {
+                $dt = parseReportDate($dealDate);
+                if ($dt) {
+                    return (int)$today->diff($dt)->days;
+                }
+            }
+        }
+    }
+
+    return 999;
+}
+
+/**
  * Calculate average gap (days) between consecutive won deals for an agent.
  */
 function avgGapBetweenDeals($agentId, $dateRange, $company = 'mira')
@@ -4033,7 +4104,9 @@ function buildAgentPerformanceRow($userRow, $allDeals, $wonDeals, $committedDeal
     $listingCount    = countListingsForUsers(array($uid));
     $pocketListings  = countPocketListingsForUsers(array($uid));
     $pocketListingCount = (int)$pocketListings['sale'] + (int)$pocketListings['rent'];
-    $lastDealDays    = daysSinceLastDeal(array($uid), $company);
+    $lastDealDays    = ($scopeDeptId > 0)
+        ? daysSinceLastDealForTeam($scopeDeptId, array($uid), $company)
+        : daysSinceLastDeal(array($uid), $company);
     $avgGap          = avgGapBetweenDeals($uid, $dateRange, $company);
     $attendance      = countAttendanceDays($uid, $dateRange, $scopeDeptId);
 
@@ -4222,10 +4295,27 @@ function getAgentDeptAtDate($userId, $dateStr)
         return getUserDeptId($uid);
     }
 
+    // 1. Check explicit configuration overrides first if configured
+    if (!empty($GLOBALS['CFG_AGENT_DEPT_HISTORY_OVERRIDES'][$uid])) {
+        foreach ($GLOBALS['CFG_AGENT_DEPT_HISTORY_OVERRIDES'][$uid] as $h) {
+            if ($date >= $h['from'] && $date <= $h['to']) {
+                return (int)$h['dept_id'];
+            }
+        }
+    }
+
+    // 2. Check database history records
     if (isset($historyCache[$uid])) {
         foreach ($historyCache[$uid] as $h) {
             if ($date >= $h['from'] && $date <= $h['to']) {
                 return $h['dept_id'];
+            }
+        }
+        // If the date is earlier than the earliest recorded history, use the earliest department
+        if (!empty($historyCache[$uid])) {
+            $earliest = $historyCache[$uid][0];
+            if ($date < $earliest['from']) {
+                return $earliest['dept_id'];
             }
         }
     }
@@ -4269,10 +4359,33 @@ function getAgentOriginalDeptAtDate($userId, $dateStr)
     if (!empty($dateStr)) {
         // Convert date string to YYYY-MM-DD
         $date = convertBitrixDateToString($dateStr, 'Y-m-d');
-        if ($date !== '' && isset($origHistoryCache[$uid])) {
-            foreach ($origHistoryCache[$uid] as $h) {
-                if ($date >= $h['from'] && $date <= $h['to']) {
-                    return $h['dept_id'];
+        if ($date !== '') {
+            // 1. Check explicit configuration overrides first if configured
+            if (!empty($GLOBALS['CFG_AGENT_DEPT_HISTORY_OVERRIDES'][$uid])) {
+                foreach ($GLOBALS['CFG_AGENT_DEPT_HISTORY_OVERRIDES'][$uid] as $h) {
+                    $dId = (int)$h['dept_id'];
+                    if ($dId === 23 || $dId === 3 || $dId === 36) {
+                        continue;
+                    }
+                    if ($date >= $h['from'] && $date <= $h['to']) {
+                        return $dId;
+                    }
+                }
+            }
+
+            // 2. Check database history records
+            if (isset($origHistoryCache[$uid])) {
+                foreach ($origHistoryCache[$uid] as $h) {
+                    if ($date >= $h['from'] && $date <= $h['to']) {
+                        return $h['dept_id'];
+                    }
+                }
+                // If the date is earlier than the earliest recorded history, use the earliest department
+                if (!empty($origHistoryCache[$uid])) {
+                    $earliest = $origHistoryCache[$uid][0];
+                    if ($date < $earliest['from']) {
+                        return $earliest['dept_id'];
+                    }
                 }
             }
         }

@@ -909,7 +909,7 @@ if ($role === 'agent') {
 
         $teamLeadsOffplan   = empty($currentTeamIds) ? 0 : countActiveLeads($currentTeamIds, $dateRange, PIPELINE_OFFPLAN, $company);
         $teamLeadsSecondary = empty($currentTeamIds) ? 0 : countActiveLeads($currentTeamIds, $dateRange, PIPELINE_SECONDARY, $company);
-        $lastDeal  = daysSinceLastDeal($currentTeamIds, $company);
+        $lastDeal  = daysSinceLastDealForTeam($tid, $teamDealOwnerIds, $company);
         $teamAvgGap = avgGapBetweenDealsForTeam($currentTeamIds, $dateRange, $company);
 
         $teamPerformance[] = array(

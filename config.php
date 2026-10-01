@@ -702,7 +702,16 @@ $GLOBALS['CFG_POSITION_TARGET'] = array(
 define('CACHE_DIR',     __DIR__ . '/cache/');   // Cache folder (must be writable)
 define('CACHE_TTL',     300);                    // Seconds – 5 minutes default
 define('CACHE_ENABLED', true);                   // Set false to disable during dev
-define('CACHE_VERSION', '2026-10-01-team-perf-alignment-v1');
+define('CACHE_VERSION', '2026-10-01-sunny-transfer-alignment-v1');
+
+// Explicit historical department overrides for agent transfers
+$GLOBALS['CFG_AGENT_DEPT_HISTORY_OVERRIDES'] = array(
+    // Sunny Gambhir (ID 65): in ST1 (22) prior to Sept 1, 2026, and ST3 (26) from Sept 1, 2026 onwards
+    65 => array(
+        array('dept_id' => 22, 'from' => '2020-01-01', 'to' => '2026-08-31'),
+        array('dept_id' => 26, 'from' => '2026-09-01', 'to' => '9999-12-31'),
+    ),
+);
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 13. FILTER META  (returned to frontend for populating dropdowns)
