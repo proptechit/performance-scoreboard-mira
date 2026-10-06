@@ -89,35 +89,67 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 $errorMessage = "Selected department is not a valid sales team.";
             } else {
                 $currentDeptId = getUserDeptId($agentId);
-                if ($currentDeptId === $newDeptId) {
+                if ($currentDeptId <= 0) {
+                    $errorMessage = "Could not determine the agent's current department.";
+                } elseif ($currentDeptId === $newDeptId) {
                     $errorMessage = "The agent is already in the selected department.";
                 } else {
                     $connection = \Bitrix\Main\Application::getConnection();
                     $todayStr = date('Y-m-d');
                     $tomorrowStr = date('Y-m-d', strtotime('+1 day'));
+                    $yesterdayStr = date('Y-m-d', strtotime('-1 day'));
 
                     $agentFullName = trim($agentRow['NAME'] . ' ' . $agentRow['LAST_NAME']);
                     $newDeptName = $deptMap[$newDeptId] ?? ('Department ' . $newDeptId);
+                    $newDeptNameEsc = dbEsc($newDeptName);
+
+                    $currentDeptName = $deptMap[$currentDeptId] ?? '';
+                    if (empty($currentDeptName)) {
+                        $dRow = dbQueryOne("SELECT NAME FROM b_iblock_section WHERE ID = {$currentDeptId} LIMIT 1");
+                        $currentDeptName = $dRow['NAME'] ?? ('Department ' . $currentDeptId);
+                    }
+                    $currentDeptNameEsc = dbEsc($currentDeptName);
 
                     $connection->startTransaction();
                     try {
-                        // A. Update existing history row with current date as EFFECTIVE_TO
-                        $updateSql = "
-                            UPDATE b_agent_dept_history 
-                            SET EFFECTIVE_TO = '{$todayStr}' 
-                            WHERE USER_ID = {$agentId} 
-                              AND DEPT_ID = {$currentDeptId} 
-                              AND (EFFECTIVE_TO IS NULL OR EFFECTIVE_TO = '0000-00-00')
-                        ";
-                        $connection->queryExecute($updateSql);
+                        // Check if agent currently has any entries in b_agent_dept_history
+                        $histCountRes = $connection->query("SELECT COUNT(*) AS CNT FROM b_agent_dept_history WHERE USER_ID = {$agentId}")->fetch();
+                        $existingHistoryCount = (int)($histCountRes['CNT'] ?? 0);
 
-                        $newDeptNameEsc = dbEsc($newDeptName);
-                        // B. Insert new history row with tomorrow as EFFECTIVE_FROM
-                        $insertSql = "
-                            INSERT INTO b_agent_dept_history (USER_ID, DEPT_ID, DEPT_NAME, EFFECTIVE_FROM, EFFECTIVE_TO) 
-                            VALUES ({$agentId}, {$newDeptId}, '{$newDeptNameEsc}', '{$tomorrowStr}', NULL)
-                        ";
-                        $connection->queryExecute($insertSql);
+                        if ($existingHistoryCount === 0) {
+                            // First time transfer for agent with 0 history entries:
+                            // 1. Add entry for the existing team: 2025-01-01 to yesterday
+                            $insertOldSql = "
+                                INSERT INTO b_agent_dept_history (USER_ID, DEPT_ID, DEPT_NAME, EFFECTIVE_FROM, EFFECTIVE_TO) 
+                                VALUES ({$agentId}, {$currentDeptId}, '{$currentDeptNameEsc}', '2025-01-01', '{$yesterdayStr}')
+                            ";
+                            $connection->queryExecute($insertOldSql);
+
+                            // 2. Add entry for new team: effective from today, effective to NULL
+                            $insertNewSql = "
+                                INSERT INTO b_agent_dept_history (USER_ID, DEPT_ID, DEPT_NAME, EFFECTIVE_FROM, EFFECTIVE_TO) 
+                                VALUES ({$agentId}, {$newDeptId}, '{$newDeptNameEsc}', '{$todayStr}', NULL)
+                            ";
+                            $connection->queryExecute($insertNewSql);
+                        } else {
+                            // Agent already has history entries:
+                            // A. Update existing history row with current date as EFFECTIVE_TO
+                            $updateSql = "
+                                UPDATE b_agent_dept_history 
+                                SET EFFECTIVE_TO = '{$todayStr}' 
+                                WHERE USER_ID = {$agentId} 
+                                  AND DEPT_ID = {$currentDeptId} 
+                                  AND (EFFECTIVE_TO IS NULL OR EFFECTIVE_TO = '0000-00-00')
+                            ";
+                            $connection->queryExecute($updateSql);
+
+                            // B. Insert new history row with tomorrow as EFFECTIVE_FROM
+                            $insertSql = "
+                                INSERT INTO b_agent_dept_history (USER_ID, DEPT_ID, DEPT_NAME, EFFECTIVE_FROM, EFFECTIVE_TO) 
+                                VALUES ({$agentId}, {$newDeptId}, '{$newDeptNameEsc}', '{$tomorrowStr}', NULL)
+                            ";
+                            $connection->queryExecute($insertSql);
+                        }
 
                         // C. Update Bitrix database and User field
                         $connection->queryExecute("DELETE FROM b_utm_user WHERE VALUE_ID = {$agentId} AND FIELD_ID = 40");
@@ -133,7 +165,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                         $cache->flush();
 
                         $connection->commitTransaction();
-                        $successMessage = "Successfully transferred agent <strong>" . htmlspecialchars($agentFullName) . "</strong> to <strong>" . htmlspecialchars($newDeptName) . "</strong>. The transfer is effective from tomorrow (" . date('d/m/Y', strtotime('+1 day')) . ").";
+
+                        if ($existingHistoryCount === 0) {
+                            $successMessage = "Successfully transferred agent <strong>" . htmlspecialchars($agentFullName) . "</strong> to <strong>" . htmlspecialchars($newDeptName) . "</strong>. The transfer is effective from today (" . date('d/m/Y') . ").";
+                        } else {
+                            $successMessage = "Successfully transferred agent <strong>" . htmlspecialchars($agentFullName) . "</strong> to <strong>" . htmlspecialchars($newDeptName) . "</strong>. The transfer is effective from tomorrow (" . date('d/m/Y', strtotime('+1 day')) . ").";
+                        }
                     } catch (\Exception $e) {
                         $connection->rollbackTransaction();
                         $errorMessage = "Error executing transaction: " . $e->getMessage();
@@ -146,6 +183,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
 // ── 3. Fetch active agents for the selector ──────────────────────────────────
 $agentsData = getAgentsByDept($allSalesDeptIds, false);
+$historyCounts = array();
+$hCountRows = dbQuery("SELECT USER_ID, COUNT(*) AS CNT FROM b_agent_dept_history GROUP BY USER_ID");
+foreach ($hCountRows as $hc) {
+    $historyCounts[(int)$hc['USER_ID']] = (int)$hc['CNT'];
+}
+
 $agentsList = array();
 foreach ($agentsData as $a) {
     $uid = (int)$a['ID'];
@@ -155,7 +198,8 @@ foreach ($agentsData as $a) {
         'name' => trim(($a['NAME'] ?? '') . ' ' . ($a['LAST_NAME'] ?? '')),
         'dept_id' => $currentDeptId,
         'dept_name' => $deptMap[$currentDeptId] ?? 'Unknown Team',
-        'designation' => $a['WORK_POSITION'] ?? 'Agent'
+        'designation' => $a['WORK_POSITION'] ?? 'Agent',
+        'has_history' => !empty($historyCounts[$uid]) ? 1 : 0
     );
 }
 
@@ -298,6 +342,7 @@ $historyRows = dbQuery("
                                          data-dept-id="<?= $agent['dept_id'] ?>"
                                          data-dept-name="<?= htmlspecialchars($agent['dept_name']) ?>"
                                          data-designation="<?= htmlspecialchars($agent['designation']) ?>"
+                                         data-has-history="<?= $agent['has_history'] ?>"
                                          onclick="selectAgent(this)">
                                         <div>
                                             <div class="text-sm font-semibold text-gray-800"><?= htmlspecialchars($agent['name']) ?></div>
@@ -462,12 +507,15 @@ $historyRows = dbQuery("
             });
         }
 
+        let selectedAgentHasHistory = false;
+
         function selectAgent(element) {
             const id = element.getAttribute('data-id');
             const name = element.getAttribute('data-name');
             const deptId = element.getAttribute('data-dept-id');
             const deptName = element.getAttribute('data-dept-name');
             const designation = element.getAttribute('data-designation');
+            selectedAgentHasHistory = element.getAttribute('data-has-history') === '1';
 
             // Set inputs
             input.value = name;
@@ -516,8 +564,11 @@ $historyRows = dbQuery("
         function confirmTransfer(e) {
             const name = input.value;
             const targetName = targetSelect.options[targetSelect.selectedIndex].text;
+            const effectiveMsg = selectedAgentHasHistory 
+                ? "This change will take effect from tomorrow." 
+                : "This change will take effect from today.";
             
-            if (!confirm(`Are you sure you want to transfer ${name} to "${targetName}"?\nThis change will take effect from tomorrow.`)) {
+            if (!confirm(`Are you sure you want to transfer ${name} to "${targetName}"?\n${effectiveMsg}`)) {
                 e.preventDefault();
                 return false;
             }
