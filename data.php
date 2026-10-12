@@ -66,11 +66,27 @@ $rawYear2     = isset($_GET['year2'])      ? (int)$_GET['year2']        : (int)d
 // Validate role (whitelist)
 $allowedRoles = array('ceo', 'manager', 'agent');
 $currentUserRole = getUserRole($currentUserId);
+if ($USER && method_exists($USER, 'IsAdmin') && $USER->IsAdmin() && !in_array($currentUserId, $GLOBALS['CFG_CEO_USER_IDS_EVA_ONLY'] ?? array(), true)) {
+    $currentUserRole = 'ceo';
+}
 $currentUserCompany = getUserCompany($currentUserId);
+$allowedCompanies = getUserAllowedCompanies($currentUserId);
+$canSwitchCompany = canUserSwitchCompany($currentUserId);
 
 $company = COMPANY_MIRA;
 if ($currentUserRole === 'ceo') {
-    $company = ($rawCompany === COMPANY_EVA) ? COMPANY_EVA : COMPANY_MIRA;
+    if ($canSwitchCompany) {
+        $company = ($rawCompany === COMPANY_EVA) ? COMPANY_EVA : COMPANY_MIRA;
+    } else {
+        // CEO restricted to a specific company (e.g. Eva CEO only, no Mira)
+        if (in_array(COMPANY_EVA, $allowedCompanies, true) && !in_array(COMPANY_MIRA, $allowedCompanies, true)) {
+            $company = COMPANY_EVA;
+        } elseif (in_array($rawCompany, $allowedCompanies, true)) {
+            $company = $rawCompany;
+        } else {
+            $company = $allowedCompanies[0] ?? $currentUserCompany;
+        }
+    }
 } else {
     // Normal agents and managers cannot switch or see other company data
     $company = $currentUserCompany;
@@ -110,6 +126,11 @@ $agentId   = ($role === 'agent' && $rawAgentId > 0) ? $rawAgentId : $currentUser
 $managerId = ($role === 'manager' && $rawManagerId > 0) ? $rawManagerId : $currentUserId;
 $deptId    = ($role === 'manager' && $currentUserRole === 'ceo' && $rawDeptId > 0) ? $rawDeptId : 0;
 
+if ($deptId > 0 && !in_array($deptId, getSalesReportDepartmentIds(false, $company), true)) {
+    echo json_encode(array('error' => 'Selected department is outside the allowed company', 'dept_id' => $deptId));
+    exit;
+}
+
 if ($role === 'manager' && $deptId <= 0 && getUserRole($managerId) !== 'manager') {
     echo json_encode(array('error' => 'Invalid manager selection', 'manager_id' => $managerId));
     exit;
@@ -120,7 +141,7 @@ if (in_array($role, array('manager', 'agent'), true) && $deptId <= 0) {
     if (!isUserInAllowedSalesDepartments($scopedUserId, $company)) {
         if ($currentUserRole === 'ceo') {
             $userComp = getUserCompany($scopedUserId);
-            if (isUserInAllowedSalesDepartments($scopedUserId, $userComp)) {
+            if (in_array($userComp, $allowedCompanies, true) && isUserInAllowedSalesDepartments($scopedUserId, $userComp)) {
                 $company = $userComp;
             } else {
                 echo json_encode(array('error' => 'Selected user is outside the allowed sales departments', 'user_id' => $scopedUserId));
@@ -185,7 +206,7 @@ if ($cached !== null) {
 
 $response = array(
     'company'            => $company,
-    'can_switch_company' => ($currentUserRole === 'ceo'),
+    'can_switch_company' => $canSwitchCompany,
     'role'               => $role,
     'current_user_role'  => $currentUserRole,
     'filters'            => $GLOBALS['CFG_FILTER_META'],

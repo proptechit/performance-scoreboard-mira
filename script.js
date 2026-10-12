@@ -338,6 +338,7 @@ function returnToPrimaryView() {
 
 function switchCompany(company) {
   if (currentCompany === company) return;
+  if (currentData && currentData.can_switch_company === false) return;
   currentCompany = company;
   updateCompanyToggleUI(company);
   currentViewRole = null;

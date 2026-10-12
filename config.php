@@ -327,7 +327,7 @@ $GLOBALS['CFG_SALES_TEAM_HEAD_BY_DEPT']      = &$GLOBALS['CFG_SALES_TEAM_HEAD_BY
 //    Everyone NOT listed here is treated as 'agent'.
 //    Roles: 'ceo' | 'manager' | 'agent'
 // ═══════════════════════════════════════════════════════════════════════════
-$GLOBALS['CFG_CEO_USER_IDS'] = array(
+$GLOBALS['CFG_CEO_USER_IDS_MIRA'] = array(
     1,     // Mira International (Admin)
     5,     // Kristina Boeva
     7,     // Abinas Subair
@@ -337,8 +337,22 @@ $GLOBALS['CFG_CEO_USER_IDS'] = array(
     156,   // Jaymee Javin
     104,   // Bitrix Support
     38,    // Vladislav Tikholaz
-    897,   // Elvira Sharshenalieva (CEO Eva)
 );
+
+$GLOBALS['CFG_CEO_USER_IDS_EVA'] = array(
+    897,   // Elvira Sharshenalieva (CEO Eva)
+    891,   // Aikanysh (CEO Eva - aikanysh@evadxb.com)
+);
+
+// CEOs strictly restricted to Eva company only (no Mira access)
+$GLOBALS['CFG_CEO_USER_IDS_EVA_ONLY'] = array(
+    891,   // Aikanysh (CEO Eva only, no Mira - aikanysh@evadxb.com)
+);
+
+$GLOBALS['CFG_CEO_USER_IDS'] = array_values(array_unique(array_merge(
+    $GLOBALS['CFG_CEO_USER_IDS_MIRA'],
+    $GLOBALS['CFG_CEO_USER_IDS_EVA']
+)));
 
 $GLOBALS['CFG_MANAGER_USER_IDS_MIRA'] = array(
     25,   // STANISLAV MALTSEV (ST1)
@@ -702,7 +716,7 @@ $GLOBALS['CFG_POSITION_TARGET'] = array(
 define('CACHE_DIR',     __DIR__ . '/cache/');   // Cache folder (must be writable)
 define('CACHE_TTL',     300);                    // Seconds – 5 minutes default
 define('CACHE_ENABLED', true);                   // Set false to disable during dev
-define('CACHE_VERSION', '2026-10-01-sunny-transfer-alignment-v1');
+define('CACHE_VERSION', '2026-10-12-eva-ceo-891-v1');
 
 // Explicit historical department overrides for agent transfers
 $GLOBALS['CFG_AGENT_DEPT_HISTORY_OVERRIDES'] = array(

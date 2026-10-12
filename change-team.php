@@ -56,8 +56,14 @@ try {
 }
 
 // ── 1. Fetch sales departments ──────────────────────────────────────────────
-$teams = getSalesTeams();
-$allSalesDeptIds = getSalesReportDepartmentIds(false);
+$userCompany = getUserCompany($currentUserId);
+$allowedCompanies = getUserAllowedCompanies($currentUserId);
+$canSwitch = canUserSwitchCompany($currentUserId);
+$portalCompany = (isset($_GET['company']) && $canSwitch && $_GET['company'] === COMPANY_EVA)
+    ? COMPANY_EVA
+    : (in_array(COMPANY_EVA, $allowedCompanies, true) && !in_array(COMPANY_MIRA, $allowedCompanies, true) ? COMPANY_EVA : $userCompany);
+$teams = getSalesTeams($portalCompany);
+$allSalesDeptIds = getSalesReportDepartmentIds(false, $portalCompany);
 
 $deptMap = array();
 // Pre-populate with section names from database to resolve any department

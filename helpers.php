@@ -232,10 +232,10 @@ function getUserCompany($userId)
         return COMPANY_MIRA;
     }
 
-    if ($uid === 670 || $uid === 669 || $uid === 897) {
+    if ($uid === 670 || $uid === 669 || $uid === 897 || $uid === 891) {
         return COMPANY_EVA;
     }
-    if (in_array($uid, $GLOBALS['CFG_MANAGER_USER_IDS_EVA'] ?? array(), true)) {
+    if (in_array($uid, $GLOBALS['CFG_MANAGER_USER_IDS_EVA'] ?? array(), true) || in_array($uid, $GLOBALS['CFG_CEO_USER_IDS_EVA'] ?? array(), true)) {
         return COMPANY_EVA;
     }
 
@@ -276,6 +276,78 @@ function getUserCompany($userId)
 }
 
 /**
+ * Determine if a user can switch between companies (Mira and Eva).
+ * Returns true if the user is authorized to switch between companies.
+ */
+function canUserSwitchCompany($userId)
+{
+    $uid = dbInt($userId);
+    if ($uid <= 0) {
+        return false;
+    }
+
+    // Eva-only CEOs (e.g. user 891) cannot switch companies
+    $evaOnlyCeoIds = $GLOBALS['CFG_CEO_USER_IDS_EVA_ONLY'] ?? array(891);
+    if (in_array($uid, $evaOnlyCeoIds, true)) {
+        return false;
+    }
+
+    // Bitrix Admin always has access to switch companies
+    global $USER;
+    if ($USER && method_exists($USER, 'IsAdmin') && $USER->IsAdmin() && (int)$USER->GetID() === $uid) {
+        return true;
+    }
+
+    $role = getUserRole($uid);
+    if ($role !== 'ceo') {
+        return false;
+    }
+
+    // Mira admins and CEOs have full access to both companies and can switch
+    return true;
+}
+
+/**
+ * Returns array of company codes ('mira', 'eva') allowed for the given user ID.
+ */
+function getUserAllowedCompanies($userId)
+{
+    $uid = dbInt($userId);
+    if ($uid <= 0) {
+        return array(COMPANY_MIRA);
+    }
+
+    // Eva-only CEOs (e.g. user 891) can ONLY access Eva (no Mira)
+    $evaOnlyCeoIds = $GLOBALS['CFG_CEO_USER_IDS_EVA_ONLY'] ?? array(891);
+    if (in_array($uid, $evaOnlyCeoIds, true)) {
+        return array(COMPANY_EVA);
+    }
+
+    // Bitrix admin always has access to both companies
+    global $USER;
+    if ($USER && method_exists($USER, 'IsAdmin') && $USER->IsAdmin() && (int)$USER->GetID() === $uid) {
+        return array(COMPANY_MIRA, COMPANY_EVA);
+    }
+
+    $role = getUserRole($uid);
+    if ($role === 'ceo') {
+        // Mira admins / CEOs have access to both companies
+        return array(COMPANY_MIRA, COMPANY_EVA);
+    }
+
+    return array(getUserCompany($uid));
+}
+
+/**
+ * Check if a specific company is allowed for a user.
+ */
+function isCompanyAllowedForUser($userId, $company)
+{
+    $allowed = getUserAllowedCompanies($userId);
+    return in_array(strtolower(trim((string)$company)), $allowed, true);
+}
+
+/**
  * Determine the role of a Bitrix user ID.
  * Returns 'ceo' | 'manager' | 'agent'
  */
@@ -283,6 +355,10 @@ function getUserRole($userId)
 {
     $uid = (int)$userId;
     if (in_array($uid, $GLOBALS['CFG_CEO_USER_IDS'], true)) {
+        return 'ceo';
+    }
+    global $USER;
+    if ($USER && method_exists($USER, 'IsAdmin') && $USER->IsAdmin() && (int)$USER->GetID() === $uid) {
         return 'ceo';
     }
     if (in_array($uid, $GLOBALS['CFG_MANAGER_USER_IDS'], true)) {
