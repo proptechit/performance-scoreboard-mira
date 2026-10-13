@@ -526,6 +526,14 @@ function getSalesTeams($company = 'mira')
         if (in_array(44, $teamIds, true) && !in_array(44, $existingDeptIds, true)) {
             $rows[] = array('ID' => 44, 'NAME' => "Mario's Team", 'UF_HEAD' => 669);
         }
+        foreach ($rows as &$r) {
+            if ((int)$r['ID'] === 43) {
+                $r['NAME'] = "Scott's Team";
+            } elseif ((int)$r['ID'] === 44) {
+                $r['NAME'] = "Mario's Team";
+            }
+        }
+        unset($r);
     }
 
     foreach ($rows as &$row) {

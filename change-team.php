@@ -49,7 +49,17 @@ try {
     $connection->queryExecute("
         UPDATE b_agent_dept_history h
         SET h.DEPT_NAME = 'Private Office'
-        WHERE h.DEPT_ID = 23 AND (h.DEPT_NAME IS NULL OR h.DEPT_NAME = '')
+        WHERE h.DEPT_ID = 23 AND (h.DEPT_NAME IS NULL OR h.DEPT_NAME = '' OR h.DEPT_NAME LIKE 'Department%')
+    ");
+    $connection->queryExecute("
+        UPDATE b_agent_dept_history h
+        SET h.DEPT_NAME = \"Scott's Team\"
+        WHERE h.DEPT_ID = 43 AND (h.DEPT_NAME IS NULL OR h.DEPT_NAME = '' OR h.DEPT_NAME LIKE 'Department%')
+    ");
+    $connection->queryExecute("
+        UPDATE b_agent_dept_history h
+        SET h.DEPT_NAME = \"Mario's Team\"
+        WHERE h.DEPT_ID = 44 AND (h.DEPT_NAME IS NULL OR h.DEPT_NAME = '' OR h.DEPT_NAME LIKE 'Department%')
     ");
 } catch (\Exception $e) {
     // Ignore database write/lock issues
@@ -59,10 +69,40 @@ try {
 $userCompany = getUserCompany($currentUserId);
 $allowedCompanies = getUserAllowedCompanies($currentUserId);
 $canSwitch = canUserSwitchCompany($currentUserId);
-$portalCompany = (isset($_GET['company']) && $canSwitch && $_GET['company'] === COMPANY_EVA)
-    ? COMPANY_EVA
-    : (in_array(COMPANY_EVA, $allowedCompanies, true) && !in_array(COMPANY_MIRA, $allowedCompanies, true) ? COMPANY_EVA : $userCompany);
+
+$reqCompany = isset($_POST['company']) ? trim(strtolower($_POST['company'])) : (isset($_GET['company']) ? trim(strtolower($_GET['company'])) : '');
+if ($reqCompany === COMPANY_EVA && ($canSwitch || in_array(COMPANY_EVA, $allowedCompanies, true))) {
+    $portalCompany = COMPANY_EVA;
+} elseif ($reqCompany === COMPANY_MIRA && ($canSwitch || in_array(COMPANY_MIRA, $allowedCompanies, true))) {
+    $portalCompany = COMPANY_MIRA;
+} else {
+    $portalCompany = (in_array(COMPANY_EVA, $allowedCompanies, true) && !in_array(COMPANY_MIRA, $allowedCompanies, true)) ? COMPANY_EVA : $userCompany;
+}
+
 $teams = getSalesTeams($portalCompany);
+if ($portalCompany === COMPANY_EVA) {
+    // Ensure Eva team names are always explicitly Scott's Team & Mario's Team
+    $has43 = false;
+    $has44 = false;
+    foreach ($teams as &$t) {
+        if ((int)$t['ID'] === 43) {
+            $t['NAME'] = "Scott's Team";
+            $t['DISPLAY_NAME'] = "Scott's Team";
+            $has43 = true;
+        } elseif ((int)$t['ID'] === 44) {
+            $t['NAME'] = "Mario's Team";
+            $t['DISPLAY_NAME'] = "Mario's Team";
+            $has44 = true;
+        }
+    }
+    unset($t);
+    if (!$has43) {
+        $teams[] = array('ID' => 43, 'NAME' => "Scott's Team", 'DISPLAY_NAME' => "Scott's Team", 'UF_HEAD' => 670);
+    }
+    if (!$has44) {
+        $teams[] = array('ID' => 44, 'NAME' => "Mario's Team", 'DISPLAY_NAME' => "Mario's Team", 'UF_HEAD' => 669);
+    }
+}
 $allSalesDeptIds = getSalesReportDepartmentIds(false, $portalCompany);
 
 $deptMap = array();
@@ -73,6 +113,9 @@ foreach ($allDepts as $d) {
 }
 $deptMap[23] = 'Private Office';
 $deptMap[3]  = 'Sales';
+$deptMap[36] = 'Sales';
+$deptMap[43] = "Scott's Team";
+$deptMap[44] = "Mario's Team";
 
 // ── 2. Handle POST Department Transfer ───────────────────────────────────────
 $successMessage = '';
@@ -91,10 +134,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $errorMessage = "Agent not found or is inactive.";
         } else {
             // Verify new department is allowed
-            if (!in_array($newDeptId, $allSalesDeptIds, true) && $newDeptId !== 23) {
+            $validTargetIds = array_map(function ($t) { return (int)$t['ID']; }, $teams);
+            if ($portalCompany === COMPANY_MIRA && !in_array(23, $validTargetIds, true)) {
+                $validTargetIds[] = 23;
+            }
+
+            if (!in_array($newDeptId, $validTargetIds, true)) {
                 $errorMessage = "Selected department is not a valid sales team.";
             } else {
-                $currentDeptId = getUserDeptId($agentId);
+                $currentDeptId = getUserDeptId($agentId, $portalCompany);
                 if ($currentDeptId <= 0) {
                     $errorMessage = "Could not determine the agent's current department.";
                 } elseif ($currentDeptId === $newDeptId) {
@@ -161,9 +209,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                         $connection->queryExecute("DELETE FROM b_utm_user WHERE VALUE_ID = {$agentId} AND FIELD_ID = 40");
                         $connection->queryExecute("INSERT INTO b_utm_user (VALUE_ID, FIELD_ID, VALUE, VALUE_INT) VALUES ({$agentId}, 40, '{$newDeptId}', {$newDeptId})");
 
+                        // Update company enumeration on user profile if relevant
+                        $companyEnumVal = ($portalCompany === COMPANY_EVA) ? COMPANY_USER_EVA : COMPANY_USER_MIRA;
+                        try {
+                            $connection->queryExecute("UPDATE b_uts_user SET " . FIELD_COMPANY_USER . " = {$companyEnumVal} WHERE VALUE_ID = {$agentId}");
+                        } catch (\Exception $e) {
+                            // Ignore if field doesn't exist
+                        }
+
                         if (class_exists('CUser')) {
                             $cuser = new CUser;
-                            $cuser->Update($agentId, array("UF_DEPARTMENT" => array($newDeptId)));
+                            $updateFields = array("UF_DEPARTMENT" => array($newDeptId));
+                            if (defined('FIELD_COMPANY_USER')) {
+                                $updateFields[FIELD_COMPANY_USER] = $companyEnumVal;
+                            }
+                            $cuser->Update($agentId, $updateFields);
                         }
 
                         // D. Clear scoreboard caches
@@ -188,7 +248,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 }
 
 // ── 3. Fetch active agents for the selector ──────────────────────────────────
-$agentsData = getAgentsByDept($allSalesDeptIds, false);
+$searchDeptIds = getSalesReportDepartmentIds(true, $portalCompany);
+$agentsData = getAgentsByDept($searchDeptIds, false, null, $portalCompany);
 $historyCounts = array();
 $hCountRows = dbQuery("SELECT USER_ID, COUNT(*) AS CNT FROM b_agent_dept_history GROUP BY USER_ID");
 foreach ($hCountRows as $hc) {
@@ -198,12 +259,12 @@ foreach ($hCountRows as $hc) {
 $agentsList = array();
 foreach ($agentsData as $a) {
     $uid = (int)$a['ID'];
-    $currentDeptId = getUserDeptId($uid);
+    $currentDeptId = getUserDeptId($uid, $portalCompany);
     $agentsList[] = array(
         'id' => $uid,
         'name' => trim(($a['NAME'] ?? '') . ' ' . ($a['LAST_NAME'] ?? '')),
         'dept_id' => $currentDeptId,
-        'dept_name' => $deptMap[$currentDeptId] ?? 'Unknown Team',
+        'dept_name' => $deptMap[$currentDeptId] ?? ($currentDeptId > 0 ? ('Department ' . $currentDeptId) : 'Unassigned'),
         'designation' => $a['WORK_POSITION'] ?? 'Agent',
         'has_history' => !empty($historyCounts[$uid]) ? 1 : 0
     );
@@ -215,10 +276,12 @@ usort($agentsList, function ($a, $b) {
 });
 
 // ── 4. Fetch recent history log ──────────────────────────────────────────────
+$historyDeptIds = getSalesReportDepartmentIds(true, $portalCompany);
 $historyRows = dbQuery("
-    SELECT h.USER_ID, h.DEPT_ID, h.EFFECTIVE_FROM, h.EFFECTIVE_TO, u.NAME, u.LAST_NAME 
+    SELECT h.USER_ID, h.DEPT_ID, h.DEPT_NAME, h.EFFECTIVE_FROM, h.EFFECTIVE_TO, u.NAME, u.LAST_NAME 
     FROM b_agent_dept_history h 
     LEFT JOIN b_user u ON u.ID = h.USER_ID 
+    WHERE h.DEPT_ID IN " . inClauseInt($historyDeptIds) . "
     ORDER BY h.EFFECTIVE_FROM DESC, h.EFFECTIVE_TO DESC 
     LIMIT 20
 ");
@@ -285,13 +348,27 @@ $historyRows = dbQuery("
     <!-- ── HEADER ─────────────────────────────────────────────────────────────── -->
     <header class="header-bg py-4 px-6 text-white flex items-center justify-between">
         <div class="flex items-center gap-4">
-            <span class="text-xl font-semibold tracking-wide gold-text">Mira International</span>
+            <span class="text-xl font-semibold tracking-wide gold-text">
+                <?= $portalCompany === COMPANY_EVA ? 'Eva Real Estate' : 'Mira International' ?>
+            </span>
             <div class="h-6 w-[1px] bg-gray-600"></div>
             <span class="text-sm font-medium text-gray-300">Agent Team Transfer Portal</span>
         </div>
-        <a href="index.php" class="text-xs font-semibold px-4 py-2 border border-gray-600 hover:border-white rounded-lg transition">
-            Back to Scoreboard
-        </a>
+        <div class="flex items-center gap-4">
+            <?php if ($canSwitch || count($allowedCompanies) > 1): ?>
+                <div class="company-toggle-container flex items-center gap-2">
+                    <span class="company-toggle-label text-xs uppercase tracking-wider text-gray-400 font-semibold hidden sm:inline">Company</span>
+                    <div class="company-toggle-pill flex bg-white/10 border border-white/20 rounded-full p-1 gap-1">
+                        <a href="?company=mira" class="company-toggle-btn px-3 py-1 rounded-full text-xs font-semibold transition <?= $portalCompany === COMPANY_MIRA ? 'bg-[#c9a84c] text-[#0f1e35] shadow font-bold' : 'text-gray-300 hover:text-white hover:bg-white/10' ?>">Mira</a>
+                        <a href="?company=eva" class="company-toggle-btn px-3 py-1 rounded-full text-xs font-semibold transition <?= $portalCompany === COMPANY_EVA ? 'bg-[#c9a84c] text-[#0f1e35] shadow font-bold' : 'text-gray-300 hover:text-white hover:bg-white/10' ?>">Eva DXB</a>
+                    </div>
+                </div>
+                <div class="h-6 w-[1px] bg-gray-600 hidden sm:block"></div>
+            <?php endif; ?>
+            <a href="index.php<?= $portalCompany === COMPANY_EVA ? '?company=eva' : '' ?>" class="text-xs font-semibold px-4 py-2 border border-gray-600 hover:border-white rounded-lg transition">
+                Back to Scoreboard
+            </a>
+        </div>
     </header>
 
     <!-- ── MAIN CONTENT ───────────────────────────────────────────────────────── -->
@@ -301,8 +378,18 @@ $historyRows = dbQuery("
         <div class="lg:col-span-5 flex flex-col gap-6">
             
             <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-                <h2 class="text-lg font-bold text-gray-800 mb-2">Transfer Agent</h2>
-                <p class="text-xs text-gray-500 mb-6">Select an active agent and move them to a new department. A new record will be logged in department history.</p>
+                <div class="flex items-center justify-between mb-2">
+                    <h2 class="text-lg font-bold text-gray-800">Transfer Agent</h2>
+                    <?php if ($canSwitch || count($allowedCompanies) > 1): ?>
+                        <div class="flex bg-gray-100 p-1 rounded-xl text-xs font-semibold">
+                            <a href="?company=mira" class="px-3 py-1.5 rounded-lg transition <?= $portalCompany === COMPANY_MIRA ? 'bg-white shadow text-[#0f1e35] font-bold' : 'text-gray-500 hover:text-gray-900' ?>">Mira</a>
+                            <a href="?company=eva" class="px-3 py-1.5 rounded-lg transition <?= $portalCompany === COMPANY_EVA ? 'bg-white shadow text-[#0f1e35] font-bold' : 'text-gray-500 hover:text-gray-900' ?>">Eva DXB</a>
+                        </div>
+                    <?php else: ?>
+                        <span class="px-2.5 py-1 text-xs font-bold rounded-lg <?= $portalCompany === COMPANY_EVA ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800' ?>"><?= $portalCompany === COMPANY_EVA ? 'Eva DXB' : 'Mira' ?></span>
+                    <?php endif; ?>
+                </div>
+                <p class="text-xs text-gray-500 mb-6">Select an active <?= $portalCompany === COMPANY_EVA ? 'Eva' : 'Mira' ?> agent and move them to a new department. A new record will be logged in department history.</p>
 
                 <?php if ($successMessage): ?>
                     <div class="mb-6 p-4 rounded-xl bg-green-50 border border-green-200 text-sm text-green-800">
@@ -316,8 +403,9 @@ $historyRows = dbQuery("
                     </div>
                 <?php endif; ?>
 
-                <form method="POST" action="" onsubmit="return confirmTransfer(event)">
+                <form method="POST" action="?company=<?= htmlspecialchars($portalCompany) ?>" onsubmit="return confirmTransfer(event)">
                     <input type="hidden" name="action" value="change_team">
+                    <input type="hidden" name="company" value="<?= htmlspecialchars($portalCompany) ?>">
                     
                     <!-- Agent Search Selector -->
                     <div class="mb-5 relative">
@@ -339,7 +427,7 @@ $historyRows = dbQuery("
                         <!-- Dropdown panel -->
                         <div id="agentDropdown" class="hidden absolute left-0 right-0 mt-2 bg-white border border-gray-200 rounded-xl overflow-hidden dropdown-shadow z-50 max-h-64 overflow-y-auto">
                             <?php if (empty($agentsList)): ?>
-                                <div class="p-4 text-xs text-gray-400 text-center">No active agents found</div>
+                                <div class="p-4 text-xs text-gray-400 text-center">No active <?= $portalCompany === COMPANY_EVA ? 'Eva' : 'Mira' ?> agents found</div>
                             <?php else: ?>
                                 <?php foreach ($agentsList as $agent): ?>
                                     <div class="agent-option p-3 hover:bg-gray-50 cursor-pointer flex items-center justify-between border-b border-gray-50 last:border-0"
@@ -374,12 +462,12 @@ $historyRows = dbQuery("
                         <select name="new_dept_id" id="targetDeptSelect" required
                             class="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#c9a84c] focus:border-[#c9a84c] bg-white">
                             <option value="">-- Choose New Department --</option>
-                            <!-- Also allow Private Office (23) explicitly -->
-                            <option value="23">Private Office</option>
+                            <?php if ($portalCompany === COMPANY_MIRA): ?>
+                                <option value="23">Private Office</option>
+                            <?php endif; ?>
                             <?php foreach ($teams as $t): ?>
-                                <?php if ((int)$t['ID'] !== 23): ?>
-                                    <option value="<?= $t['ID'] ?>"><?= htmlspecialchars($t['DISPLAY_NAME'] ?: $t['NAME']) ?></option>
-                                <?php endif; ?>
+                                <?php if ($portalCompany === COMPANY_MIRA && (int)$t['ID'] === 23) continue; ?>
+                                <option value="<?= $t['ID'] ?>"><?= htmlspecialchars(($portalCompany === COMPANY_EVA && isset($deptMap[(int)$t['ID']])) ? $deptMap[(int)$t['ID']] : ($t['DISPLAY_NAME'] ?: $t['NAME'])) ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
@@ -401,7 +489,7 @@ $historyRows = dbQuery("
                 <div class="flex items-center justify-between mb-6">
                     <div>
                         <h2 class="text-lg font-bold text-gray-800">Transfer History</h2>
-                        <p class="text-xs text-gray-500">Recent team adjustments recorded in b_agent_dept_history</p>
+                        <p class="text-xs text-gray-500">Recent <?= $portalCompany === COMPANY_EVA ? 'Eva' : 'Mira' ?> team adjustments recorded in b_agent_dept_history</p>
                     </div>
                     <span class="text-[10px] font-bold px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-full">Database Sync Live</span>
                 </div>
@@ -419,7 +507,7 @@ $historyRows = dbQuery("
                         <tbody class="divide-y divide-gray-50">
                             <?php if (empty($historyRows)): ?>
                                 <tr>
-                                    <td colspan="4" class="py-8 text-center text-gray-400">No transfer history records found</td>
+                                    <td colspan="4" class="py-8 text-center text-gray-400">No transfer history records found for <?= $portalCompany === COMPANY_EVA ? 'Eva' : 'Mira' ?></td>
                                 </tr>
                             <?php else: ?>
                                 <?php foreach ($historyRows as $row): ?>
@@ -428,7 +516,7 @@ $historyRows = dbQuery("
                                         if ($fullName === '') {
                                             $fullName = 'User ID: ' . $row['USER_ID'];
                                         }
-                                        $deptName = $deptMap[(int)$row['DEPT_ID']] ?? ('Dept ' . $row['DEPT_ID']);
+                                        $deptName = $deptMap[(int)$row['DEPT_ID']] ?? (!empty($row['DEPT_NAME']) ? $row['DEPT_NAME'] : ('Dept ' . $row['DEPT_ID']));
                                         $effFrom = !empty($row['EFFECTIVE_FROM']) ? convertBitrixDateToString($row['EFFECTIVE_FROM'], 'd/m/Y') : '-';
                                         $effTo = !empty($row['EFFECTIVE_TO']) && $row['EFFECTIVE_TO'] !== '0000-00-00' ? convertBitrixDateToString($row['EFFECTIVE_TO'], 'd/m/Y') : 'Active';
                                     ?>
@@ -460,7 +548,7 @@ $historyRows = dbQuery("
 
     <!-- Footer -->
     <footer class="py-6 text-center text-xs text-gray-400 border-t border-gray-100 bg-white">
-        Mira International Performance Scoreboard &copy; 2026. All rights reserved.
+        <?= $portalCompany === COMPANY_EVA ? 'Eva Real Estate' : 'Mira International' ?> Performance Scoreboard &copy; <?= date('Y') ?>. All rights reserved.
     </footer>
 
     <!-- ── JAVASCRIPT LOGIC ────────────────────────────────────────────────────── -->

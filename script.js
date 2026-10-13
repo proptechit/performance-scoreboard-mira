@@ -1,6 +1,7 @@
 // ── STATE ──────────────────────────────────────────────────────────────────
 let currentData = null;
-let currentCompany = "mira";
+const _urlCompanyParam = typeof window !== 'undefined' && window.location ? new URLSearchParams(window.location.search).get("company") : null;
+let currentCompany = _urlCompanyParam === "eva" ? "eva" : "mira";
 let compareMetric = "sales";
 let charts = {};
 const tableSortState = {
